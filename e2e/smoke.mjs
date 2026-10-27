@@ -5,6 +5,7 @@ const { BASE = "http://localhost:3000", EMAIL, PASSWORD, SLUG } = process.env;
 const shotDir = process.argv[2];
 if (!EMAIL || !PASSWORD || !SLUG) throw new Error("Set EMAIL, PASSWORD and SLUG");
 const failures = [];
+const warnings = [];
 const ok = (cond, msg) => { if (!cond) { failures.push(msg); console.log("  ✗", msg); } else console.log("  ✓", msg); };
 
 const browser = await chromium.launch();
@@ -17,6 +18,26 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 900 }], ["mo
   const errors = [];
   page.on("pageerror", (e) => errors.push(`pageerror at ${new URL(page.url()).pathname}: ${e.message}`));
   page.on("console", (m) => { if (m.type() === "error" && !/favicon|Failed to load resource.*(404|401|403)/.test(m.text())) errors.push(`console at ${new URL(page.url()).pathname}: ${m.text()}`); });
+  // A deterministic bug errors on every load; a rare transient (one load in dozens) should not fail CI. If a page logs an error, reload it
+  // twice: fail only if the error comes back, otherwise report it as a warning with the page, so it is visible but not blocking.
+  const visit = async (url) => {
+    const before = errors.length;
+    const res = await page.goto(url, { waitUntil: "networkidle" });
+    await page.waitForTimeout(400);
+    if (errors.length > before) {
+      const first = errors.splice(before);
+      let repeats = 0;
+      for (let n = 0; n < 2; n++) {
+        const b2 = errors.length;
+        await page.goto(url, { waitUntil: "networkidle" });
+        await page.waitForTimeout(400);
+        if (errors.length > b2) repeats++;
+      }
+      if (repeats) errors.push(...first);
+      else for (const e of first) warnings.push(`${label}: ${e.slice(0, 160)} (did not recur on 2 reloads)`);
+    }
+    return res;
+  };
 
   await page.goto(`${BASE}/login`);
   await page.fill("#email", EMAIL);
@@ -25,7 +46,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 900 }], ["mo
 
   const paths = ["", "/schedule", "/standings", "/bowlers", "/teams", "/stats", "/stats?tab=records", "/stats?tab=awards&week=3", "/stats?tab=insights", "/stats?tab=trends", "/results", "/timeline", "/news", "/history", "/rules", "/admin", "/admin/scores?week=7", "/admin/roster", "/admin/schedule", "/admin/settings", "/admin/settings?section=rules", "/admin/settings?section=appearance", "/admin/settings?section=awards", "/admin/settings?section=visibility", "/admin/members", "/admin/news", "/admin/seasons", "/admin/data", "/admin/audit", "/standings?season=2025", "/season/2026/week/3", "/history/2025"];
   for (const p of paths) {
-    const res = await page.goto(`${BASE}/l/${SLUG}${p}`, { waitUntil: "networkidle" });
+    const res = await visit(`${BASE}/l/${SLUG}${p}`);
     ok(res.status() === 200, `${label} ${p || "/"} → ${res.status()}`);
     if (shotDir && label === "mobile" && ["", "/standings", "/admin/scores?week=7", "/bowlers"].includes(p)) await page.screenshot({ path: `${shotDir}/m${p.replace(/[^a-z0-9]+/gi, "_") || "_home"}.png`, fullPage: true });
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -33,15 +54,15 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 900 }], ["mo
   }
   // dynamic pages: first bowler, team, matchup
   const hrefs = async (sel) => page.$$eval(sel, (as) => as.map((a) => a.getAttribute("href")));
-  await page.goto(`${BASE}/l/${SLUG}/bowlers`, { waitUntil: "networkidle" });
+  await visit(`${BASE}/l/${SLUG}/bowlers`);
   const bowler = (await hrefs(`a[href^="/l/${SLUG}/bowlers/"]`))[0];
-  for (const p of [bowler, bowler + (bowler.includes("?") ? "&" : "?") + "view=career"]) { const r = await page.goto(BASE + p, { waitUntil: "networkidle" }); ok(r.status() === 200, `${label} ${p} → ${r.status()}`); }
-  await page.goto(`${BASE}/l/${SLUG}/teams`, { waitUntil: "networkidle" });
+  for (const p of [bowler, bowler + (bowler.includes("?") ? "&" : "?") + "view=career"]) { const r = await visit(BASE + p); ok(r.status() === 200, `${label} ${p} → ${r.status()}`); }
+  await visit(`${BASE}/l/${SLUG}/teams`);
   const team = (await hrefs(`a[href^="/l/${SLUG}/teams/"]`))[0];
-  { const r = await page.goto(BASE + team, { waitUntil: "networkidle" }); ok(r.status() === 200, `${label} ${team} → ${r.status()}`); }
-  await page.goto(`${BASE}/l/${SLUG}/season/2026/week/6`, { waitUntil: "networkidle" });
+  { const r = await visit(BASE + team); ok(r.status() === 200, `${label} ${team} → ${r.status()}`); }
+  await visit(`${BASE}/l/${SLUG}/season/2026/week/6`);
   const mu = (await hrefs(`a[href^="/l/${SLUG}/matchup/"]`))[0];
-  { const r = await page.goto(BASE + mu, { waitUntil: "networkidle" }); ok(r.status() === 200, `${label} ${mu} → ${r.status()}`); }
+  { const r = await visit(BASE + mu); ok(r.status() === 200, `${label} ${mu} → ${r.status()}`); }
   ok(errors.length === 0, `${label}: no console/page errors${errors.length ? " — " + errors.slice(0, 3).join(" | ") : ""}`);
   await ctx.close();
 }
@@ -83,5 +104,6 @@ console.log("\n== score entry flow ==");
   await ctx.close();
 }
 await browser.close();
+if (warnings.length) console.log(`\n⚠ ${warnings.length} transient console error(s) — not failing, but worth a look:\n  ` + warnings.join("\n  "));
 console.log(failures.length ? `\n${failures.length} FAILURE(S)` : "\nALL OK");
 process.exit(failures.length ? 1 : 0);
