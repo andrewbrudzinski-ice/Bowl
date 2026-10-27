@@ -11,10 +11,12 @@ const browser = await chromium.launch();
 for (const [label, viewport] of [["desktop", { width: 1280, height: 900 }], ["mobile", { width: 390, height: 844 }]]) {
   console.log(`\n== ${label} ==`);
   const ctx = await browser.newContext({ viewport });
+  // Phones expose native sharing; desktop Chromium doesn't. Server HTML must match the first client render either way (hydration).
+  if (label === "mobile") await ctx.addInitScript(() => Object.defineProperty(navigator, "share", { value: () => Promise.resolve(), configurable: true }));
   const page = await ctx.newPage();
   const errors = [];
-  page.on("pageerror", (e) => errors.push("pageerror: " + e.message));
-  page.on("console", (m) => { if (m.type() === "error" && !/favicon|Failed to load resource.*(404|401|403)/.test(m.text())) errors.push("console: " + m.text()); });
+  page.on("pageerror", (e) => errors.push(`pageerror at ${new URL(page.url()).pathname}: ${e.message}`));
+  page.on("console", (m) => { if (m.type() === "error" && !/favicon|Failed to load resource.*(404|401|403)/.test(m.text())) errors.push(`console at ${new URL(page.url()).pathname}: ${m.text()}`); });
 
   await page.goto(`${BASE}/login`);
   await page.fill("#email", EMAIL);
