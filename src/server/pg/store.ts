@@ -4,6 +4,7 @@ import { assertSync, type DB, type Scope, type Store } from "../db";
 import type { SqlClient, SqlTx } from "./client";
 import { CODECS, CODEC_BY_NAME, canon, type Codec, type CollectionName } from "./codecs";
 import { assertMigrated, migrate } from "./migrate";
+import { acquireLocks, checkWrites, planLocks } from "./locks";
 import { filterFor } from "./scope";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -49,8 +50,6 @@ const summarize = (plans: Plan[]) =>
     }))
     .sort((a, b) => (a.t < b.t ? -1 : 1));
 
-/** One global writer lock: transactions serialize across every app instance, so read-modify-write is safe. */
-const WRITE_LOCK = 7283561;
 const INSERT_CHUNK = 400;
 
 export interface PgStoreOptions {
@@ -59,6 +58,8 @@ export interface PgStoreOptions {
    * resulting changes differ. Catches a scope that is missing rows the operation actually needed.
    */
   verifyScope?: boolean;
+  /** Test hooks. `afterLock` runs once a write transaction holds its locks, before it reads anything. */
+  hooks?: { afterLock?(info: { exclusive: boolean; keys: string[] }): Promise<void> | void };
   /** Apply pending migrations on first use (local dev / PGlite). Production should run `npm run db:migrate` instead. */
   autoMigrate?: boolean;
 }
@@ -136,10 +137,13 @@ export class PgStore implements Store {
     await this.init();
     return this.wrap(() =>
       this.client.transaction(async (tx) => {
-        await tx.query("select pg_advisory_xact_lock($1)", [WRITE_LOCK]);
-        const sc = await this.resolve(tx, scope);
+        const locks = await planLocks(tx, scope);
+        await acquireLocks(tx, locks);
+        await this.opts.hooks?.afterLock?.({ exclusive: locks.exclusive, keys: locks.keys });
+        const sc = locks.scope;
         const run = await this.execute(tx, fn, true, sc);
         const plans = this.plan(run.arrays, run.loaded, run.virtual);
+        checkWrites(locks, plans.map((p) => ({ collection: p.codec.collection, before: [...p.updated.map((u) => u.before), ...p.deleted] })), scope);
         if (this.opts.verifyScope && sc) {
           const full = await this.execute(tx, fn, true, undefined);
           this.compare("transaction", norm({ r: run.result, p: summarize(plans) }), norm({ r: full.result, p: summarize(this.plan(full.arrays, full.loaded, full.virtual)) }), scope);
