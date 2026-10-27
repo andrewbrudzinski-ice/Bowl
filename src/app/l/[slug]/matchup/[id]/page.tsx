@@ -60,24 +60,25 @@ export default async function MatchupPage({ params }: { params: Promise<{ slug: 
   const enB = r.b ? entering(r.b) : null;
 
   // Head-to-head across every season of this league (official results only)
-  const h2h: { season: string; week: number; id: string; text: string; winner: string | null }[] = [];
-  if (B) {
-    await getStore().read((db) => {
-      for (const s of ctx.seasons) {
-        const m2 = s.id === ctx.season!.id ? model : buildSeasonModel(seasonData(db, ctx.league.id, s.id));
-        for (const x of m2.results) {
-          if (!x.official || x.isBye || x.matchup.id === id || x.matchup.kind !== r.matchup.kind || !x.b || !x.winner) continue;
-          const ids = [x.a.participantId, x.b.participantId];
-          if (!(ids.includes(A.id) && ids.includes(B.id))) continue;
-          if (s.id === ctx.season!.id && x.weekNumber > r.weekNumber) continue;
-          const aSide = x.a.participantId === A.id ? x.a : x.b;
-          const bSide = x.a.participantId === A.id ? x.b : x.a;
-          const w = x.winner === "tie" ? null : (x.winner === "A" ? x.a.participantId : x.b.participantId);
-          h2h.push({ season: s.name, week: x.weekNumber, id: x.matchup.id, text: `${A.name} ${fmtPts(aSide.points)} – ${fmtPts(bSide.points)} ${B.name} (${aSide.basisSeries}–${bSide.basisSeries} pins)`, winner: w === A.id ? A.name : w === B.id ? B.name : "Tie" });
-        }
+  type H2H = { season: string; week: number; id: string; text: string; winner: string | null };
+  // Built inside the callback and returned: the store may re-run a callback, so it must not push into outer state.
+  const h2h: H2H[] = B ? await getStore().read((db) => {
+    const out: H2H[] = [];
+    for (const s of ctx.seasons) {
+      const m2 = s.id === ctx.season!.id ? model : buildSeasonModel(seasonData(db, ctx.league.id, s.id));
+      for (const x of m2.results) {
+        if (!x.official || x.isBye || x.matchup.id === id || x.matchup.kind !== r.matchup.kind || !x.b || !x.winner) continue;
+        const ids = [x.a.participantId, x.b.participantId];
+        if (!(ids.includes(A.id) && ids.includes(B.id))) continue;
+        if (s.id === ctx.season!.id && x.weekNumber > r.weekNumber) continue;
+        const aSide = x.a.participantId === A.id ? x.a : x.b;
+        const bSide = x.a.participantId === A.id ? x.b : x.a;
+        const w = x.winner === "tie" ? null : (x.winner === "A" ? x.a.participantId : x.b.participantId);
+        out.push({ season: s.name, week: x.weekNumber, id: x.matchup.id, text: `${A.name} ${fmtPts(aSide.points)} – ${fmtPts(bSide.points)} ${B.name} (${aSide.basisSeries}–${bSide.basisSeries} pins)`, winner: w === A.id ? A.name : w === B.id ? B.name : "Tie" });
       }
-    }, { leagueId: ctx.league.id });
-  }
+    }
+    return out;
+  }, { leagueId: ctx.league.id }) : [];
   const share = shareHref(ctx, `/l/${slug}/matchup/${id}`);
   const G = cfg.scoring.gamesPerSession;
   const proj = !status.final && enA != null && enB != null && B ? { a: enA * G, b: enB * G, ha: r.a.lineup.reduce((t, l) => t + l.handicap, 0) * G, hb: r.b!.lineup.reduce((t, l) => t + l.handicap, 0) * G } : null;

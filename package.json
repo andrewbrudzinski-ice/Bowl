@@ -15,7 +15,8 @@
     "db:migrate": "tsx scripts/migrate.ts",
     "db:import-file": "tsx scripts/import-file-store.ts",
     "test:pg": "BOWL_TEST_STORE=pglite vitest run",
-    "test:pg:server": "BOWL_TEST_STORE=pg vitest run"
+    "test:pg:server": "BOWL_TEST_STORE=pg vitest run",
+    "check:callbacks": "node scripts/check-store-callbacks.cjs"
   },
   "dependencies": {
     "lucide-react": "^1.61.0",

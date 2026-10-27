@@ -37,7 +37,7 @@ The services were written against an in-memory `db` object with synchronous call
 
 1. A transaction opens a Postgres transaction and takes a **global advisory lock**, so writers across *all* app instances are serialized. Read-modify-write logic
    (duplicate checks, revision checks, finalize) is therefore race-free, and the app can run on several instances.
-2. The callback runs against a draft. When it touches a table not yet loaded, that table is loaded and the callback re-runs (so callbacks must be free of side effects outside `db`).
+2. The callback runs against a draft. When it touches a table not yet loaded, that table is loaded and the callback re-runs (so callbacks must be free of side effects outside `db`); `npm run check:callbacks` fails on any callback that mutates outer state, and CI runs it).
 3. The draft is diffed against what was loaded and only the inserted/updated/deleted rows are written (updates before inserts, deletes first, parents before children),
    then committed. Any thrown error rolls the whole thing back — the rollback tests (`failure part-way through a multi-record update`) run against Postgres too.
 4. Reads use a `REPEATABLE READ READ ONLY` snapshot.
@@ -83,6 +83,8 @@ npm run test:pg                           # same suite on embedded Postgres (PGl
 BOWL_VERIFY_SCOPE=1 npm run test:pg       # …and prove every scoped load returns what the full load would
 TEST_DATABASE_URL=postgresql://postgres@localhost:5432/postgres npm run test:pg:server   # a real server; one throwaway database per test file
 ```
+
+CI (`.github/workflows/ci.yml`) runs typecheck, `check:callbacks`, the production build, and the suite on the file store, PGlite and a PostgreSQL 16 service container — the last two with `BOWL_VERIFY_SCOPE=1`.
 
 ## Migrations workflow
 
