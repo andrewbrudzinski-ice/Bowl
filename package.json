@@ -13,6 +13,7 @@
     "db:backup": "tsx scripts/backup.ts",
     "recover-owner": "tsx scripts/recover-owner.ts",
     "db:migrate": "tsx scripts/migrate.ts",
+    "db:check": "tsx scripts/db-check.ts",
     "db:import-file": "tsx scripts/import-file-store.ts",
     "test:pg": "BOWL_TEST_STORE=pglite vitest run",
     "test:pg:server": "BOWL_TEST_STORE=pg vitest run",
