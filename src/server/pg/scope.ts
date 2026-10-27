@@ -68,6 +68,8 @@ export function filterFor(collection: CollectionName, scope: Scope | undefined):
     case "seasons":
     case "teams":
     case "bowlers":
+      if (U && scope.userLeagues?.includes(collection)) conds.push(`league_id in (select league_id from memberships where user_id = any(${p(U)}::uuid[]))`);
+    // falls through
     case "announcements":
     case "commissionerAwards":
     case "templates":

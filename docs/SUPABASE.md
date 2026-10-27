@@ -51,7 +51,7 @@ Consequences you should know:
   - A call without a scope still loads whole tables (correct, just slow) — the safe default for new code. Add a scope when a path becomes hot.
   - The audit log is write-only inside transactions; the audit page and activity feed load only that league's rows.
   - Expired sessions, reset tokens and idempotency keys are swept once at process start (scoped transactions only see their own slice).
-  - **Still unscoped:** the "copy rules from another league" picker on `/leagues/new`. It spans every league the user belongs to and loads whole tables.
+  - `userLeagues: ["seasons"]` loads those collections for every league the scope's `userIds` belong to (used by the "copy rules from another league" picker). Nothing is left unscoped on purpose; new code without a scope still works, just loads whole tables.
   - **Write lock is still global** (below), so scoping reduces load time and memory, not write serialization.
   - A scope that is too narrow would make a callback see *less* data than it needs. `BOWL_VERIFY_SCOPE=1` guards against that: each scoped operation is re-run on full tables inside the
     same transaction and the result (and the rows it would write) must match, otherwise it throws `Scope mismatch`. It roughly doubles the work, so use it in tests/CI and when
