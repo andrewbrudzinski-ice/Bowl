@@ -121,30 +121,6 @@ export function FormChips({ form }: { form: ("W" | "L" | "T")[] }) {
   );
 }
 
-export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`skeleton ${className}`} aria-hidden />;
-}
-
-export function SkeletonPage({ rows = 6 }: { rows?: number }) {
-  return (
-    <div role="status" aria-label="Loading">
-      <Skeleton className="mb-2 h-6 w-48" />
-      <Skeleton className="mb-5 h-4 w-72" />
-      <div className="grid gap-3 md:grid-cols-3">
-        <Skeleton className="h-16" />
-        <Skeleton className="h-16" />
-        <Skeleton className="h-16" />
-      </div>
-      <div className="mt-4 grid gap-2">
-        {Array.from({ length: rows }).map((_, i) => (
-          <Skeleton key={i} className="h-9" />
-        ))}
-      </div>
-      <span className="sr-only">Loading…</span>
-    </div>
-  );
-}
-
 export function Tabs({ items, current }: { items: { href: string; label: string; key: string }[]; current: string }) {
   return (
     <nav className="pill-nav mb-4" aria-label="Sections">
