@@ -79,3 +79,65 @@ jobs:
         env:
           BOWL_VERIFY_SCOPE: "1"
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+
+  # Drives the real production build in a browser against PostgreSQL: every league page at desktop and phone width (status codes,
+  # horizontal overflow, console and hydration errors), score entry through finalize, and the league wizard with access checks.
+  e2e:
+    name: Browser tests (production build, PostgreSQL 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bowl_e2e
+      SESSION_SECRET: ci-e2e-only-not-a-real-secret
+      APP_URL: http://localhost:3000
+      BASE: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Create and migrate the database
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c "create database bowl_e2e"
+          npm run db:migrate
+      - name: Seed the demo league
+        run: |
+          out=$(npx tsx scripts/seed-demo.ts ci@example.com)
+          password=$(printf '%s\n' "$out" | sed -n 's/.*password: \([^ ]*\).*/\1/p')
+          slug=$(printf '%s\n' "$out" | sed -n 's|.*Demo league created: /l/\(.*\)|\1|p')
+          test -n "$password" && test -n "$slug"
+          echo "::add-mask::$password"
+          echo "EMAIL=ci@example.com" >> "$GITHUB_ENV"
+          echo "PASSWORD=$password" >> "$GITHUB_ENV"
+          echo "SLUG=$slug" >> "$GITHUB_ENV"
+      - run: npm run build
+      - name: Start the app
+        run: |
+          nohup npm start > server.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS "$BASE/api/health" > /dev/null 2>&1 && exit 0
+            sleep 1
+          done
+          echo "App did not become healthy"; cat server.log; exit 1
+      - name: Smoke test (every page, score entry, finalize)
+        run: node e2e/smoke.mjs
+      - name: League wizard and access boundaries
+        run: OTHER_SLUG="$SLUG" node e2e/wizard.mjs
+      - name: Server log
+        if: failure()
+        run: cat server.log
