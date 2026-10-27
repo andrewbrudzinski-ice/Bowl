@@ -356,18 +356,18 @@ export function exportBundle(store: Store, actor: Actor, leagueId: Id) {
 
 const bundleSchema = z.object({
   format: z.literal(BUNDLE_FORMAT),
-  league: z.record(z.unknown()),
-  seasons: z.array(z.record(z.unknown())),
-  teams: z.array(z.record(z.unknown())),
-  bowlers: z.array(z.record(z.unknown())),
-  roster: z.array(z.record(z.unknown())),
-  weeks: z.array(z.record(z.unknown())),
-  matchups: z.array(z.record(z.unknown())),
-  scores: z.array(z.record(z.unknown())),
-  announcements: z.array(z.record(z.unknown())).default([]),
-  commissionerAwards: z.array(z.record(z.unknown())).default([]),
-  templates: z.array(z.record(z.unknown())).default([]),
-  audit: z.array(z.record(z.unknown())).default([]),
+  league: z.record(z.string(), z.unknown()),
+  seasons: z.array(z.record(z.string(), z.unknown())),
+  teams: z.array(z.record(z.string(), z.unknown())),
+  bowlers: z.array(z.record(z.string(), z.unknown())),
+  roster: z.array(z.record(z.string(), z.unknown())),
+  weeks: z.array(z.record(z.string(), z.unknown())),
+  matchups: z.array(z.record(z.string(), z.unknown())),
+  scores: z.array(z.record(z.string(), z.unknown())),
+  announcements: z.array(z.record(z.string(), z.unknown())).default([]),
+  commissionerAwards: z.array(z.record(z.string(), z.unknown())).default([]),
+  templates: z.array(z.record(z.string(), z.unknown())).default([]),
+  audit: z.array(z.record(z.string(), z.unknown())).default([]),
 });
 
 /** Restores a bundle as a *new* league owned by the importing user. Every id is remapped, so imports never collide with or touch existing leagues. */
