@@ -112,7 +112,8 @@ describe("league isolation", () => {
     expect(await code(() => changeTeam(store, a.owner, a.leagueId, a.seasonId, a.bowlerIds[0][0], b.teamIds[0], 2))).toBe("not_found");
     // and directly against B without membership
     expect(await code(() => addTeam(store, a.owner, b.leagueId, { name: "Intruder" }))).toBe("not_found");
-    expect(await store.read(async (db) => matchupIn(db, a.leagueId, (await weekMatchups(a, 1))[0].id).season.leagueId)).toBe(a.leagueId);
+    const aFirst = (await weekMatchups(a, 1))[0].id;
+    expect(await store.read((db) => matchupIn(db, a.leagueId, aFirst).season.leagueId)).toBe(a.leagueId);
     expect(await code(() => store.read((db) => requirePerm(db, a.owner, b.leagueId, "scores.enter")))).toBe("not_found");
   });
 
@@ -147,7 +148,10 @@ describe("visibility", () => {
     const w = await mkWorld({ store, visibility: "private" });
     const stranger = await mkUser(store);
     const getLeague = () => store.read((db) => db.leagues.find((l) => l.id === w.leagueId)!);
-    const via = (actor: typeof stranger | null, token?: string) => store.read(async (db) => resolveAccess(db, await getLeague(), actor, token).via);
+    const via = async (actor: typeof stranger | null, token?: string) => {
+      const league = await getLeague();
+      return store.read((db) => resolveAccess(db, league, actor, token).via);
+    };
     expect(await via(stranger)).toBeNull();
     expect(await via(null)).toBeNull();
     expect(await via(w.owner)).toBe("member");

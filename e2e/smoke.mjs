@@ -52,10 +52,10 @@ console.log("\n== score entry flow ==");
   await page.goto(`${BASE}/login`);
   await page.fill("#email", EMAIL); await page.fill("#password", PASSWORD);
   await Promise.all([page.waitForURL(`${BASE}/`), page.click("button[type=submit]")]);
-  await page.goto(`${BASE}/l/${SLUG}/admin/scores?week=8`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/l/${SLUG}/admin/scores?week=${process.env.ENTRY_WEEK ?? 8}`, { waitUntil: "networkidle" });
   const inputs = page.locator("input.score-input");
   const n = await inputs.count();
-  ok(n > 0, `week 8 shows ${n} score inputs`);
+  ok(n > 0, `entry week shows ${n} score inputs`);
   // first matchup only: keyboard entry using Enter to advance
   const firstMatchupInputs = await page.locator("section").first().locator("input.score-input").count();
   await inputs.first().click();

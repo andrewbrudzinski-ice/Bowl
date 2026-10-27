@@ -11,7 +11,7 @@
   - `engine.ts` builds a season: rule version per week, official-games history, handicaps entering any week, locked snapshots for finalized results
   - `standings.ts` configurable tie-breakers (incl. head-to-head), explanations, progression, streaks, mathematically-certain clinch/elimination, playoff tie rule
   - `schedule.ts` round robin (byes, balance warnings), seeded bracket · `stats.ts`, `awards.ts`, `records.ts`, `rivalry.ts`, `narrative.ts` (insights + recaps), `validate.ts`, `rulechange.ts` (diff + preview), `csv.ts`, `describe.ts` (plain-language rules)
-- **`src/server`**: `db.ts` transactional store · `auth.ts` scrypt passwords, hashed server-side sessions, lockout, reset tokens · `permissions.ts` the role→permission matrix ·
+- **`src/server`**: `db.ts` Store interface (async), file store and backend selection · `pg/` PostgreSQL store (draft + diff writes under an advisory lock), codecs, migrations · `auth.ts` scrypt passwords, hashed server-side sessions, lockout, reset tokens · `permissions.ts` the role→permission matrix ·
   `access.ts` league-scoped lookups, audit, notifications · `services/*` every mutation (permission check → validation → mutate → audit) · `demo.ts` · `mailer.ts` (optional email).
 - **Security model.** Every service call: `requirePerm(db, actor, leagueId, perm)`. Every client-supplied id is re-resolved *through the league*
   (`matchupIn`, `teamIn`, `bowlerIn`, `seasonIn`), so another league's id returns "not found". Private leagues answer 404 to non-members. Pages gate by
@@ -43,8 +43,7 @@ audit log; commissioner overview; CSV import (preview, row errors, duplicates, a
 in-app notifications with preferences and dedupe; shareable links (visibility-aware) and a PNG scorecard for matchups; PWA manifest/icons/offline page; structured logging.
 
 **Implemented but limited — be aware:**
-- **Storage is a single-instance file database**, not Postgres (see top of README / DEPLOYMENT).
-- **Supabase**: schema + RLS written and tested; *not connected*. Supabase Auth not used.
+- **Storage:** Postgres/Supabase (`DATABASE_URL`), embedded Postgres, or the single-instance file store. The Postgres store loads whole tables per request and serializes writers with one lock — fine for tens of leagues, not thousands (see SUPABASE.md → limits). Supabase **Auth** is not used; the app has its own accounts, and its server connection bypasses RLS (policies are defense in depth).
 - **Email** is used only for password reset and invitations (and only when a provider is configured). Per-event email notifications are **not implemented**; `Also send by email` in preferences is stored but has no delivery path yet.
 - **Browser push notifications**: not implemented. In-app notifications only.
 - **"Season approaching playoffs" notification**: not implemented (needs a scheduler). Bracket-set / round / champion notifications *are* sent.
@@ -74,7 +73,7 @@ in-app notifications with preferences and dedupe; shareable links (visibility-aw
 
 ## Tests
 
-`npm test` — ~120 tests: handicap/rounding/rolling/blended averages; hand-calculated matchups; same scores under different leagues' rules;
+`npm test` — 121 tests, runnable on file / embedded Postgres / a real Postgres server (`BOWL_TEST_STORE`): handicap/rounding/rolling/blended averages; hand-calculated matchups; same scores under different leagues' rules;
 standings & tie-breakers; schedule byes; playoff clinch/elimination; awards/records/rivalries/recaps; validation; rule-change preview & historical integrity;
 rollback on injected failure; corrections; security matrix (roles, isolation, visibility, invitations, lockout); imports; export/restore; demo data; SQL migration + RLS in an in-process Postgres.
 `e2e/smoke.mjs` and `e2e/wizard.mjs` drive a real browser (Playwright is not a dependency; install it with `npm i -D playwright` or use a global install).

@@ -172,6 +172,12 @@ export function emptyDB(): DB {
   return db;
 }
 
+/** Store callbacks must be synchronous: they may be re-run (Postgres) or applied to a copy (file). Fail loudly if one returns a promise. */
+export function assertSync<T>(result: T): T {
+  if (result && typeof (result as { then?: unknown }).then === "function") throw new Error("Store callbacks must be synchronous (do async work before or after calling the store).");
+  return result;
+}
+
 export interface Store {
   /** Read-only access to a consistent snapshot. Callers must not mutate the object they are given. */
   read<T>(fn: (db: Readonly<DB>) => T): Promise<T>;
@@ -215,16 +221,16 @@ class FileStore implements Store {
   }
   async read<T>(fn: (db: Readonly<DB>) => T): Promise<T> {
     this.refresh();
-    return fn(this.db);
+    return assertSync(fn(this.db));
   }
   async preview<T>(fn: (db: DB) => T): Promise<T> {
     this.refresh();
-    return fn(structuredClone(this.db));
+    return assertSync(fn(structuredClone(this.db)));
   }
   async transaction<T>(fn: (db: DB) => T): Promise<T> {
     this.refresh();
     const draft = structuredClone(this.db);
-    const result = fn(draft);
+    const result = assertSync(fn(draft));
     draft.rev = this.db.rev + 1;
     const f = this.opts.file;
     if (f) {

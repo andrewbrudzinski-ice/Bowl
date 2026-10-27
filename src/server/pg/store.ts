@@ -1,6 +1,6 @@
 import { AppError } from "../errors";
 import { log } from "../log";
-import type { DB, Store } from "../db";
+import { assertSync, type DB, type Store } from "../db";
 import type { SqlClient, SqlTx } from "./client";
 import { CODECS, CODEC_BY_NAME, canon, type Codec, type CollectionName } from "./codecs";
 import { assertMigrated, migrate } from "./migrate";
@@ -89,7 +89,7 @@ export class PgStore implements Store {
       const virtual = new Set<CollectionName>();
       const db = this.draft(loaded, arrays, virtual, write);
       try {
-        return { result: fn(db), arrays, loaded, virtual };
+        return { result: assertSync(fn(db)), arrays, loaded, virtual };
       } catch (e) {
         if (e instanceof NeedCollection) {
           await this.load(tx, CODEC_BY_NAME.get(e.collection)!, loaded);

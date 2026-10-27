@@ -2,15 +2,13 @@
 
 ## What you are deploying
 
-A Next.js 15 app (Node 20+). **Data lives in a JSON file** (`BOWL_DATA_FILE`, default `./data/db.json`),
-written atomically (temp file + rename) inside synchronous transactions. Consequences you must plan for:
+A Next.js 15 app (Node 20+) plus a database. Two supported setups:
 
-- The host needs a **persistent disk** and must run **exactly one instance**. A serverless/ephemeral filesystem
-  (e.g. Vercel's) will lose data. Good fits: a small VM, Fly.io / Railway / Render with a mounted volume, Docker on a VPS.
-- Multiple instances writing the same file are not safe. Don't scale horizontally until the Postgres adapter
-  exists (see [SUPABASE.md](SUPABASE.md)).
-- A league of dozens of bowlers over many seasons is a few MB; this is comfortable. Hundreds of leagues is not
-  what this storage layer is for.
+- **PostgreSQL / Supabase (recommended for hosting).** Set `DATABASE_URL`, run `npm run db:migrate` as a release step, deploy anywhere —
+  including serverless hosts, since no local disk is used. Writers are serialized by a database advisory lock, so several instances are safe.
+  Details and limits: [SUPABASE.md](SUPABASE.md).
+- **File store (single small server).** Data lives in one JSON file (`BOWL_DATA_FILE`, default `./data/db.json`), written atomically. It needs a
+  **persistent disk and exactly one instance**; a serverless/ephemeral filesystem will lose data.
 
 ## Environment variables
 
@@ -20,11 +18,12 @@ Never commit real values. Copy `.env.example`.
 | --- | --- | --- |
 | `SESSION_SECRET` | **Yes in production** (the app refuses to start auth without it) | 32+ random chars used to hash session/invite/reset tokens. `openssl rand -base64 48`. Changing it signs everyone out and invalidates outstanding invitations and reset links. |
 | `APP_URL` | Yes | Public base URL, used in invitation / reset / share links, e.g. `https://league.example.com`. |
-| `BOWL_DATA_FILE` | Recommended | Absolute path on the persistent volume, e.g. `/data/db.json`. |
+| `DATABASE_URL` | For Postgres/Supabase | Connection string. Also `DATABASE_SSL` (`require`/`no-verify`) and `DATABASE_POOL_MAX`. |
+| `BOWL_DATA_FILE` | File store only | Absolute path on the persistent volume, e.g. `/data/db.json`. |
 | `EMAIL_PROVIDER`, `RESEND_API_KEY`, `EMAIL_FROM` | Optional | Enables real email for password resets and invitations. Without them links are written to the server log (and, outside production, the console). Core features never need email. |
 | `NODE_ENV=production` | Set by `npm start` | Enables secure cookies and disables the demo seed script. |
 
-Supabase variables in `.env.example` are placeholders for the future adapter; the app ignores them today.
+Never prefix database credentials with `NEXT_PUBLIC_`.
 
 ## Build and run
 
@@ -77,7 +76,8 @@ Authentication redirects: there is no third-party OAuth, so there are no provide
 
 1. `git pull`, `npm ci`.
 2. `npm run lint && npm test` — must pass.
-3. `npm run db:backup` on the server (verified copy of the live data).
+3. Back up first: `npm run db:backup` (file store) or a `pg_dump` / provider snapshot (Postgres) — see BACKUPS.md.
+3b. With Postgres: `npm run db:migrate` (idempotent; the app refuses to start against an un-migrated database).
 4. `npm run build`, restart the process (`systemctl restart bowl` / redeploy the container).
 5. Open `/` and one league's standings; check the server log for `"level":"error"`.
 6. Roll back by redeploying the previous build; the data file format is backward compatible within a major version

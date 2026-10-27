@@ -42,8 +42,15 @@ At least once before launch and then quarterly:
 The automated test `tests/workflow.test.ts › a league bundle restores into a new, independent league` proves the
 bundle round-trips with identical computed standings.
 
-## When Postgres is adopted
+## PostgreSQL / Supabase
 
-Use the provider's managed backups instead (Supabase: daily backups on paid plans, point-in-time recovery as an
-add-on — verify in your project's dashboard before claiming it's on), plus `pg_dump` to storage you control.
-See [SUPABASE.md](SUPABASE.md).
+With `DATABASE_URL` the data lives in Postgres, so back it up there:
+
+- **Provider backups.** Supabase offers daily backups on paid plans and point-in-time recovery as an add-on — confirm what is enabled for *your*
+  project in its dashboard; this repository cannot turn them on or verify them.
+- **Your own dumps (independent of the provider):** `pg_dump --format=custom --no-owner "$DATABASE_URL" > bowl-$(date +%F).dump`, copied off-machine on a schedule.
+  Restore into an empty database: `pg_restore --no-owner -d "$TARGET_URL" bowl-….dump` (or `psql` for plain dumps), then `npm run db:migrate` to confirm it is current.
+- The league-level JSON export and CSV exports work the same on every backend, and **restoring a bundle always creates a new league**.
+- Test a restore: restore the dump into a scratch database, start the app against it (`DATABASE_URL=… npm start`), sign in, and compare a league's standings and latest
+  audit entries with production. The suite includes a round-trip test of the league bundle on Postgres.
+- Moving from the file store: back up `db.json`, then `npm run db:import-file -- db.json` into an *empty* migrated database (it refuses otherwise).
