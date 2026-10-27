@@ -35,8 +35,14 @@ Related: `DATABASE_SSL` (`require` or `no-verify` — Supabase's pooler certific
 
 The services were written against an in-memory `db` object with synchronous callbacks. `PgStore` (`src/server/pg/store.ts`) keeps that contract on top of Postgres:
 
-1. A transaction opens a Postgres transaction and takes a **global advisory lock**, so writers across *all* app instances are serialized. Read-modify-write logic
-   (duplicate checks, revision checks, finalize) is therefore race-free, and the app can run on several instances.
+1. A write transaction opens a Postgres transaction and takes **advisory locks** (`src/server/pg/locks.ts`), shared across *all* app instances. Read-modify-write logic
+   (duplicate checks, revision checks, finalize) is therefore race-free for the rows it owns, and the app can run on several instances. Which locks depend on the scope:
+   - a scoped write takes the global lock **shared**, then one exclusive lock per league and per user it touches (slug, email and token scopes are resolved to ids first;
+     locks are taken in sorted order, so two writers cannot deadlock). Writers in different leagues run **at the same time**; writers in one league queue.
+   - a write with **no scope**, or one that opts into a full table (`scope.all`, e.g. creating a league to check slug uniqueness), takes the global lock **exclusively**: it waits
+     for all scoped writers and holds up new ones while it runs.
+   - a scoped write may only update or delete rows whose league or user it holds the lock for. If an annotated scope is too small, it fails with `Write outside lock` (and rolls back)
+     instead of racing silently.
 2. The callback runs against a draft. When it touches a table not yet loaded, that table is loaded and the callback re-runs (so callbacks must be free of side effects outside `db`); `npm run check:callbacks` fails on any callback that mutates outer state, and CI runs it).
 3. The draft is diffed against what was loaded and only the inserted/updated/deleted rows are written (updates before inserts, deletes first, parents before children),
    then committed. Any thrown error rolls the whole thing back — the rollback tests (`failure part-way through a multi-record update`) run against Postgres too.
@@ -56,7 +62,7 @@ Consequences you should know:
   - A scope that is too narrow would make a callback see *less* data than it needs. `BOWL_VERIFY_SCOPE=1` guards against that: each scoped operation is re-run on full tables inside the
     same transaction and the result (and the rows it would write) must match, otherwise it throws `Scope mismatch`. It roughly doubles the work, so use it in tests/CI and when
     adding a scope, not in production. The whole suite passes with it on (`BOWL_VERIFY_SCOPE=1 npm run test:pg`).
-- **Write throughput is one transaction at a time** (the global lock). A league night is a handful of writes; this is not a constraint for the intended use.
+- **Writes in different leagues no longer queue behind each other** (per-league locks). Writes within one league are still one at a time, and league creation, bundle import, duplication and any unscoped write are exclusive across the whole database; all are short.
 - **The app's connection is privileged.** It bypasses RLS and enforces permissions in `src/server/services/*`. The RLS policies in the migration are defense in depth for
   any direct client access you add later; they are tested (`tests/sql.test.ts`) but the app itself does not rely on them.
 - Authentication is the app's own (email + scrypt password + hashed server-side sessions), stored in `profiles` / `sessions`. **Supabase Auth is not used.** To adopt it later,
