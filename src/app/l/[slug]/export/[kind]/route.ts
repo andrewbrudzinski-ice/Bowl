@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
   const store = getStore();
   const actor = await getActor();
   if (!actor) return new NextResponse("Sign in required", { status: 401 });
-  const league = await store.read((db) => leagueBySlug(db, slug));
+  const league = await store.read((db) => leagueBySlug(db, slug), { leagueSlug: slug });
   if (!league) return new NextResponse("Not found", { status: 404 });
   const seasonId = req.nextUrl.searchParams.get("season");
   try {

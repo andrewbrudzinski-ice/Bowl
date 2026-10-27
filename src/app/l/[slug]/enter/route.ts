@@ -8,7 +8,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
   const { slug } = await params;
   const token = req.nextUrl.searchParams.get("t") ?? "";
   const next = req.nextUrl.searchParams.get("next") ?? `/l/${slug}`;
-  const league = await getStore().read((db) => leagueBySlug(db, slug));
+  const league = await getStore().read((db) => leagueBySlug(db, slug), { leagueSlug: slug });
   const dest = next.startsWith(`/l/${slug}`) && !next.startsWith("//") ? next : `/l/${slug}`;
   const res = NextResponse.redirect(new URL(dest, req.url));
   if (league && league.visibility === "unlisted" && token === league.shareToken) {

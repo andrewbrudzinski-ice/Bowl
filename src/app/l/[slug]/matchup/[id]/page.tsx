@@ -26,7 +26,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ slug: 
     const m = db.matchups.find((x) => x.id === id);
     const s = m ? db.seasons.find((x) => x.id === m.seasonId && x.leagueId === base.league.id) : null;
     return s ? s.slug : null;
-  });
+  }, { leagueId: base.league.id });
   if (!owner) notFound();
   const ctx = await getLeagueCtx(slug, owner);
   const model = ctx.model!;
@@ -76,7 +76,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ slug: 
           h2h.push({ season: s.name, week: x.weekNumber, id: x.matchup.id, text: `${A.name} ${fmtPts(aSide.points)} – ${fmtPts(bSide.points)} ${B.name} (${aSide.basisSeries}–${bSide.basisSeries} pins)`, winner: w === A.id ? A.name : w === B.id ? B.name : "Tie" });
         }
       }
-    });
+    }, { leagueId: ctx.league.id });
   }
   const share = shareHref(ctx, `/l/${slug}/matchup/${id}`);
   const G = cfg.scoring.gamesPerSession;

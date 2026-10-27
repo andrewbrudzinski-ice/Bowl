@@ -51,7 +51,7 @@ export async function mkStore(): Promise<Store> {
         await d.end();
       };
     }
-    const store = new PgStore(client, { autoMigrate: true });
+    const store = new PgStore(client, { autoMigrate: true, verifyScope: process.env.BOWL_VERIFY_SCOPE === "1" });
     const tables = CODECS.map((c) => c.table);
     shared = {
       store,

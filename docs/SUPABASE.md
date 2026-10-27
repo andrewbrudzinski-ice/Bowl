@@ -44,9 +44,18 @@ The services were written against an in-memory `db` object with synchronous call
 
 Consequences you should know:
 
-- **Whole-table loads.** A request loads each table it touches in full (across all leagues). That is fine for tens of leagues and a few hundred thousand score rows; it is not
-  designed for thousands of busy leagues. The audit log is write-only inside transactions (never loaded for a write) but *is* loaded for the audit page and home activity feed.
-  The next scaling step is to scope loads by `league_id` (the schema is ready: every league-owned row carries or joins to one).
+- **Scoped loads.** Every call site passes a `Scope` (`src/server/db.ts`) naming what it needs — a league (`leagueId` / `leagueSlug`), the acting user, an email,
+  a session or invitation token, or `publicLeagues`. `PgStore` translates it to `WHERE` clauses (`src/server/pg/scope.ts`, backed by the `0002_indexes.sql` indexes),
+  so a request reads one league's rows, not every league's. Rules to know:
+  - Facets are OR-ed; a table with no applicable facet loads **nothing**; `all: ["leagues"]` opts a table into a full load (used where uniqueness must be checked, e.g. slugs when creating a league).
+  - A call without a scope still loads whole tables (correct, just slow) — the safe default for new code. Add a scope when a path becomes hot.
+  - The audit log is write-only inside transactions; the audit page and activity feed load only that league's rows.
+  - Expired sessions, reset tokens and idempotency keys are swept once at process start (scoped transactions only see their own slice).
+  - **Still unscoped:** the "copy rules from another league" picker on `/leagues/new`. It spans every league the user belongs to and loads whole tables.
+  - **Write lock is still global** (below), so scoping reduces load time and memory, not write serialization.
+  - A scope that is too narrow would make a callback see *less* data than it needs. `BOWL_VERIFY_SCOPE=1` guards against that: each scoped operation is re-run on full tables inside the
+    same transaction and the result (and the rows it would write) must match, otherwise it throws `Scope mismatch`. It roughly doubles the work, so use it in tests/CI and when
+    adding a scope, not in production. The whole suite passes with it on (`BOWL_VERIFY_SCOPE=1 npm run test:pg`).
 - **Write throughput is one transaction at a time** (the global lock). A league night is a handful of writes; this is not a constraint for the intended use.
 - **The app's connection is privileged.** It bypasses RLS and enforces permissions in `src/server/services/*`. The RLS policies in the migration are defense in depth for
   any direct client access you add later; they are tested (`tests/sql.test.ts`) but the app itself does not rely on them.
@@ -71,6 +80,7 @@ The entire suite is backend-agnostic:
 ```bash
 npm test                                  # file store (fast)
 npm run test:pg                           # same suite on embedded Postgres (PGlite)
+BOWL_VERIFY_SCOPE=1 npm run test:pg       # …and prove every scoped load returns what the full load would
 TEST_DATABASE_URL=postgresql://postgres@localhost:5432/postgres npm run test:pg:server   # a real server; one throwaway database per test file
 ```
 

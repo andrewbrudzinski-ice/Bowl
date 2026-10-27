@@ -26,4 +26,4 @@ async function main() {
   if (password) console.log(`New account ${email} — password: ${password}  (shown once; change it after signing in)`);
   await store.close?.();
 }
-await main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => { console.error(e); process.exit(1); });

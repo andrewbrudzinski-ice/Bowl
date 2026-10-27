@@ -44,7 +44,7 @@ export default async function AdminHome({ params, searchParams }: { params: Prom
     corrections: db.audit.filter((a) => a.leagueId === ctx.league.id && (a.action === "result.corrected" || a.action === "result.reopened" || a.action === "rules.changed")).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5),
     rosterChanges: db.audit.filter((a) => a.leagueId === ctx.league.id && a.seasonId === ctx.season!.id && a.action.startsWith("roster.")).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5),
     importProblems: db.importLog.filter((i) => i.leagueId === ctx.league.id && !i.ok).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3),
-  }));
+  }), { leagueId: ctx.league.id });
 
   let next: { title: string; body: string; href: string; cta: string } | null = null;
   if (!m.data.teams.length) next = { title: "Add your teams and bowlers", body: "Everything else builds on the roster.", href: `${base}/roster`, cta: "Open roster" };

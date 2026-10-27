@@ -14,7 +14,7 @@ export function previewSeasonRules(store: Store, actor: Actor, leagueId: Id, sea
   return store.read((db) => {
     requirePerm(db, actor, leagueId, "settings.rules");
     return previewRuleChange(seasonData(db, leagueId, seasonId), proposed, scope);
-  });
+  }, { leagueId });
 }
 
 export interface ApplyRulesInput {
@@ -91,7 +91,7 @@ export function applyRuleChange(store: Store, actor: Actor, leagueId: Id, input:
       href: `/l/${leagueById(db, leagueId).slug}/rules`, dedupeKey: `rules:${season.id}:${newVersion}`, exceptUserId: actor.id,
     });
     return { version: newVersion, reversed };
-  });
+  }, { leagueId });
 }
 
 /** League-wide defaults for *future* seasons. Never touches an existing season's rules. */
@@ -103,6 +103,6 @@ export async function updateLeagueDefaults(store: Store, actor: Actor, leagueId:
     const before = league.defaultConfig;
     league.defaultConfig = check.config!;
     writeAudit(db, actor, { leagueId, action: "rules.defaults_changed", entityType: "league", entityId: leagueId, before, after: check.config, note: reason });
-  });
+  }, { leagueId });
 }
 

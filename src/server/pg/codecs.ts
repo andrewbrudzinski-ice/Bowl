@@ -21,7 +21,7 @@ export interface Codec {
   /** Append-only tables are not loaded for writes: transactions only insert into them. */
   appendOnlyInTx?: boolean;
   /** Attach child rows (e.g. rule versions) to freshly loaded parents. */
-  loadChildren?(tx: SqlTx, recs: Rec[]): Promise<void>;
+  loadChildren?(tx: SqlTx, recs: Rec[], scoped: boolean): Promise<void>;
   /** Persist child rows after the parent rows were inserted/updated. */
   syncChildren?(tx: SqlTx, change: { inserted: Rec[]; updated: { before: Rec; after: Rec }[] }): Promise<void>;
   /** Orders updates (e.g. demote before promote to respect partial unique indexes). */
@@ -125,8 +125,10 @@ const seasons: Codec = {
     ["id", "id"], ["league_id", "leagueId"], ["slug", "slug"], ["name", "name"], ["year", "year", "int"], ["start_date", "startDate", "date"],
     ["regular_weeks", "regularWeeks", "int"], ["status", "status"], ["champion_id", "championId"], ["is_demo", "isDemo"], ["created_at", "createdAt", "ts"],
   ]),
-  async loadChildren(tx, recs) {
-    const { rows } = await tx.query<Row>("select * from rule_versions order by season_id, version");
+  async loadChildren(tx, recs, scoped) {
+    const { rows } = scoped
+      ? await tx.query<Row>("select * from rule_versions where season_id = any($1::uuid[]) order by season_id, version", [recs.map((r) => r.id)])
+      : await tx.query<Row>("select * from rule_versions order by season_id, version");
     const by = new Map<string, Rec[]>();
     for (const r of rows) {
       const v = { version: Number(r.version), effectiveFromWeek: Number(r.effective_from_week), config: r.config, createdAt: iso(r.created_at), createdBy: r.created_by, reason: r.reason };
@@ -178,9 +180,18 @@ const matchups: Codec = {
     ["forfeit_by", "forfeitBy"], ["rule_version", "ruleVersion", "int"], ["playoff_round", "playoffRound", "int"], ["notes", "notes"], ["revision", "revision", "int"],
     ["finalized_at", "finalizedAt", "ts"], ["finalized_by", "finalizedBy"], ["updated_at", "updatedAt", "ts"], ["updated_by", "updatedBy"], ["is_demo", "isDemo"],
   ]),
-  async loadChildren(tx, recs) {
-    const lineups = (await tx.query<Row>("select matchup_id, side, position, bowler_id from matchup_lineups order by matchup_id, side, position")).rows;
-    const snaps = (await tx.query<Row>("select matchup_id, bowler_id, average, handicap, note from matchup_handicaps")).rows;
+  async loadChildren(tx, recs, scoped) {
+    const ids = recs.map((r) => r.id);
+    const lineups = (
+      scoped
+        ? await tx.query<Row>("select matchup_id, side, position, bowler_id from matchup_lineups where matchup_id = any($1::uuid[]) order by matchup_id, side, position", [ids])
+        : await tx.query<Row>("select matchup_id, side, position, bowler_id from matchup_lineups order by matchup_id, side, position")
+    ).rows;
+    const snaps = (
+      scoped
+        ? await tx.query<Row>("select matchup_id, bowler_id, average, handicap, note from matchup_handicaps where matchup_id = any($1::uuid[])", [ids])
+        : await tx.query<Row>("select matchup_id, bowler_id, average, handicap, note from matchup_handicaps")
+    ).rows;
     const lm = new Map<string, { A: string[]; B: string[] }>();
     for (const r of lineups) {
       const e = lm.get(r.matchup_id) ?? { A: [], B: [] };

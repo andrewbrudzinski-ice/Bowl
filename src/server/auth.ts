@@ -60,7 +60,7 @@ export function registerUser(store: Store, input: { email: string; name: string;
     db.users.push(user);
     const token = createSession(db, user.id);
     return { user, token };
-  });
+  }, { emails: [email] });
 }
 
 export function createSession(db: DB, userId: string): string {
@@ -93,7 +93,7 @@ export function login(store: Store, emailRaw: string, password: string): Promise
     if (!verifyPassword(password, user.passwordHash)) throw generic; // failure is recorded by loginWithLockout
     user.failed = null;
     return { user, token: createSession(db, user.id) };
-  });
+  }, { emails: [email] });
 }
 
 /** login() cannot both throw and persist, so failed attempts are recorded through this wrapper. */
@@ -108,7 +108,7 @@ export async function loginWithLockout(store: Store, email: string, password: st
         const t = Date.now();
         const fresh = !u.failed || t - Date.parse(u.failed.since) >= LOCK_MINUTES * 60000;
         u.failed = { count: fresh ? 1 : u.failed!.count + 1, since: fresh ? now() : u.failed!.since };
-      });
+      }, { emails: [normalizeEmail(email)] });
     }
     throw e;
   }
@@ -122,7 +122,7 @@ export async function sessionUser(store: Store, token: string | undefined | null
     if (!s || s.expiresAt < now()) return null;
     const u = db.users.find((x) => x.id === s.userId);
     return u && !u.disabled ? u : null;
-  });
+  }, { tokenHash: h });
 }
 
 export async function logout(store: Store, token: string | undefined | null) {
@@ -130,7 +130,7 @@ export async function logout(store: Store, token: string | undefined | null) {
   const h = hashToken(token);
   await store.transaction((db) => {
     db.sessions = db.sessions.filter((s) => s.tokenHash !== h);
-  });
+  }, { tokenHash: h });
 }
 
 /** Returns a reset token (null when the email is unknown — callers must respond identically either way). */
@@ -143,7 +143,7 @@ export function requestPasswordReset(store: Store, emailRaw: string): Promise<{ 
     db.resetTokens = db.resetTokens.filter((r) => r.userId !== user.id && r.expiresAt > now());
     db.resetTokens.push({ tokenHash: hashToken(token), userId: user.id, expiresAt: new Date(Date.now() + RESET_MINUTES * 60000).toISOString(), usedAt: null });
     return { token, user };
-  });
+  }, { emails: [email] });
 }
 
 export async function resetPassword(store: Store, token: string, newPassword: string) {
@@ -158,7 +158,7 @@ export async function resetPassword(store: Store, token: string, newPassword: st
     rec.usedAt = now();
     // Sign out everywhere after a reset.
     db.sessions = db.sessions.filter((s) => s.userId !== user.id);
-  });
+  }, { tokenHash: hashToken(token) });
   log("info", "password_reset", {});
 }
 
@@ -168,5 +168,5 @@ export async function changePassword(store: Store, userId: string, current: stri
     const u = db.users.find((x) => x.id === userId);
     if (!u || !verifyPassword(current, u.passwordHash)) throw invalid("Your current password is incorrect.");
     u.passwordHash = hashPassword(next);
-  });
+  }, { userIds: [userId] });
 }

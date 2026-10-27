@@ -23,7 +23,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
     const season = m ? db.seasons.find((s) => s.id === m.seasonId && s.leagueId === league.id) : null;
     if (!m || !season) return null;
     return { league, model: buildSeasonModel(seasonData(db, league.id, season.id)) };
-  });
+  }, { leagueSlug: slug, userIds: actor ? [actor.id] : undefined });
   if (!found) return new Response("Not found", { status: 404 });
   const { league, model } = found;
   const r = model.resultById.get(id)!;

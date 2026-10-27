@@ -19,7 +19,7 @@ export default async function ScheduleAdmin({ params }: { params: Promise<{ slug
   const season = ctx.season;
   const kind = ctx.cfg.format === "individual" ? "individual" : "team";
   const store = getStore();
-  const { ids } = await store.read((db) => participantsForSchedule(db, ctx.league.id, season.id));
+  const { ids } = await store.read((db) => participantsForSchedule(db, ctx.league.id, season.id), { leagueId: ctx.league.id });
   const preview = ids.length >= 2 ? await previewSchedule(store, ctx.actor, ctx.league.id, season.id) : null;
   const weeks = [...m.data.weeks].sort((a, b) => a.number - b.number);
   const names = ids.map((id) => participant(ctx, id, kind).name);

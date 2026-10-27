@@ -19,7 +19,8 @@ export const MODULE_SPAN: Record<string, "wide" | "half"> = {
 
 function commissionerAwards(ctx: LeagueCtx) {
   return getStore().read((db) =>
-    db.commissionerAwards.filter((a) => a.leagueId === ctx.league.id && a.seasonId === ctx.season?.id).map((a) => ({ id: a.id, title: a.title, recipientKind: a.recipientKind, recipientId: a.recipientId, note: a.note, week: a.week }))
+    db.commissionerAwards.filter((a) => a.leagueId === ctx.league.id && a.seasonId === ctx.season?.id).map((a) => ({ id: a.id, title: a.title, recipientKind: a.recipientKind, recipientId: a.recipientId, note: a.note, week: a.week })),
+    { leagueId: ctx.league.id }
   );
 }
 
@@ -92,7 +93,8 @@ export function ResultsModule({ ctx }: { ctx: LeagueCtx }) {
 
 export async function NewsModule({ ctx }: { ctx: LeagueCtx }) {
   const items = await getStore().read((db) =>
-    db.announcements.filter((a) => a.leagueId === ctx.league.id).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.localeCompare(a.createdAt)).slice(0, 3)
+    db.announcements.filter((a) => a.leagueId === ctx.league.id).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.localeCompare(a.createdAt)).slice(0, 3),
+    { leagueId: ctx.league.id }
   );
   return (
     <Card>

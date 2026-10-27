@@ -15,4 +15,4 @@ async function main() {
   console.log(`${email} is now an owner of ${slug}. (Recorded in the league's audit log.)`);
   await store.close?.();
 }
-await main().catch((e) => { console.error(e.message ?? e); process.exit(1); });
+main().catch((e) => { console.error(e.message ?? e); process.exit(1); });

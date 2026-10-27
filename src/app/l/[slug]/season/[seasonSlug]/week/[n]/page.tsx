@@ -37,7 +37,7 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
   const records = official ? await getStore().read((db) => {
     const models = ctx.seasons.map((s) => (s.id === ctx.season!.id ? model : buildSeasonModel(seasonData(db, ctx.league.id, s.id))));
     return recordsBrokenInWeek(buildRecordBook(models), ctx.season!.id, wk);
-  }) : [];
+  }, { leagueId: ctx.league.id }) : [];
   const rows = official ? standingsRows(ctx, wk) : [];
   const share = shareHref(ctx, `/l/${slug}/season/${seasonSlug}/week/${wk}`);
   const sq = ctx.seasons.find((s) => s.status === "active")?.slug === seasonSlug ? null : seasonSlug;

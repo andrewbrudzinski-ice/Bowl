@@ -101,7 +101,7 @@ export function activityFeed(ctx: LeagueCtx, limit = 10): Promise<ActivityItem[]
     }
     for (const n of db.announcements.filter((x) => x.leagueId === ctx.league.id)) items.push({ at: n.createdAt, text: `Announcement: ${n.title}`, href: `/l/${slug}/news#${n.id}` });
     return items.sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit);
-  });
+  }, { leagueId: ctx.league.id });
 }
 
 /** Link suitable for sharing. Unlisted leagues get their access token embedded — only handed to members. */
@@ -120,5 +120,5 @@ import { seasonData } from "./access";
 export function allModels(ctx: LeagueCtx): Promise<SeasonModel[]> {
   const store = getStore();
   const seasons = [...ctx.seasons].sort((a, b) => a.year - b.year || a.createdAt.localeCompare(b.createdAt));
-  return store.read((db) => seasons.map((s) => (ctx.season && s.id === ctx.season.id && ctx.model ? ctx.model : buildSeasonModel(seasonData(db, ctx.league.id, s.id)))));
+  return store.read((db) => seasons.map((s) => (ctx.season && s.id === ctx.season.id && ctx.model ? ctx.model : buildSeasonModel(seasonData(db, ctx.league.id, s.id)))), { leagueId: ctx.league.id });
 }

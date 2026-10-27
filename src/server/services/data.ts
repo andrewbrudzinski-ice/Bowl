@@ -235,7 +235,7 @@ export function previewImport(store: Store, actor: Actor, leagueId: Id, seasonId
   return store.preview((db) => {
     requirePerm(db, actor, leagueId, "data.import");
     return runImport(db, actor, leagueId, seasonId, kind, text, opts);
-  });
+  }, { leagueId });
 }
 
 /** All-or-nothing: if any row fails, the transaction is discarded and nothing is written. */
@@ -249,13 +249,13 @@ export async function commitImport(store: Store, actor: Actor, leagueId: Id, sea
       db.importLog.push({ id: newId("im"), leagueId, at: now(), userId: actor.id, kind, ok: true, rows: report.rows, errors: [] });
       writeAudit(db, actor, { leagueId, seasonId, action: "data.imported", entityType: "import", entityId: kind, after: { rows: report.rows, created: report.willCreate, skipped: report.willSkip, finalized: !!opts.finalize } });
       return report;
-    });
+    }, { leagueId });
   } catch (e) {
     if (e instanceof AppError && e.code === "validation" && e.details && typeof e.details === "object" && "errors" in (e.details as object)) {
       const rep = e.details as ImportReport;
       await store.transaction((db) => {
         db.importLog.push({ id: newId("im"), leagueId, at: now(), userId: actor.id, kind, ok: false, rows: rep.rows, errors: rep.errors.slice(0, 10).map((x) => `Line ${x.line}: ${x.message}`) });
-      });
+      }, { leagueId });
     }
     throw e;
   }
@@ -318,7 +318,7 @@ export function exportCsv(store: Store, actor: Actor, leagueId: Id, seasonId: Id
       filename: `${base}-${season.slug}-scores.csv`,
       csv: toCsv(["season", "week", "date", "matchup_id", "state", "rule_version", "team_a", "team_b", "side", "team", "bowler", "game", "scratch", "kind", "average_used", "handicap", "adjusted", "finalized_at"], rows),
     };
-  });
+  }, { leagueId });
 }
 
 // ---------------- full-league bundle (portability) ----------------
@@ -351,7 +351,7 @@ export function exportBundle(store: Store, actor: Actor, leagueId: Id) {
       templates: db.templates.filter((t) => t.leagueId === leagueId),
       audit: db.audit.filter((a) => a.leagueId === leagueId),
     };
-  });
+  }, { leagueId });
 }
 
 const bundleSchema = z.object({
@@ -407,5 +407,5 @@ export function importBundle(store: Store, actor: Actor, raw: unknown, newName?:
     for (const a of b.audit) db.audit.push({ ...(a as object), id: newId("au"), leagueId, seasonId: a.seasonId ? (map.get(String(a.seasonId)) ?? null) : null } as never);
     writeAudit(db, actor, { leagueId, action: "data.bundle_imported", entityType: "league", entityId: leagueId, after: { seasons: b.seasons.length, scores: b.scores.length } });
     return { slug, leagueId };
-  });
+  }, { all: ["leagues"] });
 }
