@@ -28,7 +28,7 @@ export default async function Settings({ params, searchParams }: { params: Promi
   const l = ctx.league;
   const m = ctx.model;
   const store = getStore();
-  const commissionerAwards = ctx.season ? await store.read((db) => db.commissionerAwards.filter((a) => a.leagueId === l.id && a.seasonId === ctx.season!.id)) : [];
+  const commissionerAwards = ctx.season ? await store.read((db) => db.commissionerAwards.filter((a) => a.leagueId === l.id && a.seasonId === ctx.season!.id), { leagueId: l.id }) : [];
   const names: Record<string, string> = {};
   if (m) { for (const b of m.data.bowlers) names[b.id] = b.name; for (const t of m.data.teams) names[t.id] = t.name; }
   const origin = process.env.APP_URL ?? "";

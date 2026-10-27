@@ -49,7 +49,7 @@ export const getLeagueCtx = cache(async (slug: string, seasonSlug?: string | nul
     const season = (seasonSlug ? seasons.find((s) => s.slug === seasonSlug) : currentSeason(db, league.id)) ?? null;
     const data = season ? seasonData(db, league.id, season.id) : null;
     return { league, access, seasons, season, data };
-  });
+  }, { leagueSlug: slug, userIds: actor ? [actor.id] : undefined });
   if (!resolved) notFound();
   if (!resolved.access.via) {
     if (!actor) redirect(`/login?next=${encodeURIComponent(`/l/${slug}`)}`);

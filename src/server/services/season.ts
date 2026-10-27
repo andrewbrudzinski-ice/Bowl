@@ -40,7 +40,7 @@ export function addTeam(store: Store, actor: Actor, leagueId: Id, raw: z.input<t
     db.teams.push(t);
     writeAudit(db, actor, { leagueId, action: "team.created", entityType: "team", entityId: t.id, after: t });
     return t.id;
-  });
+  }, { leagueId });
 }
 
 export async function updateTeam(store: Store, actor: Actor, leagueId: Id, teamId: Id, raw: Partial<z.input<typeof teamSchema>> & { active?: boolean }) {
@@ -62,7 +62,7 @@ export async function updateTeam(store: Store, actor: Actor, leagueId: Id, teamI
     if (raw.logo !== undefined) t.logo = raw.logo.trim().slice(0, 3);
     if (raw.active !== undefined) t.active = raw.active;
     writeAudit(db, actor, { leagueId, action: "team.updated", entityType: "team", entityId: teamId, before, after: t });
-  });
+  }, { leagueId });
 }
 
 // ---------- bowlers ----------
@@ -93,7 +93,7 @@ export function addBowler(store: Store, actor: Actor, leagueId: Id, raw: z.input
     db.bowlers.push(b);
     writeAudit(db, actor, { leagueId, action: "bowler.created", entityType: "bowler", entityId: b.id, after: { name: b.name } });
     return b.id;
-  });
+  }, { leagueId });
 }
 
 export async function updateBowler(store: Store, actor: Actor, leagueId: Id, bowlerId: Id, raw: Partial<z.input<typeof bowlerSchema>> & { active?: boolean }) {
@@ -121,7 +121,7 @@ export async function updateBowler(store: Store, actor: Actor, leagueId: Id, bow
     if (canManage && raw.notes !== undefined) b.notes = raw.notes.slice(0, 500);
     if (canManage && raw.active !== undefined) b.active = raw.active;
     writeAudit(db, actor, { leagueId, action: raw.active === false ? "bowler.deactivated" : "bowler.updated", entityType: "bowler", entityId: bowlerId, before, after: b });
-  });
+  }, { leagueId });
 }
 
 // ---------- rosters (season-specific, with history) ----------
@@ -159,7 +159,7 @@ export async function addToRoster(
     };
     db.roster.push(entry);
     writeAudit(db, actor, { leagueId, seasonId, action: "roster.added", entityType: "roster", entityId: entry.id, after: entry });
-  });
+  }, { leagueId });
 }
 
 /** Moves a bowler to another team effective `week`, closing the old assignment so past results keep their team. */
@@ -189,7 +189,7 @@ export async function changeTeam(store: Store, actor: Actor, leagueId: Id, seaso
       m.lineupA = sync(m.lineupA, m.sideA);
       m.lineupB = sync(m.lineupB, m.sideB);
     }
-  });
+  }, { leagueId });
 }
 
 export async function setEnteringAverage(store: Store, actor: Actor, leagueId: Id, seasonId: Id, bowlerId: Id, average: number | null) {
@@ -202,7 +202,7 @@ export async function setEnteringAverage(store: Store, actor: Actor, leagueId: I
     const before = entries[0].enteringAverage;
     for (const e of entries) e.enteringAverage = average;
     writeAudit(db, actor, { leagueId, seasonId, action: "roster.entering_average_changed", entityType: "roster", entityId: bowlerId, before: { average: before }, after: { average }, note: "Finalized matchups keep their locked handicap snapshots." });
-  });
+  }, { leagueId });
 }
 
 export async function setSubstitute(store: Store, actor: Actor, leagueId: Id, seasonId: Id, bowlerId: Id, isSub: boolean) {
@@ -213,7 +213,7 @@ export async function setSubstitute(store: Store, actor: Actor, leagueId: Id, se
     if (!entries.length) throw notFound("Roster entry");
     for (const e of entries) e.isSub = isSub;
     writeAudit(db, actor, { leagueId, seasonId, action: "roster.sub_changed", entityType: "roster", entityId: bowlerId, after: { isSub } });
-  });
+  }, { leagueId });
 }
 
 /** Removes a bowler from a season roster. Only allowed when they have no recorded scores that season. */
@@ -231,7 +231,7 @@ export async function removeFromRoster(store: Store, actor: Actor, leagueId: Id,
       m.lineupB = m.lineupB.filter((i) => i !== bowlerId);
     }
     writeAudit(db, actor, { leagueId, seasonId, action: "roster.removed", entityType: "roster", entityId: bowlerId, before: removed });
-  });
+  }, { leagueId });
 }
 
 // ---------- weeks ----------
@@ -262,7 +262,7 @@ export async function updateWeek(store: Store, actor: Actor, leagueId: Id, seaso
       const season = seasonIn(db, leagueId, seasonId);
       notifyMembers(db, { leagueId, type: "schedule", title: `Week ${weekNumber} postponed`, body: "Watch for a new date.", href: `/l/${league.slug}/season/${season.slug}/week/${weekNumber}`, dedupeKey: `postponed:${w.id}`, exceptUserId: actor.id });
     }
-  });
+  }, { leagueId });
 }
 
 /** Keeps the number of playoff weeks aligned with the current rules. Never deletes weeks that hold matchups. */
@@ -324,7 +324,7 @@ export function createMatchup(store: Store, actor: Actor, leagueId: Id, seasonId
     db.matchups.push(m);
     writeAudit(db, actor, { leagueId, seasonId, action: "matchup.created", entityType: "matchup", entityId: m.id, after: { week: m.weekNumber, sideA: m.sideA, sideB: m.sideB } });
     return m.id;
-  });
+  }, { leagueId });
 }
 
 export async function deleteMatchup(store: Store, actor: Actor, leagueId: Id, matchupId: Id) {
@@ -335,7 +335,7 @@ export async function deleteMatchup(store: Store, actor: Actor, leagueId: Id, ma
     if (db.scores.some((s) => s.matchupId === matchupId)) throw conflict("This matchup has scores. Clear them or reopen the result first.");
     db.matchups = db.matchups.filter((m) => m.id !== matchupId);
     writeAudit(db, actor, { leagueId, seasonId: matchup.seasonId, action: "matchup.deleted", entityType: "matchup", entityId: matchupId, before: { week: matchup.weekNumber, sideA: matchup.sideA, sideB: matchup.sideB } });
-  });
+  }, { leagueId });
 }
 
 /** Moves an unplayed matchup to another week (history of the old slot is kept in the audit log). */
@@ -353,7 +353,7 @@ export async function moveMatchup(store: Store, actor: Actor, leagueId: Id, matc
     writeAudit(db, actor, { leagueId, seasonId: season.id, action: "matchup.rescheduled", entityType: "matchup", entityId: matchupId, before: { week: before }, after: { week: toWeek } });
     const league = leagueById(db, leagueId);
     notifyMembers(db, { leagueId, type: "schedule", title: "A matchup was rescheduled", body: `Moved from week ${before} to week ${toWeek}.`, href: `/l/${league.slug}/matchup/${matchupId}`, dedupeKey: `move:${matchupId}:${toWeek}`, exceptUserId: actor.id });
-  });
+  }, { leagueId });
 }
 
 export interface GenerateScheduleOptions {
@@ -384,7 +384,7 @@ export function previewSchedule(store: Store, actor: Actor, leagueId: Id, season
     const warnings = [...sched.warnings];
     if (parts.length < 2) warnings.push("At least two participants with active roster entries are required.");
     return { from, participants: parts, schedule: sched, warnings };
-  });
+  }, { leagueId });
 }
 
 /** Replaces unplayed regular-season matchups from `fromWeek` with a freshly generated round robin. */
@@ -421,7 +421,7 @@ export function generateSchedule(store: Store, actor: Actor, leagueId: Id, seaso
     const league = leagueById(db, leagueId);
     notifyMembers(db, { leagueId, type: "schedule", title: "New schedule published", body: `${season.name}: weeks ${from}–${season.regularWeeks}.`, href: `/l/${league.slug}/schedule`, dedupeKey: `schedule:${seasonId}:${now()}`, exceptUserId: actor.id });
     return { created, warnings: sched.warnings };
-  });
+  }, { leagueId });
 }
 
 // ---------- playoffs ----------
@@ -457,7 +457,7 @@ export function generatePlayoffBracket(store: Store, actor: Actor, leagueId: Id,
     const league = leagueById(db, leagueId);
     notifyMembers(db, { leagueId, type: "playoffs", title: "Playoff bracket set", body: `${seeds.length} ${scope === "team" ? "teams" : "bowlers"} qualified.`, href: `/l/${league.slug}/schedule`, dedupeKey: `playoffs:${seasonId}:bracket` });
     return { created: pairs.length };
-  });
+  }, { leagueId });
 }
 
 /** Called after finalizing a playoff matchup: builds the next round (or crowns the champion) when a round is complete. */
@@ -565,7 +565,7 @@ export function createNextSeason(store: Store, actor: Actor, leagueId: Id, raw: 
     }
     writeAudit(db, actor, { leagueId, seasonId: season.id, action: "season.created", entityType: "season", entityId: season.id, after: { name: season.name, copiedFrom: src?.id ?? null, copyRoster: input.copyRoster, copySchedule: input.copySchedule } });
     return { seasonId: season.id, slug: season.slug };
-  });
+  }, { leagueId });
 }
 
 export async function completeSeason(store: Store, actor: Actor, leagueId: Id, seasonId: Id) {
@@ -578,6 +578,6 @@ export async function completeSeason(store: Store, actor: Actor, leagueId: Id, s
     const champ = championOf(model);
     if (champ && !season.championId) season.championId = champ.id;
     writeAudit(db, actor, { leagueId, seasonId, action: "season.completed", entityType: "season", entityId: seasonId, after: { unfinishedMatchups: unfinished, championId: season.championId } });
-  });
+  }, { leagueId });
 }
 

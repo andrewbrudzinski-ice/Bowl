@@ -178,17 +178,39 @@ export function assertSync<T>(result: T): T {
   return result;
 }
 
+/**
+ * Tells a database-backed store which rows an operation may need, so it can load a slice instead of whole tables.
+ * Facets are OR-ed together. Omit the scope entirely to load full tables (always correct, just slower).
+ * With a scope, anything outside it is simply *absent* — which also means one league's callback cannot even see another league's rows.
+ */
+export interface Scope {
+  /** Everything owned by this league: seasons, teams, bowlers, rosters, weeks, matchups, scores, announcements, audit…, plus its members' profiles. */
+  leagueId?: string;
+  /** Like leagueId, resolved from the URL slug. */
+  leagueSlug?: string;
+  /** These users' profiles, sessions, reset tokens, notifications and memberships (and the leagues they belong to). */
+  userIds?: string[];
+  /** Profiles with these (lower-case) emails. */
+  emails?: string[];
+  /** The session / reset / invitation row with this token hash (and the user + league it points at). */
+  tokenHash?: string;
+  /** All public leagues. */
+  publicLeagues?: boolean;
+  /** Collections to load in full regardless of the other facets (e.g. ["leagues"] to check slug uniqueness). */
+  all?: (keyof Omit<DB, "version" | "rev">)[];
+}
+
 export interface Store {
   /** Read-only access to a consistent snapshot. Callers must not mutate the object they are given. */
-  read<T>(fn: (db: Readonly<DB>) => T): Promise<T>;
+  read<T>(fn: (db: Readonly<DB>) => T, scope?: Scope): Promise<T>;
   /**
    * Runs `fn` against a private copy of the database. If `fn` throws, nothing is persisted; otherwise all of its
    * changes are committed atomically. `fn` is synchronous and may be run more than once (the Postgres store re-runs it
    * after loading tables it touched), so it must not have side effects outside `db`.
    */
-  transaction<T>(fn: (db: DB) => T): Promise<T>;
+  transaction<T>(fn: (db: DB) => T, scope?: Scope): Promise<T>;
   /** Dry run: executes `fn` on a private copy and always discards the changes. */
-  preview<T>(fn: (db: DB) => T): Promise<T>;
+  preview<T>(fn: (db: DB) => T, scope?: Scope): Promise<T>;
   /** Releases connections (scripts call this before exiting). */
   close?(): Promise<void>;
 }
@@ -219,15 +241,15 @@ class FileStore implements Store {
     const m = fs.statSync(f).mtimeMs;
     if (m !== this.mtime) this.db = this.load();
   }
-  async read<T>(fn: (db: Readonly<DB>) => T): Promise<T> {
+  async read<T>(fn: (db: Readonly<DB>) => T, _scope?: Scope): Promise<T> {
     this.refresh();
     return assertSync(fn(this.db));
   }
-  async preview<T>(fn: (db: DB) => T): Promise<T> {
+  async preview<T>(fn: (db: DB) => T, _scope?: Scope): Promise<T> {
     this.refresh();
     return assertSync(fn(structuredClone(this.db)));
   }
-  async transaction<T>(fn: (db: DB) => T): Promise<T> {
+  async transaction<T>(fn: (db: DB) => T, _scope?: Scope): Promise<T> {
     this.refresh();
     const draft = structuredClone(this.db);
     const result = assertSync(fn(draft));
@@ -254,9 +276,9 @@ function lazyStore(build: () => Promise<Store>): Store {
   let real: Promise<Store> | null = null;
   const get = () => (real ??= build());
   return {
-    read: async (fn) => (await get()).read(fn),
-    transaction: async (fn) => (await get()).transaction(fn),
-    preview: async (fn) => (await get()).preview(fn),
+    read: async (fn, scope) => (await get()).read(fn, scope),
+    transaction: async (fn, scope) => (await get()).transaction(fn, scope),
+    preview: async (fn, scope) => (await get()).preview(fn, scope),
     close: async () => {
       if (real) await (await real).close?.();
     },
@@ -275,14 +297,14 @@ export function createStoreFromEnv(env: NodeJS.ProcessEnv = process.env): Store 
       const { createPgClient } = await import("./pg/client");
       const { PgStore } = await import("./pg/store");
       const ssl = env.DATABASE_SSL === "no-verify" ? "no-verify" : env.DATABASE_SSL === "require" ? "require" : undefined;
-      return new PgStore(await createPgClient(env.DATABASE_URL!, { max: Number(env.DATABASE_POOL_MAX ?? 5), ssl }), { autoMigrate: env.BOWL_AUTO_MIGRATE === "1" });
+      return new PgStore(await createPgClient(env.DATABASE_URL!, { max: Number(env.DATABASE_POOL_MAX ?? 5), ssl }), { autoMigrate: env.BOWL_AUTO_MIGRATE === "1", verifyScope: env.BOWL_VERIFY_SCOPE === "1" });
     });
   }
   if (env.BOWL_PGLITE_DIR) {
     return lazyStore(async () => {
       const { createPgliteClient } = await import("./pg/client");
       const { PgStore } = await import("./pg/store");
-      return new PgStore(await createPgliteClient(env.BOWL_PGLITE_DIR), { autoMigrate: true });
+      return new PgStore(await createPgliteClient(env.BOWL_PGLITE_DIR), { autoMigrate: true, verifyScope: env.BOWL_VERIFY_SCOPE === "1" });
     });
   }
   return createStore({ file: env.BOWL_DATA_FILE ?? path.join(process.cwd(), "data", "db.json") });

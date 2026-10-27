@@ -1,9 +1,10 @@
 import { AppError } from "../errors";
 import { log } from "../log";
-import { assertSync, type DB, type Store } from "../db";
+import { assertSync, type DB, type Scope, type Store } from "../db";
 import type { SqlClient, SqlTx } from "./client";
 import { CODECS, CODEC_BY_NAME, canon, type Codec, type CollectionName } from "./codecs";
 import { assertMigrated, migrate } from "./migrate";
+import { filterFor } from "./scope";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 type Rec = any;
@@ -15,11 +16,49 @@ class NeedCollection extends Error {
   }
 }
 
+type Plan = { codec: Codec; inserted: Rec[]; updated: { before: Rec; after: Rec }[]; deleted: Rec[] };
+
+/** Canonical form for comparing two runs: ids, timestamps and random tokens differ between runs by design, so they are masked. */
+function mask(str: string): string {
+  return str
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, "<id>")
+    .replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z/g, "<ts>")
+    .replace(/\b[0-9a-f]{64}\b/g, "<hash>")
+    .replace(/[A-Za-z0-9_-]{22,}/g, "<tok>");
+}
+// Mask before canonicalising: keys that are ids would otherwise be ordered by their (random) values.
+function maskDeep(v: unknown): unknown {
+  if (typeof v === "string") return mask(v);
+  if (v instanceof Map) return maskDeep([...v.entries()]);
+  if (v instanceof Set) return maskDeep([...v]);
+  if (Array.isArray(v)) return v.map(maskDeep);
+  // Entries (not an object) so two keys that mask to the same text are both kept; sorted so key order cannot matter.
+  if (v && typeof v === "object") return Object.entries(v).map(([k, x]) => [mask(k), maskDeep(x)] as const).sort((p, q) => (canon(p) < canon(q) ? -1 : 1));
+  return v;
+}
+function norm(v: unknown): string {
+  return canon(maskDeep(v));
+}
+const summarize = (plans: Plan[]) =>
+  plans
+    .map((p) => ({
+      t: p.codec.table,
+      i: p.inserted.map((r) => norm(r)).sort(),
+      u: p.updated.map((u) => norm(u.after)).sort(),
+      d: p.deleted.map((r) => norm(r)).sort(),
+    }))
+    .sort((a, b) => (a.t < b.t ? -1 : 1));
+
 /** One global writer lock: transactions serialize across every app instance, so read-modify-write is safe. */
 const WRITE_LOCK = 7283561;
 const INSERT_CHUNK = 400;
 
 export interface PgStoreOptions {
+  /**
+   * Test/CI safety net: run every *scoped* operation a second time against full tables and fail if the result or the
+   * resulting changes differ. Catches a scope that is missing rows the operation actually needed.
+   */
+  verifyScope?: boolean;
   /** Apply pending migrations on first use (local dev / PGlite). Production should run `npm run db:migrate` instead. */
   autoMigrate?: boolean;
 }
@@ -46,7 +85,7 @@ export class PgStore implements Store {
 
   private init(): Promise<void> {
     if (!this.ready) {
-      this.ready = (this.opts.autoMigrate ? migrate(this.client).then(() => undefined) : assertMigrated(this.client)).catch((e) => {
+      this.ready = (this.opts.autoMigrate ? migrate(this.client).then(() => undefined) : assertMigrated(this.client)).then(() => this.sweep()).catch((e) => {
         this.ready = null; // retry next time (e.g. after the operator runs the migration)
         throw e;
       });
@@ -54,26 +93,78 @@ export class PgStore implements Store {
     return this.ready;
   }
 
-  async read<T>(fn: (db: Readonly<DB>) => T): Promise<T> {
-    await this.init();
-    return this.wrap(() => this.client.transaction(async (tx) => (await this.execute(tx, fn, false)).result, { readOnly: true }));
+  /**
+   * Scoped transactions only see (and so only prune) their own slice, so expired rows are removed here, once per process
+   * start. Failure to sweep is harmless and must not stop the app.
+   */
+  private async sweep() {
+    try {
+      await this.client.transaction(async (tx) => {
+        await tx.query("delete from sessions where expires_at < now()");
+        await tx.query("delete from reset_tokens where expires_at < now() - interval '1 day'");
+        await tx.query("delete from idempotency_keys where at < now() - interval '30 days'");
+      });
+    } catch {
+      /* best effort */
+    }
   }
 
-  async preview<T>(fn: (db: DB) => T): Promise<T> {
+  async read<T>(fn: (db: Readonly<DB>) => T, scope?: Scope): Promise<T> {
     await this.init();
-    return this.wrap(() => this.client.transaction(async (tx) => (await this.execute(tx, fn, true)).result, { readOnly: true }));
+    return this.wrap(() =>
+      this.client.transaction(
+        async (tx) => {
+          const sc = await this.resolve(tx, scope);
+          const run = await this.execute(tx, fn, false, sc);
+          if (this.opts.verifyScope && sc) {
+            const full = await this.execute(tx, fn, false, undefined);
+            this.compare("read", norm(run.result), norm(full.result), scope);
+          }
+          return run.result;
+        },
+        { readOnly: true }
+      )
+    );
   }
 
-  async transaction<T>(fn: (db: DB) => T): Promise<T> {
+  async preview<T>(fn: (db: DB) => T, scope?: Scope): Promise<T> {
+    await this.init();
+    return this.wrap(() => this.client.transaction(async (tx) => (await this.execute(tx, fn, true, await this.resolve(tx, scope))).result, { readOnly: true }));
+  }
+
+  async transaction<T>(fn: (db: DB) => T, scope?: Scope): Promise<T> {
     await this.init();
     return this.wrap(() =>
       this.client.transaction(async (tx) => {
         await tx.query("select pg_advisory_xact_lock($1)", [WRITE_LOCK]);
-        const { result, arrays, loaded, virtual } = await this.execute(tx, fn, true);
-        await this.persist(tx, arrays, loaded, virtual);
-        return result;
+        const sc = await this.resolve(tx, scope);
+        const run = await this.execute(tx, fn, true, sc);
+        const plans = this.plan(run.arrays, run.loaded, run.virtual);
+        if (this.opts.verifyScope && sc) {
+          const full = await this.execute(tx, fn, true, undefined);
+          this.compare("transaction", norm({ r: run.result, p: summarize(plans) }), norm({ r: full.result, p: summarize(this.plan(full.arrays, full.loaded, full.virtual)) }), scope);
+        }
+        await this.apply(tx, plans);
+        return run.result;
       })
     );
+  }
+
+  /** Resolves a slug to a league id so every collection can filter on it. */
+  private async resolve(tx: SqlTx, scope?: Scope): Promise<Scope | undefined> {
+    if (!scope) return undefined;
+    if (scope.leagueSlug && !scope.leagueId) {
+      const { rows } = await tx.query<{ id: string }>("select id from leagues where slug = $1", [scope.leagueSlug]);
+      if (rows[0]) return { ...scope, leagueId: rows[0].id };
+    }
+    return scope;
+  }
+
+  private compare(kind: string, scoped: string, full: string, scope?: Scope) {
+    if (scoped === full) return;
+    let i = 0;
+    while (i < scoped.length && scoped[i] === full[i]) i++;
+    throw new Error(`Scope mismatch in ${kind} (${JSON.stringify(scope)}): the scoped run differs from the full run near …${scoped.slice(Math.max(0, i - 60), i + 80)}… vs …${full.slice(Math.max(0, i - 60), i + 80)}…`);
   }
 
   close(): Promise<void> {
@@ -82,7 +173,7 @@ export class PgStore implements Store {
 
   // ------------------------------------------------------------------ execution
 
-  private async execute<T>(tx: SqlTx, fn: (db: any) => T, write: boolean) {
+  private async execute<T>(tx: SqlTx, fn: (db: any) => T, write: boolean, scope: Scope | undefined) {
     const loaded = new Map<CollectionName, Rec[]>();
     for (let attempt = 0; attempt < CODECS.length + 2; attempt++) {
       const arrays = new Map<CollectionName, Rec[]>();
@@ -92,7 +183,7 @@ export class PgStore implements Store {
         return { result: assertSync(fn(db)), arrays, loaded, virtual };
       } catch (e) {
         if (e instanceof NeedCollection) {
-          await this.load(tx, CODEC_BY_NAME.get(e.collection)!, loaded);
+          await this.load(tx, CODEC_BY_NAME.get(e.collection)!, loaded, scope);
           continue;
         }
         throw e;
@@ -101,10 +192,11 @@ export class PgStore implements Store {
     throw new Error("Store: too many table loads for one operation");
   }
 
-  private async load(tx: SqlTx, codec: Codec, loaded: Map<CollectionName, Rec[]>) {
-    const { rows } = await tx.query(`select * from ${codec.table} order by ${codec.order}`);
+  private async load(tx: SqlTx, codec: Codec, loaded: Map<CollectionName, Rec[]>, scope: Scope | undefined) {
+    const f = filterFor(codec.collection, scope);
+    const { rows } = await tx.query(`select * from ${codec.table}${f ? ` where ${f.where}` : ""} order by ${codec.order}`, f?.params);
     const recs = rows.map((r) => codec.fromRow(r));
-    if (codec.loadChildren) await codec.loadChildren(tx, recs);
+    if (codec.loadChildren) await codec.loadChildren(tx, recs, !!f);
     loaded.set(codec.collection, recs);
   }
 
@@ -144,8 +236,7 @@ export class PgStore implements Store {
 
   // ------------------------------------------------------------------ persistence
 
-  private async persist(tx: SqlTx, arrays: Map<CollectionName, Rec[]>, loaded: Map<CollectionName, Rec[]>, virtual: Set<CollectionName>) {
-    type Plan = { codec: Codec; inserted: Rec[]; updated: { before: Rec; after: Rec }[]; deleted: Rec[] };
+  private plan(arrays: Map<CollectionName, Rec[]>, loaded: Map<CollectionName, Rec[]>, virtual: Set<CollectionName>): Plan[] {
     const plans: Plan[] = [];
     for (const codec of CODECS) {
       const next = arrays.get(codec.collection);
@@ -168,6 +259,10 @@ export class PgStore implements Store {
       if (codec.updateOrder) updated.sort((a, b) => codec.updateOrder!(a.after, b.after));
       if (inserted.length || updated.length || deleted.length) plans.push({ codec, inserted, updated, deleted });
     }
+    return plans;
+  }
+
+  private async apply(tx: SqlTx, plans: Plan[]) {
     if (!plans.length) return;
 
     // Declare which matchups' scores this (already authorized) transaction writes, and any demo league being purged,

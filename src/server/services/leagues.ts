@@ -102,7 +102,7 @@ export function createLeague(store: Store, actor: Actor, raw: CreateLeagueInput)
     });
     writeAudit(db, actor, { leagueId: league.id, seasonId: season.id, action: "league.created", entityType: "league", entityId: league.id, after: { name: league.name, visibility: league.visibility, config: check.config } });
     return { leagueId: league.id, slug, seasonId: season.id };
-  });
+  }, { all: ["leagues"] });
 }
 
 export function listUserLeagues(store: Store, userId: Id) {
@@ -110,12 +110,13 @@ export function listUserLeagues(store: Store, userId: Id) {
     db.memberships
       .filter((m) => m.userId === userId && m.status === "active")
       .map((m) => ({ league: db.leagues.find((l) => l.id === m.leagueId)!, role: m.role }))
-      .filter((x) => x.league && !x.league.archivedAt)
+      .filter((x) => x.league && !x.league.archivedAt),
+    { userIds: [userId] }
   );
 }
 
 export function listPublicLeagues(store: Store) {
-  return store.read((db) => db.leagues.filter((l) => l.visibility === "public" && !l.archivedAt).map((l) => ({ id: l.id, slug: l.slug, name: l.name, description: l.description, accent: l.accent, logoText: l.logoText })));
+  return store.read((db) => db.leagues.filter((l) => l.visibility === "public" && !l.archivedAt).map((l) => ({ id: l.id, slug: l.slug, name: l.name, description: l.description, accent: l.accent, logoText: l.logoText })), { publicLeagues: true });
 }
 
 // ---------- general settings ----------
@@ -135,7 +136,7 @@ export async function updateGeneral(store: Store, actor: Actor, leagueId: Id, ra
     const before = { name: league.name, description: league.description, logoText: league.logoText, accent: league.accent };
     Object.assign(league, input.data);
     writeAudit(db, actor, { leagueId, action: "league.updated", entityType: "league", entityId: leagueId, before, after: input.data });
-  });
+  }, { leagueId });
 }
 
 export async function updateVisibility(store: Store, actor: Actor, leagueId: Id, visibility: League["visibility"]) {
@@ -148,7 +149,7 @@ export async function updateVisibility(store: Store, actor: Actor, leagueId: Id,
     // Changing visibility invalidates previously shared private links.
     league.shareToken = newToken().slice(0, 24);
     writeAudit(db, actor, { leagueId, action: "league.visibility_changed", entityType: "league", entityId: leagueId, before: { visibility: before }, after: { visibility } });
-  });
+  }, { leagueId });
 }
 
 export function rotateShareToken(store: Store, actor: Actor, leagueId: Id): Promise<string> {
@@ -157,7 +158,7 @@ export function rotateShareToken(store: Store, actor: Actor, leagueId: Id): Prom
     league.shareToken = newToken().slice(0, 24);
     writeAudit(db, actor, { leagueId, action: "league.share_link_rotated", entityType: "league", entityId: leagueId });
     return league.shareToken;
-  });
+  }, { leagueId });
 }
 
 export async function updateHomepage(store: Store, actor: Actor, leagueId: Id, modules: ModuleSetting[]) {
@@ -174,7 +175,7 @@ export async function updateHomepage(store: Store, actor: Actor, leagueId: Id, m
     const before = league.homepage;
     league.homepage = clean.map((m) => ({ id: m.id, enabled: !!m.enabled }));
     writeAudit(db, actor, { leagueId, action: "league.homepage_changed", entityType: "league", entityId: leagueId, before, after: league.homepage });
-  });
+  }, { leagueId });
 }
 
 export async function updateAwardsConfig(store: Store, actor: Actor, leagueId: Id, awards: League["awards"]) {
@@ -187,7 +188,7 @@ export async function updateAwardsConfig(store: Store, actor: Actor, leagueId: I
     }
     league.awards = { ...league.awards, ...clean };
     writeAudit(db, actor, { leagueId, action: "awards.config_changed", entityType: "league", entityId: leagueId, before, after: league.awards });
-  });
+  }, { leagueId });
 }
 
 // ---------- templates & duplication ----------
@@ -200,7 +201,7 @@ export async function saveTemplate(store: Store, actor: Actor, leagueId: Id, nam
     requirePerm(db, actor, leagueId, "settings.rules");
     db.templates.push({ id: newId("tp"), leagueId, name: name.trim().slice(0, 60), description: description.slice(0, 200), config: check.config!, createdAt: now() });
     writeAudit(db, actor, { leagueId, action: "template.saved", entityType: "template", entityId: name });
-  });
+  }, { leagueId });
 }
 
 /** Duplicates a league's *setup* (rules, teams, homepage) — never scores, schedules or results. */
@@ -217,7 +218,7 @@ export function duplicateLeagueSetup(store: Store, actor: Actor, sourceLeagueId:
     for (const t of db.teams.filter((t) => t.leagueId === src.id && t.active)) db.teams.push({ ...t, id: newId("tm"), leagueId: league.id, isDemo: false });
     writeAudit(db, actor, { leagueId: league.id, seasonId: s.id, action: "league.duplicated", entityType: "league", entityId: league.id, after: { from: src.id } });
     return { leagueId: league.id, slug };
-  });
+  }, { all: ["leagues"], leagueId: sourceLeagueId });
 }
 
 // ---------- members & invitations ----------
@@ -231,7 +232,7 @@ export function listMembers(store: Store, actor: Actor, leagueId: Id) {
         const u = db.users.find((x) => x.id === m.userId)!;
         return { ...m, name: u.name, email: u.email };
       });
-  });
+  }, { leagueId });
 }
 
 export function listInvitations(store: Store, actor: Actor, leagueId: Id) {
@@ -241,7 +242,7 @@ export function listInvitations(store: Store, actor: Actor, leagueId: Id) {
       .filter((i) => i.leagueId === leagueId)
       .map((i) => ({ id: i.id, email: i.email, role: i.role, createdAt: i.createdAt, expiresAt: i.expiresAt, revokedAt: i.revokedAt, acceptedAt: i.acceptedAt }))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  });
+  }, { leagueId });
 }
 
 export function inviteMember(store: Store, actor: Actor, leagueId: Id, input: { email?: string | null; role: Role; ttlDays?: number }): Promise<{ token: string; invitationId: Id }> {
@@ -264,7 +265,7 @@ export function inviteMember(store: Store, actor: Actor, leagueId: Id, input: { 
     }
     writeAudit(db, actor, { leagueId, action: "member.invited", entityType: "invitation", entityId: inv.id, after: { email, role: input.role, expiresAt: inv.expiresAt } });
     return { token, invitationId: inv.id };
-  });
+  }, { leagueId, emails: input.email ? [normalizeEmail(input.email)] : undefined });
 }
 
 export async function revokeInvitation(store: Store, actor: Actor, leagueId: Id, invitationId: Id) {
@@ -275,7 +276,7 @@ export async function revokeInvitation(store: Store, actor: Actor, leagueId: Id,
     if (inv.acceptedAt) throw conflict("That invitation was already used.");
     inv.revokedAt = now();
     writeAudit(db, actor, { leagueId, action: "member.invitation_revoked", entityType: "invitation", entityId: inv.id });
-  });
+  }, { leagueId });
 }
 
 export function previewInvitation(store: Store, token: string) {
@@ -287,7 +288,7 @@ export function previewInvitation(store: Store, token: string) {
     if (!league) return null;
     const state = inv.revokedAt ? "revoked" : inv.acceptedAt ? "used" : inv.expiresAt < now() ? "expired" : "valid";
     return { leagueName: league.name, role: inv.role, state, email: inv.email };
-  });
+  }, { tokenHash: h });
 }
 
 export function acceptInvitation(store: Store, actor: Actor, token: string): Promise<{ slug: string }> {
@@ -309,7 +310,7 @@ export function acceptInvitation(store: Store, actor: Actor, token: string): Pro
     inv.acceptedAt = now();
     writeAudit(db, actor, { leagueId: inv.leagueId, action: "member.joined", entityType: "membership", entityId: actor.id, after: { role: inv.role } });
     return { slug: league.slug };
-  });
+  }, { tokenHash: h, userIds: [actor.id] });
 }
 
 function countActiveOwners(db: DB, leagueId: Id) {
@@ -328,7 +329,7 @@ export async function setMemberRole(store: Store, actor: Actor, leagueId: Id, us
     const before = target.role;
     target.role = role;
     writeAudit(db, actor, { leagueId, action: "member.role_changed", entityType: "membership", entityId: userId, before: { role: before }, after: { role } });
-  });
+  }, { leagueId });
 }
 
 /** Deactivating revokes access immediately but keeps the membership (and any linked bowler history). */
@@ -343,7 +344,7 @@ export async function setMemberStatus(store: Store, actor: Actor, leagueId: Id, 
     const before = target.status;
     target.status = status;
     writeAudit(db, actor, { leagueId, action: `member.${status === "active" ? "reactivated" : status}`, entityType: "membership", entityId: userId, before: { status: before }, after: { status } });
-  });
+  }, { leagueId });
 }
 
 export async function leaveLeague(store: Store, actor: Actor, leagueId: Id) {
@@ -353,7 +354,7 @@ export async function leaveLeague(store: Store, actor: Actor, leagueId: Id) {
     if (m.role === "owner" && countActiveOwners(db, leagueId) <= 1) throw conflict("You own this league. Transfer ownership to another member before leaving.");
     m.status = "removed";
     writeAudit(db, actor, { leagueId, action: "member.left", entityType: "membership", entityId: actor.id });
-  });
+  }, { leagueId });
 }
 
 export async function linkMemberToBowler(store: Store, actor: Actor, leagueId: Id, userId: Id, bowlerId: Id | null) {
@@ -367,7 +368,7 @@ export async function linkMemberToBowler(store: Store, actor: Actor, leagueId: I
     const b = bowlerId ? db.bowlers.find((x) => x.id === bowlerId)! : null;
     if (b) b.userId = userId;
     writeAudit(db, actor, { leagueId, action: "member.linked_bowler", entityType: "membership", entityId: userId, before: { bowlerId: before }, after: { bowlerId } });
-  });
+  }, { leagueId });
 }
 
 export async function transferOwnership(store: Store, actor: Actor, leagueId: Id, toUserId: Id, confirmName: string) {
@@ -379,7 +380,7 @@ export async function transferOwnership(store: Store, actor: Actor, leagueId: Id
     target.role = "owner";
     membership.role = "commissioner";
     writeAudit(db, actor, { leagueId, action: "league.ownership_transferred", entityType: "league", entityId: leagueId, before: { owner: actor.id }, after: { owner: toUserId } });
-  });
+  }, { leagueId });
 }
 
 export async function archiveLeague(store: Store, actor: Actor, leagueId: Id, confirmName: string) {
@@ -388,7 +389,7 @@ export async function archiveLeague(store: Store, actor: Actor, leagueId: Id, co
     if (confirmName.trim() !== league.name) throw invalid("Type the league's exact name to confirm.");
     league.archivedAt = now();
     writeAudit(db, actor, { leagueId, action: "league.archived", entityType: "league", entityId: leagueId });
-  });
+  }, { leagueId });
 }
 
 /** Operator recovery path (CLI). Restores an owner when every administrator account is gone. */
@@ -406,6 +407,6 @@ export async function recoverOwner(store: Store, slug: string, email: string, by
     m.role = "owner";
     m.status = "active";
     db.audit.push({ id: newId("au"), leagueId: league.id, seasonId: null, at: now(), userId: user.id, userName: `${by} (for ${user.name})`, action: "league.owner_recovered", entityType: "membership", entityId: user.id, before: null, after: { role: "owner" }, note: "Operator-initiated recovery" });
-  });
+  }, { leagueSlug: slug, emails: [normalizeEmail(email)] });
 }
 

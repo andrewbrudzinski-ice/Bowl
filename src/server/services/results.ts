@@ -178,7 +178,7 @@ export function saveEntry(store: Store, actor: Actor, leagueId: Id, input: Entry
   return store.transaction((db) => {
     requirePerm(db, actor, leagueId, "scores.enter");
     return applyEntry(db, actor, leagueId, input, { correction: null });
-  });
+  }, { leagueId });
 }
 
 export interface BulkItemResult {
@@ -204,7 +204,7 @@ export function saveWeekEntries(store: Store, actor: Actor, leagueId: Id, entrie
       }
     }
     return out;
-  });
+  }, { leagueId });
 }
 
 export interface FinalizePreview {
@@ -240,7 +240,7 @@ export function previewFinalize(store: Store, actor: Actor, leagueId: Id, matchu
       issues, standingsBefore: before, standingsAfter: after,
       summary: { winner: r.winner, a: r.a.points, b: r.b?.points ?? 0 },
     };
-  });
+  }, { leagueId });
 }
 
 export function finalizeInDb(db: DB, actor: Actor, leagueId: Id, matchupId: Id, expectedRevision: number): SaveResult {
@@ -280,7 +280,7 @@ export function finalizeMatchup(store: Store, actor: Actor, leagueId: Id, matchu
   return store.transaction((db) => {
     requirePerm(db, actor, leagueId, "results.finalize");
     return finalizeInDb(db, actor, leagueId, matchupId, expectedRevision);
-  });
+  }, { leagueId });
 }
 
 export function markReady(store: Store, actor: Actor, leagueId: Id, matchupId: Id, expectedRevision: number): Promise<SaveResult> {
@@ -299,7 +299,7 @@ export function markReady(store: Store, actor: Actor, leagueId: Id, matchupId: I
     weekStatusSync(db, season.id, matchup.weekNumber);
     writeAudit(db, actor, { leagueId, seasonId: season.id, action: "result.marked_ready", entityType: "matchup", entityId: matchupId });
     return { matchupId, revision: matchup.revision, state: matchup.state, issues, changes: [] };
-  });
+  }, { leagueId });
 }
 
 export interface CorrectionInput extends EntryInput {
@@ -314,7 +314,7 @@ export function correctResult(store: Store, actor: Actor, leagueId: Id, input: C
   return store.transaction((db) => {
     requirePerm(db, actor, leagueId, "results.correct");
     return applyEntry(db, actor, leagueId, input, { correction: { reason: input.reason.trim().slice(0, 300) } });
-  });
+  }, { leagueId });
 }
 
 /** Takes a finalized result out of the official standings so it can be edited normally. */
@@ -333,5 +333,5 @@ export async function reopenResult(store: Store, actor: Actor, leagueId: Id, mat
     matchup.updatedBy = actor.id;
     weekStatusSync(db, season.id, matchup.weekNumber);
     writeAudit(db, actor, { leagueId, seasonId: season.id, action: "result.reopened", entityType: "matchup", entityId: matchupId, before: { state: before }, after: { state: "draft" }, note: reason.trim().slice(0, 300) });
-  });
+  }, { leagueId });
 }

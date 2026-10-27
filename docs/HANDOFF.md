@@ -43,7 +43,7 @@ audit log; commissioner overview; CSV import (preview, row errors, duplicates, a
 in-app notifications with preferences and dedupe; shareable links (visibility-aware) and a PNG scorecard for matchups; PWA manifest/icons/offline page; structured logging.
 
 **Implemented but limited — be aware:**
-- **Storage:** Postgres/Supabase (`DATABASE_URL`), embedded Postgres, or the single-instance file store. The Postgres store loads whole tables per request and serializes writers with one lock — fine for tens of leagues, not thousands (see SUPABASE.md → limits). Supabase **Auth** is not used; the app has its own accounts, and its server connection bypasses RLS (policies are defense in depth).
+- **Storage:** Postgres/Supabase (`DATABASE_URL`), embedded Postgres, or the single-instance file store. The Postgres store loads only the requesting league's rows (scoped loads; verified by `BOWL_VERIFY_SCOPE=1`) but still serializes all writers with one global lock — fine for hundreds of leagues, not thousands of simultaneous busy ones (see SUPABASE.md → limits). Supabase **Auth** is not used; the app has its own accounts, and its server connection bypasses RLS (policies are defense in depth).
 - **Email** is used only for password reset and invitations (and only when a provider is configured). Per-event email notifications are **not implemented**; `Also send by email` in preferences is stored but has no delivery path yet.
 - **Browser push notifications**: not implemented. In-app notifications only.
 - **"Season approaching playoffs" notification**: not implemented (needs a scheduler). Bracket-set / round / champion notifications *are* sent.

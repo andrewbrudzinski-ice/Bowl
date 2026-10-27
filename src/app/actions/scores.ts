@@ -6,7 +6,7 @@ import { correctResult, finalizeMatchup, markReady, previewFinalize, reopenResul
 import { run } from "./util";
 
 async function leagueId(slug: string): Promise<string> {
-  const l = await getStore().read((db) => leagueBySlug(db, slug));
+  const l = await getStore().read((db) => leagueBySlug(db, slug), { leagueSlug: slug });
   if (!l) throw Object.assign(new Error("not found"), { digest: "NEXT_NOT_FOUND" });
   return l.id;
 }

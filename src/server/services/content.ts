@@ -33,7 +33,7 @@ export function postAnnouncement(store: Store, actor: Actor, leagueId: Id, raw: 
     notifyMembers(db, { leagueId, type, title: a.title, body: a.body.slice(0, 140), href: `/l/${league.slug}/news#${a.id}`, dedupeKey: `ann:${a.id}`, exceptUserId: actor.id });
     writeAudit(db, actor, { leagueId, action: "announcement.posted", entityType: "announcement", entityId: a.id, after: { title: a.title, category: a.category } });
     return a.id;
-  });
+  }, { leagueId });
 }
 
 export async function updateAnnouncement(store: Store, actor: Actor, leagueId: Id, id: Id, raw: z.input<typeof annSchema>) {
@@ -47,7 +47,7 @@ export async function updateAnnouncement(store: Store, actor: Actor, leagueId: I
     Object.assign(a, p.data, { updatedAt: now(), updatedByName: actor.name });
     writeAudit(db, actor, { leagueId, action: "announcement.updated", entityType: "announcement", entityId: id, before, after: p.data });
     // Edits never re-notify: the dedupe key is per announcement.
-  });
+  }, { leagueId });
 }
 
 export async function addCommissionerAward(store: Store, actor: Actor, leagueId: Id, input: { seasonId: Id; title: string; recipientKind: "bowler" | "team"; recipientId: Id; note: string; week: number | null }) {
@@ -60,7 +60,7 @@ export async function addCommissionerAward(store: Store, actor: Actor, leagueId:
     const rec = { id: newId("ca"), leagueId, seasonId: input.seasonId, title: input.title.trim().slice(0, 80), recipientKind: input.recipientKind, recipientId: input.recipientId, note: input.note.trim().slice(0, 300), week: input.week, createdBy: actor.id, createdAt: now() };
     db.commissionerAwards.push(rec);
     writeAudit(db, actor, { leagueId, seasonId: input.seasonId, action: "award.commissioner_added", entityType: "award", entityId: rec.id, after: rec });
-  });
+  }, { leagueId });
 }
 
 export async function removeCommissionerAward(store: Store, actor: Actor, leagueId: Id, id: Id) {
@@ -70,7 +70,7 @@ export async function removeCommissionerAward(store: Store, actor: Actor, league
     if (!a) throw notFound("Award");
     db.commissionerAwards = db.commissionerAwards.filter((x) => x.id !== id);
     writeAudit(db, actor, { leagueId, seasonId: a.seasonId, action: "award.commissioner_removed", entityType: "award", entityId: id, before: a });
-  });
+  }, { leagueId });
 }
 
 export function listNotifications(store: Store, userId: Id, limit = 50) {
@@ -79,18 +79,19 @@ export function listNotifications(store: Store, userId: Id, limit = 50) {
       .filter((n) => n.userId === userId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, limit)
-      .map((n) => ({ ...n, leagueName: db.leagues.find((l) => l.id === n.leagueId)?.name ?? "" }))
+      .map((n) => ({ ...n, leagueName: db.leagues.find((l) => l.id === n.leagueId)?.name ?? "" })),
+    { userIds: [userId] }
   );
 }
 
 export function unreadCount(store: Store, userId: Id): Promise<number> {
-  return store.read((db) => db.notifications.filter((n) => n.userId === userId && !n.readAt).length);
+  return store.read((db) => db.notifications.filter((n) => n.userId === userId && !n.readAt).length, { userIds: [userId] });
 }
 
 export async function markNotificationsRead(store: Store, userId: Id, ids?: Id[]) {
   await store.transaction((db) => {
     for (const n of db.notifications) if (n.userId === userId && !n.readAt && (!ids || ids.includes(n.id))) n.readAt = now();
-  });
+  }, { userIds: [userId] });
 }
 
 export async function updatePrefs(store: Store, userId: Id, prefs: Partial<NotificationPrefs>) {
@@ -98,7 +99,7 @@ export async function updatePrefs(store: Store, userId: Id, prefs: Partial<Notif
     const u = db.users.find((x) => x.id === userId);
     if (!u) throw notFound("User");
     for (const k of Object.keys(u.prefs) as (keyof NotificationPrefs)[]) if (typeof prefs[k] === "boolean") u.prefs[k] = prefs[k]!;
-  });
+  }, { userIds: [userId] });
 }
 
 export async function updateProfile(store: Store, userId: Id, name: string) {
@@ -108,6 +109,6 @@ export async function updateProfile(store: Store, userId: Id, name: string) {
     const u = db.users.find((x) => x.id === userId);
     if (!u) throw notFound("User");
     u.name = n;
-  });
+  }, { userIds: [userId] });
 }
 

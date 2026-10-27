@@ -67,7 +67,7 @@ export async function createDemoLeague(store: Store, owner: Actor): Promise<{ sl
 
   const playSeason = async (seasonId: Id, weeks: number[], opts: { lastDraft?: boolean } = {}) => {
     for (const week of weeks) {
-      const matchups = await store.read((db) => db.matchups.filter((m) => m.seasonId === seasonId && m.weekNumber === week && m.sideB).map((m) => structuredClone(m)));
+      const matchups = await store.read((db) => db.matchups.filter((m) => m.seasonId === seasonId && m.weekNumber === week && m.sideB).map((m) => structuredClone(m)), { leagueId });
       for (const [idx, m] of matchups.entries()) {
         const draftOnly = opts.lastDraft && week === weeks[weeks.length - 1];
         const scores = (["A", "B"] as const).flatMap((side) =>
@@ -108,7 +108,7 @@ export async function createDemoLeague(store: Store, owner: Actor): Promise<{ sl
 
   await postAnnouncement(store, owner, leagueId, { title: "Welcome to the demo league", body: "Everything here is simulated. Open a week, a matchup or a bowler profile to see how results are calculated, then remove the demo data from Commissioner → Seasons when you're ready to build your own league.", category: "general", pinned: true });
   await postAnnouncement(store, owner, leagueId, { title: "Week 7 bowling is this Friday", body: "Lanes 5–10 at 7:00pm. Playoffs begin after week 10 — the top four teams qualify.", category: "dates", pinned: false });
-  const best = await store.read((db) => db.bowlers.find((b) => b.leagueId === leagueId && b.name === "Casey Morgan")!.id);
+  const best = await store.read((db) => db.bowlers.find((b) => b.leagueId === leagueId && b.name === "Casey Morgan")!.id, { leagueId });
   await addCommissionerAward(store, owner, leagueId, { seasonId: next.seasonId, title: "Sportsmanship Award", recipientKind: "bowler", recipientId: best, note: "Cheered on every lane, every week.", week: null });
 
   // Flag everything as demo so it can be removed cleanly.
@@ -120,7 +120,7 @@ export async function createDemoLeague(store: Store, owner: Actor): Promise<{ sl
     for (const t of db.teams) if (t.leagueId === leagueId) t.isDemo = true;
     for (const b of db.bowlers) if (b.leagueId === leagueId) b.isDemo = true;
     for (const m of db.matchups) if (seasonIds.has(m.seasonId)) m.isDemo = true;
-  });
+  }, { leagueId });
   return { slug, leagueId };
 }
 
@@ -147,5 +147,5 @@ export async function removeDemoLeague(store: Store, actor: Actor, leagueId: Id)
     db.memberships = db.memberships.filter((m) => m.leagueId !== leagueId);
     db.audit = db.audit.filter((a) => a.leagueId !== leagueId);
     db.leagues = db.leagues.filter((l) => l.id !== leagueId);
-  });
+  }, { leagueId });
 }
