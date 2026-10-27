@@ -63,4 +63,14 @@ describe.skipIf(TEST_BACKEND === "file")("scoped loading", () => {
     expect(await store.read((db) => JSON.stringify(db.teams.filter((t) => t.leagueId === b.leagueId)))).toBe(before);
     expect(await store.read((db) => db.teams.filter((t) => t.leagueId === a.leagueId).every((t) => t.name.endsWith("!")))).toBe(true);
   });
+
+  it("userLeagues loads the seasons of the user's leagues and nobody else's", async () => {
+    const { store, a } = await two(); // b is owned by a different user
+    const c = await mkWorld({ store, name: "Gamma League", owner: a.owner });
+    const seen = await store.read((db) => ({ leagues: db.leagues.map((l) => l.id).sort(), seasons: db.seasons.map((s) => s.leagueId) }), { userIds: [a.owner.id], userLeagues: ["seasons"] });
+    expect(seen.leagues).toEqual([a.leagueId, c.leagueId].sort());
+    expect(new Set(seen.seasons)).toEqual(new Set([a.leagueId, c.leagueId]));
+    // without the facet, seasons are not loaded at all
+    expect(await store.read((db) => db.seasons.length, { userIds: [a.owner.id] })).toBe(0);
+  });
 });

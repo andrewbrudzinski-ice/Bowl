@@ -16,7 +16,8 @@ export default async function NewLeague() {
       if (!l) return [];
       const s = db.seasons.filter((x) => x.leagueId === l.id).sort((a, b) => b.year - a.year)[0];
       return [{ id: l.id, name: `${l.name}${s ? ` (${s.name})` : ""}`, config: normalizeConfig(s ? s.ruleVersions[s.ruleVersions.length - 1].config : l.defaultConfig) }];
-    })
+    }),
+    { userIds: [actor.id], userLeagues: ["seasons"] }
   );
   return (
     <div className="wrap max-w-4xl py-8">

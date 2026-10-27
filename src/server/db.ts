@@ -190,6 +190,11 @@ export interface Scope {
   leagueSlug?: string;
   /** These users' profiles, sessions, reset tokens, notifications and memberships (and the leagues they belong to). */
   userIds?: string[];
+  /**
+   * For every league `userIds` are members of, also load these league-owned collections (e.g. ["seasons"] for a picker that
+   * lists the user's leagues with their latest season). Only collections keyed directly by `league_id` are supported.
+   */
+  userLeagues?: ("seasons" | "teams" | "bowlers")[];
   /** Profiles with these (lower-case) emails. */
   emails?: string[];
   /** The session / reset / invitation row with this token hash (and the user + league it points at). */
