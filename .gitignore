@@ -7,3 +7,6 @@ data/backups
 *.tsbuildinfo
 next-env.d.ts
 test-results
+
+# Local/CI server output
+server.log
