@@ -138,6 +138,8 @@ jobs:
         run: node e2e/smoke.mjs
       - name: Phone layout stress test (wider fonts must not cause sideways scroll)
         run: node e2e/overflow.mjs
+      - name: Backup restore (files over 1 MB must work)
+        run: node e2e/restore.mjs
       - name: League wizard and access boundaries
         run: OTHER_SLUG="$SLUG" node e2e/wizard.mjs
       - name: Server log
