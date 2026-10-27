@@ -2,6 +2,9 @@
 const nextConfig = {
   poweredByHeader: false,
   serverExternalPackages: ["pg", "@electric-sql/pglite"],
+  // Server actions reject bodies over 1 MB by default, but league backups and CSV imports are allowed up to 25 MB (checked in
+  // src/app/actions/admin.ts). Without this, restoring any backup over 1 MB fails with a generic "Something went wrong".
+  experimental: { serverActions: { bodySizeLimit: "26mb" } },
   async headers() {
     return [
       {

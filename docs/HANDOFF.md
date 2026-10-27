@@ -73,7 +73,9 @@ in-app notifications with preferences and dedupe; shareable links (visibility-aw
 
 ## Tests
 
-`npm test` — 121 tests, runnable on file / embedded Postgres / a real Postgres server (`BOWL_TEST_STORE`): handicap/rounding/rolling/blended averages; hand-calculated matchups; same scores under different leagues' rules;
+`npm test` — 134 tests (123 run on the file store; the rest cover Postgres-only behaviour: scoped loads, per-league locks, the health endpoint), runnable on file / embedded Postgres / a real Postgres server (`BOWL_TEST_STORE`; add `BOWL_VERIFY_SCOPE=1` to prove scoped loads match full loads): handicap/rounding/rolling/blended averages; hand-calculated matchups; same scores under different leagues' rules;
 standings & tie-breakers; schedule byes; playoff clinch/elimination; awards/records/rivalries/recaps; validation; rule-change preview & historical integrity;
 rollback on injected failure; corrections; security matrix (roles, isolation, visibility, invitations, lockout); imports; export/restore; demo data; SQL migration + RLS in an in-process Postgres.
+
+Browser tests (`e2e/`, run in CI against a production build on PostgreSQL): `smoke.mjs` (every page at desktop and phone width, score entry through finalize, console/hydration errors), `overflow.mjs` (no sideways scroll with wider fonts), `restore.mjs` (backups over 1 MB restore), `wizard.mjs` (league creation and access boundaries), and `hydration-diff.mjs` (a diagnostic for hydration errors).
 `e2e/smoke.mjs` and `e2e/wizard.mjs` drive a real browser (Playwright is not a dependency; install it with `npm i -D playwright` or use a global install).
