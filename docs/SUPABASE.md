@@ -24,6 +24,7 @@ Related: `DATABASE_SSL` (`require` or `no-verify` — Supabase's pooler certific
 2. `DATABASE_URL='postgresql://postgres.<ref>:<password>@<host>:6543/postgres' DATABASE_SSL=no-verify npm run db:migrate`
    — applies `supabase/migrations/*.sql` (recorded in `schema_migrations`). On Supabase the `auth` helpers already exist; on plain Postgres the runner applies
    `supabase/local-prelude.sql` first.
+   Before or after migrating, `DATABASE_URL=… DATABASE_SSL=no-verify npm run db:check` tells you exactly which step fails and why. Passwords with symbols (`@ # / : ?`) must be percent-encoded in the URL, or reset the password to letters and numbers.
 3. Set `DATABASE_URL` (+ `SESSION_SECRET`, `APP_URL`) on the host and deploy. No persistent disk is needed any more, so serverless hosting such as Vercel works.
 4. Moving existing data from the file store: **back up `db.json`**, then
    `DATABASE_URL=… npm run db:import-file -- /path/to/db.json`. Ids are converted to UUIDs deterministically, notification links are rewritten, and the importer

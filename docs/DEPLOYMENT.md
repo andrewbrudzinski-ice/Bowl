@@ -5,7 +5,7 @@
 A Next.js 15 app (Node 20+) plus a database. Two supported setups:
 
 - **PostgreSQL / Supabase (recommended for hosting).** Set `DATABASE_URL`, run `npm run db:migrate` as a release step, deploy anywhere —
-  including serverless hosts, since no local disk is used. Writers are serialized by a database advisory lock, so several instances are safe.
+  including serverless hosts, since no local disk is used. Writes are coordinated by database advisory locks (per league), so several instances are safe.
   Details and limits: [SUPABASE.md](SUPABASE.md).
 - **File store (single small server).** Data lives in one JSON file (`BOWL_DATA_FILE`, default `./data/db.json`), written atomically. It needs a
   **persistent disk and exactly one instance**; a serverless/ephemeral filesystem will lose data.
@@ -24,6 +24,16 @@ Never commit real values. Copy `.env.example`.
 | `NODE_ENV=production` | Set by `npm start` | Enables secure cookies and disables the demo seed script. |
 
 Never prefix database credentials with `NEXT_PUBLIC_`.
+
+## Checking a deployment
+
+- `npm run db:check` — step-by-step diagnosis of `DATABASE_URL` (parse → DNS → TCP → login → migrations → locks → privileges). It never prints the password and says what to fix
+  for the common failures (wrong password, unencoded symbols, TLS settings, blocked ports, pending migrations). Run it from the machine that will run the app.
+- `GET /api/health` — `200 {"ok":true}` when the app can open its database, `503 {"ok":false}` otherwise (reasons go to the server log, never the response). Point your host's health check or an uptime
+  monitor at it.
+
+**Some hosts and sandboxes only allow outbound web traffic (port 443).** The database connection is raw TCP on 6543/5432, so it fails there with a timeout even though the host name resolves;
+`db:check` reports this at the TCP step. Use a host that allows outbound database connections, or widen the network policy.
 
 ## Build and run
 
