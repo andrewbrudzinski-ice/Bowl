@@ -136,6 +136,8 @@ jobs:
           echo "App did not become healthy"; cat server.log; exit 1
       - name: Smoke test (every page, score entry, finalize)
         run: node e2e/smoke.mjs
+      - name: Phone layout stress test (wider fonts must not cause sideways scroll)
+        run: node e2e/overflow.mjs
       - name: League wizard and access boundaries
         run: OTHER_SLUG="$SLUG" node e2e/wizard.mjs
       - name: Server log
