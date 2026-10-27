@@ -70,6 +70,11 @@ button { font: inherit; }
   .btn-ghost { background: transparent; border-color: transparent; color: var(--color-muted); }
   .btn-ghost:hover { background: var(--color-hover); color: var(--color-fg); }
   .btn-sm { height: 30px; padding: 0 10px; font-size: 12px; }
+  /* On a phone a long label ("Replace unplayed matchups with a new schedule") must wrap instead of pushing the page wider than the screen. */
+  @media (max-width: 480px) {
+    .btn { max-width: 100%; height: auto; min-height: 36px; padding-block: 6px; white-space: normal; text-align: center; line-height: 1.25; }
+    .btn-sm { min-height: 30px; padding-block: 4px; }
+  }
 
   .field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
   .field > label, .label { font-size: 12px; font-weight: 600; color: var(--color-muted); }
