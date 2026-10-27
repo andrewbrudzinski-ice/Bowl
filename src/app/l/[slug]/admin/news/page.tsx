@@ -12,7 +12,7 @@ export default async function NewsAdmin({ params, searchParams }: { params: Prom
   const { slug } = await params;
   const sp = await searchParams;
   const ctx = await getLeagueCtx(slug, undefined, "announcements.post");
-  const edit = sp.edit ? getStore().read((db) => db.announcements.find((a) => a.id === sp.edit && a.leagueId === ctx.league.id) ?? null) : null;
+  const edit = sp.edit ? await getStore().read((db) => db.announcements.find((a) => a.id === sp.edit && a.leagueId === ctx.league.id) ?? null) : null;
   return (
     <div className="grid gap-4">
       <PageHeader title={edit ? "Edit announcement" : "Post an announcement"} eyebrow={ctx.league.name} sub="Members are notified once per announcement — editing it later doesn't send another notification. All posts are kept in the news archive." actions={<Link href={`/l/${slug}/news`} className="btn btn-sm">View archive</Link>} />

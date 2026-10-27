@@ -22,7 +22,7 @@ const annSchema = z.object({
   pinned: z.boolean().default(false),
 });
 
-export function postAnnouncement(store: Store, actor: Actor, leagueId: Id, raw: z.input<typeof annSchema>): Id {
+export function postAnnouncement(store: Store, actor: Actor, leagueId: Id, raw: z.input<typeof annSchema>): Promise<Id> {
   const p = annSchema.safeParse(raw);
   if (!p.success) throw invalid(p.error.issues[0].message);
   return store.transaction((db) => {
@@ -36,10 +36,10 @@ export function postAnnouncement(store: Store, actor: Actor, leagueId: Id, raw: 
   });
 }
 
-export function updateAnnouncement(store: Store, actor: Actor, leagueId: Id, id: Id, raw: z.input<typeof annSchema>) {
+export async function updateAnnouncement(store: Store, actor: Actor, leagueId: Id, id: Id, raw: z.input<typeof annSchema>) {
   const p = annSchema.safeParse(raw);
   if (!p.success) throw invalid(p.error.issues[0].message);
-  store.transaction((db) => {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "announcements.post");
     const a = db.announcements.find((x) => x.id === id && x.leagueId === leagueId);
     if (!a) throw notFound("Announcement");
@@ -50,9 +50,9 @@ export function updateAnnouncement(store: Store, actor: Actor, leagueId: Id, id:
   });
 }
 
-export function addCommissionerAward(store: Store, actor: Actor, leagueId: Id, input: { seasonId: Id; title: string; recipientKind: "bowler" | "team"; recipientId: Id; note: string; week: number | null }) {
+export async function addCommissionerAward(store: Store, actor: Actor, leagueId: Id, input: { seasonId: Id; title: string; recipientKind: "bowler" | "team"; recipientId: Id; note: string; week: number | null }) {
   if (!input.title.trim()) throw invalid("Name the award.");
-  store.transaction((db) => {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "awards.manage");
     seasonIn(db, leagueId, input.seasonId);
     if (input.recipientKind === "bowler") bowlerIn(db, leagueId, input.recipientId);
@@ -63,8 +63,8 @@ export function addCommissionerAward(store: Store, actor: Actor, leagueId: Id, i
   });
 }
 
-export function removeCommissionerAward(store: Store, actor: Actor, leagueId: Id, id: Id) {
-  store.transaction((db) => {
+export async function removeCommissionerAward(store: Store, actor: Actor, leagueId: Id, id: Id) {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "awards.manage");
     const a = db.commissionerAwards.find((x) => x.id === id && x.leagueId === leagueId);
     if (!a) throw notFound("Award");
@@ -83,28 +83,28 @@ export function listNotifications(store: Store, userId: Id, limit = 50) {
   );
 }
 
-export function unreadCount(store: Store, userId: Id): number {
+export function unreadCount(store: Store, userId: Id): Promise<number> {
   return store.read((db) => db.notifications.filter((n) => n.userId === userId && !n.readAt).length);
 }
 
-export function markNotificationsRead(store: Store, userId: Id, ids?: Id[]) {
-  store.transaction((db) => {
+export async function markNotificationsRead(store: Store, userId: Id, ids?: Id[]) {
+  await store.transaction((db) => {
     for (const n of db.notifications) if (n.userId === userId && !n.readAt && (!ids || ids.includes(n.id))) n.readAt = now();
   });
 }
 
-export function updatePrefs(store: Store, userId: Id, prefs: Partial<NotificationPrefs>) {
-  store.transaction((db) => {
+export async function updatePrefs(store: Store, userId: Id, prefs: Partial<NotificationPrefs>) {
+  await store.transaction((db) => {
     const u = db.users.find((x) => x.id === userId);
     if (!u) throw notFound("User");
     for (const k of Object.keys(u.prefs) as (keyof NotificationPrefs)[]) if (typeof prefs[k] === "boolean") u.prefs[k] = prefs[k]!;
   });
 }
 
-export function updateProfile(store: Store, userId: Id, name: string) {
+export async function updateProfile(store: Store, userId: Id, name: string) {
   const n = name.trim();
   if (!n || n.length > 80) throw invalid("Enter your name (up to 80 characters).");
-  store.transaction((db) => {
+  await store.transaction((db) => {
     const u = db.users.find((x) => x.id === userId);
     if (!u) throw notFound("User");
     u.name = n;

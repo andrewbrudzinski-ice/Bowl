@@ -174,7 +174,7 @@ function cfgOfVersion(model: ReturnType<typeof buildSeasonModel>, m: Matchup) {
   return v ? playoffConfigFor(v.config, model.weekByNumber.get(m.weekNumber)?.phase ?? "regular") : model.configForWeek(m.weekNumber);
 }
 
-export function saveEntry(store: Store, actor: Actor, leagueId: Id, input: EntryInput): SaveResult {
+export function saveEntry(store: Store, actor: Actor, leagueId: Id, input: EntryInput): Promise<SaveResult> {
   return store.transaction((db) => {
     requirePerm(db, actor, leagueId, "scores.enter");
     return applyEntry(db, actor, leagueId, input, { correction: null });
@@ -190,7 +190,7 @@ export interface BulkItemResult {
 }
 
 /** Saves a whole league night in one request. Each matchup succeeds or fails independently and reports why. */
-export function saveWeekEntries(store: Store, actor: Actor, leagueId: Id, entries: EntryInput[]): BulkItemResult[] {
+export function saveWeekEntries(store: Store, actor: Actor, leagueId: Id, entries: EntryInput[]): Promise<BulkItemResult[]> {
   return store.transaction((db) => {
     requirePerm(db, actor, leagueId, "scores.enter");
     const out: BulkItemResult[] = [];
@@ -220,7 +220,7 @@ function storedScores(db: Readonly<DB>, matchupId: Id): ScoreInput[] {
 }
 
 /** Shows what finalizing would do to the standings without writing anything. */
-export function previewFinalize(store: Store, actor: Actor, leagueId: Id, matchupId: Id): FinalizePreview {
+export function previewFinalize(store: Store, actor: Actor, leagueId: Id, matchupId: Id): Promise<FinalizePreview> {
   return store.read((db) => {
     requirePerm(db, actor, leagueId, "results.finalize");
     const { matchup, season } = matchupIn(db, leagueId, matchupId);
@@ -276,14 +276,14 @@ export function finalizeInDb(db: DB, actor: Actor, leagueId: Id, matchupId: Id, 
   return { matchupId, revision: matchup.revision, state: matchup.state, issues, changes: [] };
 }
 
-export function finalizeMatchup(store: Store, actor: Actor, leagueId: Id, matchupId: Id, expectedRevision: number): SaveResult {
+export function finalizeMatchup(store: Store, actor: Actor, leagueId: Id, matchupId: Id, expectedRevision: number): Promise<SaveResult> {
   return store.transaction((db) => {
     requirePerm(db, actor, leagueId, "results.finalize");
     return finalizeInDb(db, actor, leagueId, matchupId, expectedRevision);
   });
 }
 
-export function markReady(store: Store, actor: Actor, leagueId: Id, matchupId: Id, expectedRevision: number): SaveResult {
+export function markReady(store: Store, actor: Actor, leagueId: Id, matchupId: Id, expectedRevision: number): Promise<SaveResult> {
   return store.transaction((db) => {
     requirePerm(db, actor, leagueId, "scores.enter");
     const { matchup, season } = matchupIn(db, leagueId, matchupId);
@@ -308,7 +308,7 @@ export interface CorrectionInput extends EntryInput {
 }
 
 /** Correct a finalized result. Requires an explicit confirmation and a reason; the old values stay in the audit log. */
-export function correctResult(store: Store, actor: Actor, leagueId: Id, input: CorrectionInput): SaveResult {
+export function correctResult(store: Store, actor: Actor, leagueId: Id, input: CorrectionInput): Promise<SaveResult> {
   if (!input.confirm) throw invalid("Confirm that you want to change a finalized result.");
   if (!input.reason || input.reason.trim().length < 3) throw invalid("Give a short reason for the correction (it's recorded in the audit history).");
   return store.transaction((db) => {
@@ -318,10 +318,10 @@ export function correctResult(store: Store, actor: Actor, leagueId: Id, input: C
 }
 
 /** Takes a finalized result out of the official standings so it can be edited normally. */
-export function reopenResult(store: Store, actor: Actor, leagueId: Id, matchupId: Id, reason: string, confirm: boolean) {
+export async function reopenResult(store: Store, actor: Actor, leagueId: Id, matchupId: Id, reason: string, confirm: boolean) {
   if (!confirm) throw invalid("Confirm that you want to reopen a finalized result.");
   if (!reason || reason.trim().length < 3) throw invalid("Give a short reason for reopening this result.");
-  store.transaction((db) => {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "results.correct");
     const { matchup, season } = matchupIn(db, leagueId, matchupId);
     if (!isOfficial(matchup.state)) throw conflict("This result isn't final.");

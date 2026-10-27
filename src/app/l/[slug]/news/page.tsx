@@ -11,7 +11,7 @@ export default async function News({ params, searchParams }: { params: Promise<{
   const { slug } = await params;
   const sp = await searchParams;
   const ctx = await getLeagueCtx(slug);
-  const items = getStore().read((db) => db.announcements.filter((a) => a.leagueId === ctx.league.id && (!sp.cat || a.category === sp.cat)).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.localeCompare(a.createdAt)));
+  const items = await getStore().read((db) => db.announcements.filter((a) => a.leagueId === ctx.league.id && (!sp.cat || a.category === sp.cat)).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.localeCompare(a.createdAt)));
   return (
     <div>
       <PageHeader title="League news" sub="Announcements from the commissioner — dates, schedule changes, rules, events and recaps." actions={ctx.can("announcements.post") ? <Link href={`/l/${slug}/admin/news`} className="btn btn-primary btn-sm">Post an announcement</Link> : undefined} />

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 
-export const newId = (prefix: string) => `${prefix}_${crypto.randomBytes(9).toString("base64url")}`;
+/** Row ids are UUIDs (they are primary keys in Postgres). The prefix argument is kept only for readability at call sites. */
+export const newId = (_kind: string): string => crypto.randomUUID();
 export const newToken = () => crypto.randomBytes(32).toString("base64url");
 export const now = () => new Date().toISOString();
 

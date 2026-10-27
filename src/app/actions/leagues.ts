@@ -11,7 +11,7 @@ export async function createDemoAction() {
   const actor = await requireActor("/");
   let slug = "";
   const r = await run(async () => {
-    slug = createDemoLeague(getStore(), actor).slug;
+    slug = (await createDemoLeague(getStore(), actor)).slug;
   });
   if (r?.error) redirect(`/?error=${encodeURIComponent(r.error)}`);
   redirect(`/l/${slug}`);
@@ -30,7 +30,7 @@ export async function createLeagueAction(input: CreateLeagueInput): Promise<Acti
   const actor = await requireActor("/leagues/new");
   let slug = "";
   const r = await run(async () => {
-    slug = createLeague(getStore(), actor, input).slug;
+    slug = (await createLeague(getStore(), actor, input)).slug;
   });
   if (r?.error) return r;
   redirect(`/l/${slug}/admin?welcome=1`);

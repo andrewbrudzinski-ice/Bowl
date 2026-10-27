@@ -45,7 +45,7 @@ export function validateEmail(email: string) {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) throw invalid("Enter a valid email address.");
 }
 
-export function registerUser(store: Store, input: { email: string; name: string; password: string }): { user: User; token: string } {
+export function registerUser(store: Store, input: { email: string; name: string; password: string }): Promise<{ user: User; token: string }> {
   const email = normalizeEmail(input.email);
   validateEmail(email);
   validatePassword(input.password);
@@ -77,7 +77,7 @@ export function createSession(db: DB, userId: string): string {
   return token;
 }
 
-export function login(store: Store, emailRaw: string, password: string): { user: User; token: string } {
+export function login(store: Store, emailRaw: string, password: string): Promise<{ user: User; token: string }> {
   const email = normalizeEmail(emailRaw);
   return store.transaction((db) => {
     const user = db.users.find((u) => u.email === email);
@@ -97,12 +97,12 @@ export function login(store: Store, emailRaw: string, password: string): { user:
 }
 
 /** login() cannot both throw and persist, so failed attempts are recorded through this wrapper. */
-export function loginWithLockout(store: Store, email: string, password: string) {
+export async function loginWithLockout(store: Store, email: string, password: string) {
   try {
-    return login(store, email, password);
+    return await login(store, email, password);
   } catch (e) {
     if (e instanceof AppError && e.code === "unauthenticated") {
-      store.transaction((db) => {
+      await store.transaction((db) => {
         const u = db.users.find((x) => x.email === normalizeEmail(email));
         if (!u) return;
         const t = Date.now();
@@ -114,7 +114,7 @@ export function loginWithLockout(store: Store, email: string, password: string) 
   }
 }
 
-export function sessionUser(store: Store, token: string | undefined | null): User | null {
+export async function sessionUser(store: Store, token: string | undefined | null): Promise<User | null> {
   if (!token) return null;
   const h = hashToken(token);
   return store.read((db) => {
@@ -125,16 +125,16 @@ export function sessionUser(store: Store, token: string | undefined | null): Use
   });
 }
 
-export function logout(store: Store, token: string | undefined | null) {
+export async function logout(store: Store, token: string | undefined | null) {
   if (!token) return;
   const h = hashToken(token);
-  store.transaction((db) => {
+  await store.transaction((db) => {
     db.sessions = db.sessions.filter((s) => s.tokenHash !== h);
   });
 }
 
 /** Returns a reset token (null when the email is unknown — callers must respond identically either way). */
-export function requestPasswordReset(store: Store, emailRaw: string): { token: string; user: User } | null {
+export function requestPasswordReset(store: Store, emailRaw: string): Promise<{ token: string; user: User } | null> {
   const email = normalizeEmail(emailRaw);
   return store.transaction((db) => {
     const user = db.users.find((u) => u.email === email && !u.disabled);
@@ -146,9 +146,9 @@ export function requestPasswordReset(store: Store, emailRaw: string): { token: s
   });
 }
 
-export function resetPassword(store: Store, token: string, newPassword: string) {
+export async function resetPassword(store: Store, token: string, newPassword: string) {
   validatePassword(newPassword);
-  store.transaction((db) => {
+  await store.transaction((db) => {
     const rec = db.resetTokens.find((r) => r.tokenHash === hashToken(token));
     if (!rec || rec.usedAt || rec.expiresAt < now()) throw invalid("This reset link is invalid or has expired. Request a new one.");
     const user = db.users.find((u) => u.id === rec.userId);
@@ -162,9 +162,9 @@ export function resetPassword(store: Store, token: string, newPassword: string) 
   log("info", "password_reset", {});
 }
 
-export function changePassword(store: Store, userId: string, current: string, next: string) {
+export async function changePassword(store: Store, userId: string, current: string, next: string) {
   validatePassword(next);
-  store.transaction((db) => {
+  await store.transaction((db) => {
     const u = db.users.find((x) => x.id === userId);
     if (!u || !verifyPassword(current, u.passwordHash)) throw invalid("Your current password is incorrect.");
     u.passwordHash = hashPassword(next);

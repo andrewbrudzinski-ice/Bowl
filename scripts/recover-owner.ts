@@ -4,10 +4,15 @@
 import { getStore } from "../src/server/db";
 import { recoverOwner } from "../src/server/services/leagues";
 
-const [slug, email] = process.argv.slice(2);
-if (!slug || !email) {
-  console.error("Usage: recover-owner <league-slug> <email>");
-  process.exit(1);
+async function main() {
+  const [slug, email] = process.argv.slice(2);
+  if (!slug || !email) {
+    console.error("Usage: recover-owner <league-slug> <email>");
+    process.exit(1);
+  }
+  const store = getStore();
+  await recoverOwner(store, slug, email);
+  console.log(`${email} is now an owner of ${slug}. (Recorded in the league's audit log.)`);
+  await store.close?.();
 }
-recoverOwner(getStore(), slug, email);
-console.log(`${email} is now an owner of ${slug}. (Recorded in the league's audit log.)`);
+await main().catch((e) => { console.error(e.message ?? e); process.exit(1); });

@@ -15,8 +15,8 @@ export default async function Members({ params, searchParams }: { params: Promis
   const sp = await searchParams;
   const ctx = await getLeagueCtx(slug, undefined, "members.invite_basic");
   const store = getStore();
-  const members = listMembers(store, ctx.actor!, ctx.league.id);
-  const invites = listInvitations(store, ctx.actor!, ctx.league.id);
+  const members = await listMembers(store, ctx.actor!, ctx.league.id);
+  const invites = await listInvitations(store, ctx.actor!, ctx.league.id);
   const can = ctx.can("members.manage");
   const mine = ctx.role!;
   const grantable = assignableRoles(mine);

@@ -40,7 +40,7 @@ export const getLeagueCtx = cache(async (slug: string, seasonSlug?: string | nul
   const actor = await getActor();
   const jar = await cookies();
   const token = jar.get(LINK_COOKIE_PREFIX + slug)?.value ?? null;
-  const resolved = store.read((db) => {
+  const resolved = await store.read((db) => {
     const league = leagueBySlug(db, slug);
     if (!league) return null;
     const access = resolveAccess(db, league, actor, token);

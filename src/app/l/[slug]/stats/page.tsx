@@ -78,9 +78,9 @@ function Leaders({ ctx, stats, team, hasData, slug, sq }: { ctx: Awaited<ReturnT
   );
 }
 
-function Awards({ ctx, week, slug, sq }: { ctx: Awaited<ReturnType<typeof getLeagueCtx>>; week?: number; slug: string; sq: string | null }) {
+async function Awards({ ctx, week, slug, sq }: { ctx: Awaited<ReturnType<typeof getLeagueCtx>>; week?: number; slug: string; sq: string | null }) {
   const m = ctx.model!;
-  const commissioner = getStore().read((db) => db.commissionerAwards.filter((a) => a.leagueId === ctx.league.id && a.seasonId === ctx.season!.id).map((a) => ({ id: a.id, title: a.title, recipientKind: a.recipientKind, recipientId: a.recipientId, note: a.note, week: a.week })));
+  const commissioner = await getStore().read((db) => db.commissionerAwards.filter((a) => a.leagueId === ctx.league.id && a.seasonId === ctx.season!.id).map((a) => ({ id: a.id, title: a.title, recipientKind: a.recipientKind, recipientId: a.recipientId, note: a.note, week: a.week })));
   const weeks = [...new Set(m.results.filter((r) => r.official).map((r) => r.weekNumber))].sort((a, b) => a - b);
   const selected = week && weeks.includes(week) ? week : undefined;
   const seasonAwards = computeAwards(m, ctx.league.awards, { commissioner }).filter((a) => a.scope === "season" || a.source === "commissioner");
@@ -112,8 +112,8 @@ function Awards({ ctx, week, slug, sq }: { ctx: Awaited<ReturnType<typeof getLea
   );
 }
 
-function Records({ ctx, q, cat, slug, sq, scope }: { ctx: Awaited<ReturnType<typeof getLeagueCtx>>; q?: string; cat?: string; slug: string; sq: string | null; scope?: string }) {
-  const models = scope === "season" || !ctx.cfg.recordsCarryOver ? [ctx.model!] : allModels(ctx);
+async function Records({ ctx, q, cat, slug, sq, scope }: { ctx: Awaited<ReturnType<typeof getLeagueCtx>>; q?: string; cat?: string; slug: string; sq: string | null; scope?: string }) {
+  const models = scope === "season" || !ctx.cfg.recordsCarryOver ? [ctx.model!] : await allModels(ctx);
   const book = buildRecordBook(models);
   const term = (q ?? "").trim().toLowerCase();
   const filtered = book.filter((r) => (!cat || r.category === cat) && (!term || r.title.toLowerCase().includes(term) || r.history.some((h) => h.holderName.toLowerCase().includes(term))));

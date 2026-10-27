@@ -230,19 +230,19 @@ function runImport(db: DB, actor: Actor, leagueId: Id, seasonId: Id | null, kind
   return report;
 }
 
-export function previewImport(store: Store, actor: Actor, leagueId: Id, seasonId: Id | null, kind: ImportKind, text: string, opts: ImportOptions = {}): ImportReport {
-  return store.read((db) => {
+export function previewImport(store: Store, actor: Actor, leagueId: Id, seasonId: Id | null, kind: ImportKind, text: string, opts: ImportOptions = {}): Promise<ImportReport> {
+  // A dry run on a private copy: the import executes fully, then every change is discarded.
+  return store.preview((db) => {
     requirePerm(db, actor, leagueId, "data.import");
-    const clone = structuredClone(db) as DB;
-    return runImport(clone, actor, leagueId, seasonId, kind, text, opts);
+    return runImport(db, actor, leagueId, seasonId, kind, text, opts);
   });
 }
 
 /** All-or-nothing: if any row fails, the transaction is discarded and nothing is written. */
-export function commitImport(store: Store, actor: Actor, leagueId: Id, seasonId: Id | null, kind: ImportKind, text: string, confirm: boolean, opts: ImportOptions = {}): ImportReport {
+export async function commitImport(store: Store, actor: Actor, leagueId: Id, seasonId: Id | null, kind: ImportKind, text: string, confirm: boolean, opts: ImportOptions = {}): Promise<ImportReport> {
   if (!confirm) throw invalid("Confirm the import before writing data.");
   try {
-    return store.transaction((db) => {
+    return await store.transaction((db) => {
       requirePerm(db, actor, leagueId, "data.import");
       const report = runImport(db, actor, leagueId, seasonId, kind, text, opts);
       if (!report.ok) throw new AppError("validation", `Import blocked: ${report.errors.length} problem${report.errors.length === 1 ? "" : "s"} found. Nothing was imported.`, report);
@@ -253,7 +253,7 @@ export function commitImport(store: Store, actor: Actor, leagueId: Id, seasonId:
   } catch (e) {
     if (e instanceof AppError && e.code === "validation" && e.details && typeof e.details === "object" && "errors" in (e.details as object)) {
       const rep = e.details as ImportReport;
-      store.transaction((db) => {
+      await store.transaction((db) => {
         db.importLog.push({ id: newId("im"), leagueId, at: now(), userId: actor.id, kind, ok: false, rows: rep.rows, errors: rep.errors.slice(0, 10).map((x) => `Line ${x.line}: ${x.message}`) });
       });
     }
@@ -265,7 +265,7 @@ export function commitImport(store: Store, actor: Actor, leagueId: Id, seasonId:
 
 export type ExportKind = ImportKind | "results" | "all-scores";
 
-export function exportCsv(store: Store, actor: Actor, leagueId: Id, seasonId: Id | null, kind: ExportKind): { filename: string; csv: string } {
+export function exportCsv(store: Store, actor: Actor, leagueId: Id, seasonId: Id | null, kind: ExportKind): Promise<{ filename: string; csv: string }> {
   return store.read((db) => {
     requirePerm(db, actor, leagueId, "data.export");
     const league = db.leagues.find((l) => l.id === leagueId)!;
@@ -371,7 +371,7 @@ const bundleSchema = z.object({
 });
 
 /** Restores a bundle as a *new* league owned by the importing user. Every id is remapped, so imports never collide with or touch existing leagues. */
-export function importBundle(store: Store, actor: Actor, raw: unknown, newName?: string): { slug: string; leagueId: Id } {
+export function importBundle(store: Store, actor: Actor, raw: unknown, newName?: string): Promise<{ slug: string; leagueId: Id }> {
   const parsed = bundleSchema.safeParse(raw);
   if (!parsed.success) throw invalid(`This isn't a valid league export: ${parsed.error.issues[0].path.join(".")} ${parsed.error.issues[0].message}`);
   const b = parsed.data;

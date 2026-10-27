@@ -11,11 +11,16 @@
     "test:watch": "vitest",
     "seed:demo": "tsx scripts/seed-demo.ts",
     "db:backup": "tsx scripts/backup.ts",
-    "recover-owner": "tsx scripts/recover-owner.ts"
+    "recover-owner": "tsx scripts/recover-owner.ts",
+    "db:migrate": "tsx scripts/migrate.ts",
+    "db:import-file": "tsx scripts/import-file-store.ts",
+    "test:pg": "BOWL_TEST_STORE=pglite vitest run",
+    "test:pg:server": "BOWL_TEST_STORE=pg vitest run"
   },
   "dependencies": {
     "lucide-react": "^1.61.0",
     "next": "^15.5.28",
+    "pg": "^8.23.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "recharts": "2.15",
@@ -25,6 +30,7 @@
     "@electric-sql/pglite": "^0.5.12",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.6.5",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "postcss": "^8.5.32",

@@ -27,7 +27,7 @@ export default async function BowlerProfile({ params, searchParams }: { params: 
   const sq = seasonParam(ctx);
   const base = `/l/${slug}/bowlers/${id}`;
   const stats = bowlerSeasonStats(m).find((s) => s.bowlerId === id);
-  const models = allModels(ctx);
+  const models = await allModels(ctx);
   const perSeason = models.map((mm) => ({ mm, st: bowlerSeasonStats(mm).find((s) => s.bowlerId === id) })).filter((x) => x.st && (x.st.games > 0 || mm_has(x.mm, id)));
   function mm_has(mm: (typeof models)[number], bid: string) { return mm.data.roster.some((r) => r.bowlerId === bid); }
   const share = shareHref(ctx, `${base}${sq ? `?season=${sq}` : ""}`);

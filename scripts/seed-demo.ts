@@ -10,16 +10,20 @@ if (process.env.NODE_ENV === "production") {
   console.error("Refusing to seed demo data in production.");
   process.exit(1);
 }
-const email = (process.argv[2] ?? "demo@example.com").toLowerCase();
-const name = process.argv[3] ?? "Demo Commissioner";
-const store = getStore();
-let user = store.read((db) => db.users.find((u) => u.email === email));
-let password: string | null = null;
-if (!user) {
-  password = crypto.randomBytes(9).toString("base64url");
-  registerUser(store, { email, name, password });
-  user = store.read((db) => db.users.find((u) => u.email === email))!;
+async function main() {
+  const email = (process.argv[2] ?? "demo@example.com").toLowerCase();
+  const name = process.argv[3] ?? "Demo Commissioner";
+  const store = getStore();
+  let user = await store.read((db) => db.users.find((u) => u.email === email));
+  let password: string | null = null;
+  if (!user) {
+    password = crypto.randomBytes(9).toString("base64url");
+    await registerUser(store, { email, name, password });
+    user = (await store.read((db) => db.users.find((u) => u.email === email)))!;
+  }
+  const { slug } = await createDemoLeague(store, { id: user.id, name: user.name, email: user.email });
+  console.log(`Demo league created: /l/${slug}`);
+  if (password) console.log(`New account ${email} — password: ${password}  (shown once; change it after signing in)`);
+  await store.close?.();
 }
-const { slug } = createDemoLeague(store, { id: user.id, name: user.name, email: user.email });
-console.log(`Demo league created: /l/${slug}`);
-if (password) console.log(`New account ${email} — password: ${password}  (shown once; change it after signing in)`);
+await main().catch((e) => { console.error(e); process.exit(1); });

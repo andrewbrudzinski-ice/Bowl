@@ -13,9 +13,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
   const { error } = await searchParams;
   const user = await getUser();
   const store = getStore();
-  const mine = user ? listUserLeagues(store, user.id) : [];
-  const pub = listPublicLeagues(store).filter((l) => !mine.some((m) => m.league.id === l.id));
-  const unread = user ? unreadCount(store, user.id) : 0;
+  const mine = user ? await listUserLeagues(store, user.id) : [];
+  const pub = (await listPublicLeagues(store)).filter((l) => !mine.some((m) => m.league.id === l.id));
+  const unread = user ? await unreadCount(store, user.id) : 0;
   return (
     <div className="wrap py-8">
       <header className="mb-8 flex items-center justify-between">

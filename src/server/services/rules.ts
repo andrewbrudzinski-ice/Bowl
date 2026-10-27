@@ -10,7 +10,7 @@ import { now } from "../ids";
 import { step } from "./results";
 import { syncPlayoffWeeks } from "./season";
 
-export function previewSeasonRules(store: Store, actor: Actor, leagueId: Id, seasonId: Id, proposed: unknown, scope: ChangeScope): RulePreview {
+export function previewSeasonRules(store: Store, actor: Actor, leagueId: Id, seasonId: Id, proposed: unknown, scope: ChangeScope): Promise<RulePreview> {
   return store.read((db) => {
     requirePerm(db, actor, leagueId, "settings.rules");
     return previewRuleChange(seasonData(db, leagueId, seasonId), proposed, scope);
@@ -31,7 +31,7 @@ export interface ApplyRulesInput {
  * writes a new rule version, re-snapshots finalized results only for explicit historical corrections, and records
  * the before/after in the audit log. Any failure rolls the whole thing back.
  */
-export function applyRuleChange(store: Store, actor: Actor, leagueId: Id, input: ApplyRulesInput): { version: number; reversed: number } {
+export function applyRuleChange(store: Store, actor: Actor, leagueId: Id, input: ApplyRulesInput): Promise<{ version: number; reversed: number }> {
   if (!input.reason || input.reason.trim().length < 3) throw invalid("Add a short note explaining why the rules are changing.");
   return store.transaction((db) => {
     const { league } = requirePerm(db, actor, leagueId, "settings.rules");
@@ -95,10 +95,10 @@ export function applyRuleChange(store: Store, actor: Actor, leagueId: Id, input:
 }
 
 /** League-wide defaults for *future* seasons. Never touches an existing season's rules. */
-export function updateLeagueDefaults(store: Store, actor: Actor, leagueId: Id, proposed: unknown, reason: string) {
+export async function updateLeagueDefaults(store: Store, actor: Actor, leagueId: Id, proposed: unknown, reason: string) {
   const check = validateConfig(proposed);
   if (!check.ok || !check.config) throw invalid(check.issues.find((i) => i.severity === "error")!.message);
-  store.transaction((db) => {
+  await store.transaction((db) => {
     const { league } = requirePerm(db, actor, leagueId, "settings.rules");
     const before = league.defaultConfig;
     league.defaultConfig = check.config!;

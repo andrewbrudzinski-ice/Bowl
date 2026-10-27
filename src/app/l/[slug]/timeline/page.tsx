@@ -19,7 +19,7 @@ export default async function Timeline({ params, searchParams }: { params: Promi
   const m = ctx.model;
   const kind = ctx.cfg.format === "individual" ? "individual" : "team";
   const scope = kind === "team" ? "team" : "bowler";
-  const book = buildRecordBook(allModels(ctx));
+  const book = buildRecordBook(await allModels(ctx));
   const weeks = [...m.data.weeks].sort((a, b) => a.number - b.number).filter((w) => m.results.some((r) => r.weekNumber === w.number));
   const champ = championOf(m);
   const sq = seasonParam(ctx);

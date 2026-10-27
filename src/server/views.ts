@@ -81,7 +81,7 @@ export interface ActivityItem {
 }
 
 /** Recent activity for the home feed. Public viewers get event types only, never who did it. */
-export function activityFeed(ctx: LeagueCtx, limit = 10): ActivityItem[] {
+export function activityFeed(ctx: LeagueCtx, limit = 10): Promise<ActivityItem[]> {
   const store = getStore();
   const slug = ctx.league.slug;
   const seasonSlug = ctx.season?.slug;
@@ -117,7 +117,7 @@ import type { SeasonModel } from "@/domain/engine";
 import { seasonData } from "./access";
 
 /** Models for every season of the league, oldest first. The current season's cached model is reused. */
-export function allModels(ctx: LeagueCtx): SeasonModel[] {
+export function allModels(ctx: LeagueCtx): Promise<SeasonModel[]> {
   const store = getStore();
   const seasons = [...ctx.seasons].sort((a, b) => a.year - b.year || a.createdAt.localeCompare(b.createdAt));
   return store.read((db) => seasons.map((s) => (ctx.season && s.id === ctx.season.id && ctx.model ? ctx.model : buildSeasonModel(seasonData(db, ctx.league.id, s.id)))));

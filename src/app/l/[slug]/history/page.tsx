@@ -12,7 +12,7 @@ export const metadata = { title: "Past seasons" };
 export default async function History({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const ctx = await getLeagueCtx(slug);
-  const models = allModels(ctx).reverse();
+  const models = (await allModels(ctx)).reverse();
   return (
     <div>
       <PageHeader title="Past seasons" sub="Every season keeps its own rosters, rules, results and records." />

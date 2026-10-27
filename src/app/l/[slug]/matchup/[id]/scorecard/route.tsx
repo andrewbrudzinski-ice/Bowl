@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
   const actor = await getActor();
   const jar = await cookies();
   const store = getStore();
-  const found = store.read((db) => {
+  const found = await store.read((db) => {
     const league = leagueBySlug(db, slug);
     if (!league) return null;
     const access = resolveAccess(db, league, actor, jar.get(LINK_COOKIE_PREFIX + slug)?.value);

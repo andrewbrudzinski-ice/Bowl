@@ -90,8 +90,8 @@ export function ResultsModule({ ctx }: { ctx: LeagueCtx }) {
   );
 }
 
-export function NewsModule({ ctx }: { ctx: LeagueCtx }) {
-  const items = getStore().read((db) =>
+export async function NewsModule({ ctx }: { ctx: LeagueCtx }) {
+  const items = await getStore().read((db) =>
     db.announcements.filter((a) => a.leagueId === ctx.league.id).sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.createdAt.localeCompare(a.createdAt)).slice(0, 3)
   );
   return (
@@ -118,13 +118,13 @@ export function NewsModule({ ctx }: { ctx: LeagueCtx }) {
   );
 }
 
-function awardsFor(ctx: LeagueCtx, week: number | undefined): AwardResult[] {
-  return computeAwards(ctx.model!, ctx.league.awards, { week, commissioner: commissionerAwards(ctx) });
+async function awardsFor(ctx: LeagueCtx, week: number | undefined): Promise<AwardResult[]> {
+  return computeAwards(ctx.model!, ctx.league.awards, { week, commissioner: await commissionerAwards(ctx) });
 }
 
-export function BowlerOfWeekModule({ ctx }: { ctx: LeagueCtx }) {
+export async function BowlerOfWeekModule({ ctx }: { ctx: LeagueCtx }) {
   const wk = ctx.model!.lastOfficialWeek;
-  const award = wk ? awardsFor(ctx, wk).find((a) => a.id === "bowler_of_week") : undefined;
+  const award = wk ? (await awardsFor(ctx, wk)).find((a) => a.id === "bowler_of_week") : undefined;
   const disabled = ctx.league.awards.bowler_of_week?.enabled === false;
   if (disabled) return null;
   return (
@@ -190,9 +190,9 @@ export function LeadersModule({ ctx }: { ctx: LeagueCtx }) {
   );
 }
 
-export function RecordsModule({ ctx }: { ctx: LeagueCtx }) {
+export async function RecordsModule({ ctx }: { ctx: LeagueCtx }) {
   const m = ctx.model!;
-  const awards = awardsFor(ctx, undefined);
+  const awards = await awardsFor(ctx, undefined);
   const get = (id: string) => awards.find((a) => a.id === id);
   const official = m.results.filter((r) => r.official && !r.isBye && !r.forfeitBy && r.complete);
   const biggest = topWithTies(official.filter((r) => r.winner && r.winner !== "tie"), (r) => r.margin);
@@ -246,8 +246,8 @@ export function InsightsModule({ ctx }: { ctx: LeagueCtx }) {
   );
 }
 
-export function ActivityModule({ ctx }: { ctx: LeagueCtx }) {
-  const items = activityFeed(ctx, 8);
+export async function ActivityModule({ ctx }: { ctx: LeagueCtx }) {
+  const items = await activityFeed(ctx, 8);
   return (
     <Card>
       <CardHead title="Recent activity" icon={<Activity size={14} />} />

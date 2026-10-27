@@ -40,7 +40,7 @@ export default async function AdminHome({ params, searchParams }: { params: Prom
   for (const i of issues.filter((x) => x.code === "duplicate_matchup")) sched.push(i.message);
   const unassigned = m.data.roster.filter((r) => r.toWeek == null && !r.isSub && !r.teamId && kind === "team");
   if (unassigned.length) sched.push(`${unassigned.length} bowler${unassigned.length === 1 ? " has" : "s have"} no team.`);
-  const { corrections, rosterChanges, importProblems } = getStore().read((db) => ({
+  const { corrections, rosterChanges, importProblems } = await getStore().read((db) => ({
     corrections: db.audit.filter((a) => a.leagueId === ctx.league.id && (a.action === "result.corrected" || a.action === "result.reopened" || a.action === "rules.changed")).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5),
     rosterChanges: db.audit.filter((a) => a.leagueId === ctx.league.id && a.seasonId === ctx.season!.id && a.action.startsWith("roster.")).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5),
     importProblems: db.importLog.filter((i) => i.leagueId === ctx.league.id && !i.ok).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 3),

@@ -21,7 +21,7 @@ const PREFS: [string, string, string][] = [
 export default async function Account() {
   await requireActor("/account");
   const user = (await getUser())!;
-  const leagues = listUserLeagues(getStore(), user.id);
+  const leagues = await listUserLeagues(getStore(), user.id);
   return (
     <div className="wrap max-w-3xl py-8">
       <Link href="/" className="muted text-[13px] hover:text-fg">← Home</Link>

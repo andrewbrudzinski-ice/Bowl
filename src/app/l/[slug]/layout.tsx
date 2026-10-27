@@ -13,8 +13,8 @@ export default async function LeagueLayout({ children, params }: { children: Rea
   const { slug } = await params;
   const ctx = await getLeagueCtx(slug);
   const store = getStore();
-  const mine = ctx.actor ? listUserLeagues(store, ctx.actor.id) : [];
-  const unread = ctx.actor ? unreadCount(store, ctx.actor.id) : 0;
+  const mine = ctx.actor ? await listUserLeagues(store, ctx.actor.id) : [];
+  const unread = ctx.actor ? await unreadCount(store, ctx.actor.id) : 0;
   const base = `/l/${slug}`;
   const items: NavItem[] = [
     { href: base, label: "Home", icon: "home", primary: true },

@@ -22,7 +22,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ slug: 
   const { slug, id } = await params;
   const base = await getLeagueCtx(slug);
   // Find the season that owns this matchup, scoped to this league.
-  const owner = getStore().read((db) => {
+  const owner = await getStore().read((db) => {
     const m = db.matchups.find((x) => x.id === id);
     const s = m ? db.seasons.find((x) => x.id === m.seasonId && x.leagueId === base.league.id) : null;
     return s ? s.slug : null;
@@ -62,7 +62,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ slug: 
   // Head-to-head across every season of this league (official results only)
   const h2h: { season: string; week: number; id: string; text: string; winner: string | null }[] = [];
   if (B) {
-    getStore().read((db) => {
+    await getStore().read((db) => {
       for (const s of ctx.seasons) {
         const m2 = s.id === ctx.season!.id ? model : buildSeasonModel(seasonData(db, ctx.league.id, s.id));
         for (const x of m2.results) {

@@ -173,14 +173,18 @@ export function emptyDB(): DB {
 }
 
 export interface Store {
-  /** Read-only access. Callers must not mutate the returned object. */
-  read<T>(fn: (db: Readonly<DB>) => T): T;
+  /** Read-only access to a consistent snapshot. Callers must not mutate the object they are given. */
+  read<T>(fn: (db: Readonly<DB>) => T): Promise<T>;
   /**
-   * Runs `fn` against a private copy of the database. If `fn` throws, nothing is persisted (the copy is discarded);
-   * otherwise the copy is written atomically (temp file + rename) and becomes the live state. Because `fn` is synchronous
-   * and Node is single-threaded, transactions in one process cannot interleave.
+   * Runs `fn` against a private copy of the database. If `fn` throws, nothing is persisted; otherwise all of its
+   * changes are committed atomically. `fn` is synchronous and may be run more than once (the Postgres store re-runs it
+   * after loading tables it touched), so it must not have side effects outside `db`.
    */
-  transaction<T>(fn: (db: DB) => T): T;
+  transaction<T>(fn: (db: DB) => T): Promise<T>;
+  /** Dry run: executes `fn` on a private copy and always discards the changes. */
+  preview<T>(fn: (db: DB) => T): Promise<T>;
+  /** Releases connections (scripts call this before exiting). */
+  close?(): Promise<void>;
 }
 
 export interface StoreOptions {
@@ -209,11 +213,15 @@ class FileStore implements Store {
     const m = fs.statSync(f).mtimeMs;
     if (m !== this.mtime) this.db = this.load();
   }
-  read<T>(fn: (db: Readonly<DB>) => T): T {
+  async read<T>(fn: (db: Readonly<DB>) => T): Promise<T> {
     this.refresh();
     return fn(this.db);
   }
-  transaction<T>(fn: (db: DB) => T): T {
+  async preview<T>(fn: (db: DB) => T): Promise<T> {
+    this.refresh();
+    return fn(structuredClone(this.db));
+  }
+  async transaction<T>(fn: (db: DB) => T): Promise<T> {
     this.refresh();
     const draft = structuredClone(this.db);
     const result = fn(draft);
@@ -235,11 +243,46 @@ export function createStore(opts: StoreOptions): Store {
   return new FileStore(opts);
 }
 
+/** Defers building the real store (which may need async setup) until first use. */
+function lazyStore(build: () => Promise<Store>): Store {
+  let real: Promise<Store> | null = null;
+  const get = () => (real ??= build());
+  return {
+    read: async (fn) => (await get()).read(fn),
+    transaction: async (fn) => (await get()).transaction(fn),
+    preview: async (fn) => (await get()).preview(fn),
+    close: async () => {
+      if (real) await (await real).close?.();
+    },
+  };
+}
+
+/**
+ * Picks the storage backend from the environment:
+ *   DATABASE_URL         → PostgreSQL / Supabase (run `npm run db:migrate` first)
+ *   BOWL_PGLITE_DIR      → embedded Postgres (PGlite) persisted in that directory — real Postgres semantics, no server
+ *   otherwise            → file store at BOWL_DATA_FILE (single instance only)
+ */
+export function createStoreFromEnv(env: NodeJS.ProcessEnv = process.env): Store {
+  if (env.DATABASE_URL) {
+    return lazyStore(async () => {
+      const { createPgClient } = await import("./pg/client");
+      const { PgStore } = await import("./pg/store");
+      const ssl = env.DATABASE_SSL === "no-verify" ? "no-verify" : env.DATABASE_SSL === "require" ? "require" : undefined;
+      return new PgStore(await createPgClient(env.DATABASE_URL!, { max: Number(env.DATABASE_POOL_MAX ?? 5), ssl }), { autoMigrate: env.BOWL_AUTO_MIGRATE === "1" });
+    });
+  }
+  if (env.BOWL_PGLITE_DIR) {
+    return lazyStore(async () => {
+      const { createPgliteClient } = await import("./pg/client");
+      const { PgStore } = await import("./pg/store");
+      return new PgStore(await createPgliteClient(env.BOWL_PGLITE_DIR), { autoMigrate: true });
+    });
+  }
+  return createStore({ file: env.BOWL_DATA_FILE ?? path.join(process.cwd(), "data", "db.json") });
+}
+
 const g = globalThis as unknown as { __bowlStore?: Store };
 export function getStore(): Store {
-  if (!g.__bowlStore) {
-    const file = process.env.BOWL_DATA_FILE ?? path.join(process.cwd(), "data", "db.json");
-    g.__bowlStore = createStore({ file });
-  }
-  return g.__bowlStore;
+  return (g.__bowlStore ??= createStoreFromEnv());
 }

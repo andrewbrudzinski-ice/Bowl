@@ -171,7 +171,7 @@ describe("rule change preview", () => {
     fx.addMatchup(2, "T1", "T2", { A: [], B: [] }, "scheduled");
     return fx;
   };
-  const proposed = (fx: ReturnType<typeof build>, pct: number) => {
+  const proposed = (fx: Awaited<ReturnType<typeof build>>, pct: number) => {
     const c = structuredClone(fx.data.season.ruleVersions[0].config);
     c.handicap.percentage = pct;
     return c;

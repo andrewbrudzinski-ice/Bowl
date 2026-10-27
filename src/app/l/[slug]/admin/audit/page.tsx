@@ -14,7 +14,7 @@ export default async function Audit({ params, searchParams }: { params: Promise<
   const ctx = await getLeagueCtx(slug, undefined, "audit.view");
   const page = Math.max(1, Number(sp.page) || 1);
   const per = 40;
-  const all = getStore().read((db) => db.audit.filter((a) => a.leagueId === ctx.league.id && (!sp.type || a.action.startsWith(sp.type))).sort((a, b) => b.at.localeCompare(a.at)));
+  const all = await getStore().read((db) => db.audit.filter((a) => a.leagueId === ctx.league.id && (!sp.type || a.action.startsWith(sp.type))).sort((a, b) => b.at.localeCompare(a.at)));
   const rows = all.slice((page - 1) * per, page * per);
   return (
     <div>

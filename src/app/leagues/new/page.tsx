@@ -10,7 +10,7 @@ export const metadata = { title: "Create a league" };
 export default async function NewLeague() {
   const actor = await requireActor("/leagues/new");
   const store = getStore();
-  const copyOptions = store.read((db) =>
+  const copyOptions = await store.read((db) =>
     db.memberships.filter((m) => m.userId === actor.id && m.status === "active" && roleCan(m.role, "settings.rules")).flatMap((m) => {
       const l = db.leagues.find((x) => x.id === m.leagueId && !x.archivedAt);
       if (!l) return [];

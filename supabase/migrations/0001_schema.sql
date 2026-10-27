@@ -1,8 +1,11 @@
 -- Bowl league platform: schema, constraints and Row Level Security for Supabase (PostgreSQL 15+).
 --
--- STATUS: this migration describes the production data model and its security policies. The application as shipped
--- reads and writes the file-backed store (see docs/SUPABASE.md); wiring the services to Postgres is the remaining
--- work for a hosted deployment. The migration is exercised by tests/sql.test.ts against an in-process Postgres.
+-- The application's Postgres store (src/server/pg) reads and writes these tables with a privileged connection and
+-- enforces authorization in its service layer; the RLS policies below are defense in depth for any direct access
+-- (e.g. a future Supabase client in the browser). Exercised by tests/sql.test.ts and the full test-suite run against Postgres.
+--
+-- Requires the `auth` schema helpers of Supabase. On plain Postgres, apply supabase/local-prelude.sql first
+-- (the migration runner does this automatically).
 --
 -- Permission matrix: mirrors src/server/permissions.ts. Keep the two in sync (a test compares them).
 
@@ -16,16 +19,39 @@ create type week_phase as enum ('regular', 'playoff');
 create type score_kind as enum ('bowled', 'blind', 'forfeit', 'absent');
 
 -- ---------------------------------------------------------------- profiles (1:1 with auth.users)
+-- The app does its own email/password auth (scrypt + server-side sessions), so profiles carry the credentials.
+-- If you later adopt Supabase Auth, add a FK from id to auth.users and drop password_hash.
 create table profiles (
-  id uuid primary key references auth.users (id) on delete cascade,
+  id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
+  email text check (email is null or email = lower(email)),
+  password_hash text,
+  disabled boolean not null default false,
+  failed_count int not null default 0,
+  failed_since timestamptz,
   display_name text not null check (char_length(display_name) between 1 and 80),
   notification_prefs jsonb not null default '{"results":true,"schedule":true,"announcements":true,"rules":true,"invitations":true,"playoffs":true,"email":false}',
   created_at timestamptz not null default now()
+);
+create unique index profiles_email_key on profiles (email) where email is not null;
+
+create table sessions (
+  token_hash text primary key,
+  user_id uuid not null references profiles (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+create table reset_tokens (
+  token_hash text primary key,
+  user_id uuid not null references profiles (id) on delete cascade,
+  expires_at timestamptz not null,
+  used_at timestamptz
 );
 
 -- ---------------------------------------------------------------- leagues & membership
 create table leagues (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   slug text not null unique check (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
   name text not null check (char_length(name) between 2 and 60),
   description text not null default '',
@@ -44,6 +70,7 @@ create table leagues (
 
 create table memberships (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   league_id uuid not null references leagues (id) on delete cascade,
   user_id uuid not null references profiles (id),
   role member_role not null,
@@ -57,6 +84,7 @@ create unique index one_active_owner on memberships (league_id) where role = 'ow
 
 create table invitations (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   league_id uuid not null references leagues (id) on delete cascade,
   email text,
   role member_role not null check (role <> 'owner'),
@@ -102,6 +130,7 @@ select r::member_role, p from (values
 -- ---------------------------------------------------------------- league-scoped entities
 create table teams (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   league_id uuid not null references leagues (id) on delete cascade,
   name text not null check (char_length(name) between 1 and 40),
   short_name text not null default '',
@@ -115,6 +144,7 @@ create unique index teams_unique_active_name on teams (league_id, lower(name)) w
 
 create table bowlers (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   league_id uuid not null references leagues (id) on delete cascade,
   name text not null check (char_length(name) between 1 and 60),
   nickname text not null default '',
@@ -131,6 +161,7 @@ alter table memberships add constraint memberships_bowler_fk foreign key (bowler
 
 create table seasons (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   league_id uuid not null references leagues (id) on delete cascade,
   slug text not null,
   name text not null,
@@ -159,6 +190,7 @@ create table rule_versions (
 
 create table season_rosters (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   season_id uuid not null references seasons (id) on delete cascade,
   bowler_id uuid not null references bowlers (id),
   team_id uuid references teams (id),
@@ -172,6 +204,7 @@ create unique index one_open_roster_entry on season_rosters (season_id, bowler_i
 
 create table weeks (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   season_id uuid not null references seasons (id) on delete cascade,
   number int not null check (number >= 1),
   date date not null,
@@ -183,6 +216,7 @@ create table weeks (
 
 create table matchups (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   season_id uuid not null references seasons (id) on delete cascade,
   week_number int not null,
   kind text not null check (kind in ('team', 'individual')),
@@ -202,7 +236,7 @@ create table matchups (
   foreign key (season_id, week_number) references weeks (season_id, number),
   foreign key (season_id, rule_version) references rule_versions (season_id, version),
   check (side_b is null or side_a <> side_b),
-  check (state not in ('finalized', 'corrected') or (finalized_at is not null and rule_version is not null))
+  check (state not in ('finalized', 'corrected') or side_b is null or (finalized_at is not null and rule_version is not null))
 );
 -- a participant can appear at most once per week (no duplicate / double-booked matchups)
 create unique index matchup_side_a_once on matchups (season_id, week_number, side_a);
@@ -220,6 +254,7 @@ create table matchup_lineups (
 -- Raw scratch scores are the source of truth.
 create table scores (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   matchup_id uuid not null references matchups (id) on delete cascade,
   bowler_id uuid not null references bowlers (id),
   side char(1) not null check (side in ('A', 'B')),
@@ -244,6 +279,7 @@ create table matchup_handicaps (
 
 create table audit_log (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   league_id uuid not null references leagues (id) on delete cascade,
   season_id uuid references seasons (id) on delete set null,
   at timestamptz not null default now(),
@@ -260,6 +296,7 @@ create index audit_league_at on audit_log (league_id, at desc);
 
 create table announcements (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   league_id uuid not null references leagues (id) on delete cascade,
   title text not null check (char_length(title) between 2 and 120),
   body text not null check (char_length(body) between 1 and 5000),
@@ -274,6 +311,7 @@ create table announcements (
 
 create table notifications (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   user_id uuid not null references profiles (id) on delete cascade,
   league_id uuid not null references leagues (id) on delete cascade,
   type text not null,
@@ -288,6 +326,7 @@ create table notifications (
 
 create table commissioner_awards (
   id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
   league_id uuid not null references leagues (id) on delete cascade,
   season_id uuid not null references seasons (id) on delete cascade,
   title text not null,
@@ -297,6 +336,36 @@ create table commissioner_awards (
   week int,
   created_by uuid not null references profiles (id),
   created_at timestamptz not null default now()
+);
+
+create table templates (
+  id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
+  league_id uuid not null references leagues (id) on delete cascade,
+  name text not null,
+  description text not null default '',
+  config jsonb not null,
+  created_at timestamptz not null default now()
+);
+
+create table import_log (
+  id uuid primary key default gen_random_uuid(),
+  seq bigint generated always as identity,
+  league_id uuid not null references leagues (id) on delete cascade,
+  at timestamptz not null default now(),
+  user_id uuid not null references profiles (id),
+  kind text not null,
+  ok boolean not null,
+  rows int not null default 0,
+  errors jsonb not null default '[]'
+);
+
+-- Short-lived duplicate-submission guard for score saves.
+create table idempotency_keys (
+  key text primary key,
+  seq bigint generated always as identity,
+  at timestamptz not null default now(),
+  result text not null
 );
 
 -- ---------------------------------------------------------------- helpers used by policies
@@ -340,10 +409,14 @@ $$;
 -- ---------------------------------------------------------------- integrity triggers
 -- Finalized results are protected: score rows cannot change unless a correction is in progress, which only the
 -- security-definer correct_result() below can declare, and only for users holding results.correct.
+-- The application's own (privileged) connection declares the matchups it is writing in `app.score_writes`, after its
+-- service layer has already authorized the change (finalize flows write scores and flip state in one transaction).
 create or replace function protect_official_scores() returns trigger language plpgsql as $$
 declare mid uuid := coalesce(new.matchup_id, old.matchup_id);
 begin
-  if matchup_is_official(mid) and coalesce(current_setting('app.correcting', true), '') <> mid::text then
+  if matchup_is_official(mid)
+     and coalesce(current_setting('app.correcting', true), '') <> mid::text
+     and not (mid::text = any (string_to_array(coalesce(current_setting('app.score_writes', true), ''), ','))) then
     raise exception 'This result is finalized. Use correct_result() to change it.' using errcode = 'P0001';
   end if;
   return coalesce(new, old);
@@ -372,7 +445,15 @@ create trigger matchups_revision before update on matchups for each row execute 
 
 -- Audit entries are append-only, enforced even against privileged roles that have table access.
 create or replace function audit_immutable() returns trigger language plpgsql as $$
-begin raise exception 'audit_log is append-only'; end $$;
+begin
+  -- The only permitted removal: deleting a whole *demo* league, declared by the privileged app connection.
+  if tg_op = 'DELETE'
+     and old.league_id::text = any (string_to_array(coalesce(current_setting('app.purge_demo', true), ''), ','))
+     and exists (select 1 from leagues l where l.id = old.league_id and l.is_demo) then
+    return old;
+  end if;
+  raise exception 'audit_log is append-only';
+end $$;
 create trigger audit_no_update before update or delete on audit_log for each row execute function audit_immutable();
 
 -- A finalized correction: one transaction changes the scores, marks the matchup corrected and writes the audit row.
@@ -415,9 +496,13 @@ alter table audit_log enable row level security;
 alter table announcements enable row level security;
 alter table notifications enable row level security;
 alter table commissioner_awards enable row level security;
+alter table sessions enable row level security;
+alter table reset_tokens enable row level security;
+alter table templates enable row level security;
+alter table import_log enable row level security;
+alter table idempotency_keys enable row level security;
 
 create policy profiles_self on profiles for select using (id = auth.uid());
-create policy profiles_self_update on profiles for update using (id = auth.uid()) with check (id = auth.uid());
 create policy role_permissions_read on role_permissions for select using (true);
 
 -- leagues: members and public viewers read; settings need permission. Unlisted links are resolved by a
@@ -467,6 +552,10 @@ create policy announcements_write on announcements for all using (has_permission
 create policy notifications_own on notifications for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 create policy awards_read on commissioner_awards for select using (can_read_league(league_id));
 create policy awards_write on commissioner_awards for all using (has_permission(league_id, 'awards.manage')) with check (has_permission(league_id, 'awards.manage'));
+
+-- Credentials, sessions and housekeeping tables have RLS enabled and NO policies: only the privileged server connection can touch them.
+create policy templates_read on templates for select using (has_permission(league_id, 'settings.rules'));
+create policy import_log_read on import_log for select using (has_permission(league_id, 'data.import'));
 
 -- Never let the audit trail be tampered with through the API, whatever policies say.
 revoke update, delete on audit_log from anon, authenticated;

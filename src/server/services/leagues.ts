@@ -76,7 +76,7 @@ export function createSeasonRecords(db: DB, actor: Actor, league: League, input:
   return season;
 }
 
-export function createLeague(store: Store, actor: Actor, raw: CreateLeagueInput): { leagueId: Id; slug: string; seasonId: Id } {
+export function createLeague(store: Store, actor: Actor, raw: CreateLeagueInput): Promise<{ leagueId: Id; slug: string; seasonId: Id }> {
   const parsed = createLeagueSchema.safeParse(raw);
   if (!parsed.success) throw invalid(parsed.error.issues[0].path.join(".") + ": " + parsed.error.issues[0].message);
   const input = parsed.data;
@@ -127,10 +127,10 @@ export const generalSchema = z.object({
   accent: hex,
 });
 
-export function updateGeneral(store: Store, actor: Actor, leagueId: Id, raw: z.input<typeof generalSchema>) {
+export async function updateGeneral(store: Store, actor: Actor, leagueId: Id, raw: z.input<typeof generalSchema>) {
   const input = generalSchema.safeParse(raw);
   if (!input.success) throw invalid(input.error.issues[0].message);
-  store.transaction((db) => {
+  await store.transaction((db) => {
     const { league } = requirePerm(db, actor, leagueId, "settings.general");
     const before = { name: league.name, description: league.description, logoText: league.logoText, accent: league.accent };
     Object.assign(league, input.data);
@@ -138,9 +138,9 @@ export function updateGeneral(store: Store, actor: Actor, leagueId: Id, raw: z.i
   });
 }
 
-export function updateVisibility(store: Store, actor: Actor, leagueId: Id, visibility: League["visibility"]) {
+export async function updateVisibility(store: Store, actor: Actor, leagueId: Id, visibility: League["visibility"]) {
   if (!["private", "unlisted", "public"].includes(visibility)) throw invalid("Unknown visibility.");
-  store.transaction((db) => {
+  await store.transaction((db) => {
     const { league } = requirePerm(db, actor, leagueId, "settings.visibility");
     if (league.visibility === visibility) return;
     const before = league.visibility;
@@ -151,7 +151,7 @@ export function updateVisibility(store: Store, actor: Actor, leagueId: Id, visib
   });
 }
 
-export function rotateShareToken(store: Store, actor: Actor, leagueId: Id): string {
+export function rotateShareToken(store: Store, actor: Actor, leagueId: Id): Promise<string> {
   return store.transaction((db) => {
     const { league } = requirePerm(db, actor, leagueId, "settings.visibility");
     league.shareToken = newToken().slice(0, 24);
@@ -160,7 +160,7 @@ export function rotateShareToken(store: Store, actor: Actor, leagueId: Id): stri
   });
 }
 
-export function updateHomepage(store: Store, actor: Actor, leagueId: Id, modules: ModuleSetting[]) {
+export async function updateHomepage(store: Store, actor: Actor, leagueId: Id, modules: ModuleSetting[]) {
   const valid = new Set(HOMEPAGE_MODULES.map((m) => m.id));
   const clean = modules.filter((m) => valid.has(m.id));
   const seen = new Set<string>();
@@ -169,7 +169,7 @@ export function updateHomepage(store: Store, actor: Actor, leagueId: Id, modules
     seen.add(m.id);
   }
   for (const id of valid) if (!seen.has(id)) clean.push({ id, enabled: false });
-  store.transaction((db) => {
+  await store.transaction((db) => {
     const { league } = requirePerm(db, actor, leagueId, "settings.general");
     const before = league.homepage;
     league.homepage = clean.map((m) => ({ id: m.id, enabled: !!m.enabled }));
@@ -177,8 +177,8 @@ export function updateHomepage(store: Store, actor: Actor, leagueId: Id, modules
   });
 }
 
-export function updateAwardsConfig(store: Store, actor: Actor, leagueId: Id, awards: League["awards"]) {
-  store.transaction((db) => {
+export async function updateAwardsConfig(store: Store, actor: Actor, leagueId: Id, awards: League["awards"]) {
+  await store.transaction((db) => {
     const { league } = requirePerm(db, actor, leagueId, "awards.manage");
     const before = league.awards;
     const clean: League["awards"] = {};
@@ -192,11 +192,11 @@ export function updateAwardsConfig(store: Store, actor: Actor, leagueId: Id, awa
 
 // ---------- templates & duplication ----------
 
-export function saveTemplate(store: Store, actor: Actor, leagueId: Id, name: string, description: string, config: unknown) {
+export async function saveTemplate(store: Store, actor: Actor, leagueId: Id, name: string, description: string, config: unknown) {
   const check = validateConfig(config);
   if (!check.ok || !check.config) throw invalid(check.issues.find((i) => i.severity === "error")!.message);
   if (!name.trim()) throw invalid("Give the template a name.");
-  store.transaction((db) => {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "settings.rules");
     db.templates.push({ id: newId("tp"), leagueId, name: name.trim().slice(0, 60), description: description.slice(0, 200), config: check.config!, createdAt: now() });
     writeAudit(db, actor, { leagueId, action: "template.saved", entityType: "template", entityId: name });
@@ -244,7 +244,7 @@ export function listInvitations(store: Store, actor: Actor, leagueId: Id) {
   });
 }
 
-export function inviteMember(store: Store, actor: Actor, leagueId: Id, input: { email?: string | null; role: Role; ttlDays?: number }): { token: string; invitationId: Id } {
+export function inviteMember(store: Store, actor: Actor, leagueId: Id, input: { email?: string | null; role: Role; ttlDays?: number }): Promise<{ token: string; invitationId: Id }> {
   return store.transaction((db) => {
     const { membership } = requirePerm(db, actor, leagueId, "members.invite_basic");
     if (!assignableRoles(membership.role).includes(input.role)) throw forbidden(`You can't invite someone as ${input.role}.`);
@@ -267,8 +267,8 @@ export function inviteMember(store: Store, actor: Actor, leagueId: Id, input: { 
   });
 }
 
-export function revokeInvitation(store: Store, actor: Actor, leagueId: Id, invitationId: Id) {
-  store.transaction((db) => {
+export async function revokeInvitation(store: Store, actor: Actor, leagueId: Id, invitationId: Id) {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "members.invite_basic");
     const inv = db.invitations.find((i) => i.id === invitationId && i.leagueId === leagueId);
     if (!inv) throw notFound("Invitation");
@@ -290,7 +290,7 @@ export function previewInvitation(store: Store, token: string) {
   });
 }
 
-export function acceptInvitation(store: Store, actor: Actor, token: string): { slug: string } {
+export function acceptInvitation(store: Store, actor: Actor, token: string): Promise<{ slug: string }> {
   const h = hashToken(token);
   return store.transaction((db) => {
     const inv = db.invitations.find((i) => i.tokenHash === h);
@@ -316,8 +316,8 @@ function countActiveOwners(db: DB, leagueId: Id) {
   return db.memberships.filter((m) => m.leagueId === leagueId && m.status === "active" && m.role === "owner").length;
 }
 
-export function setMemberRole(store: Store, actor: Actor, leagueId: Id, userId: Id, role: Role) {
-  store.transaction((db) => {
+export async function setMemberRole(store: Store, actor: Actor, leagueId: Id, userId: Id, role: Role) {
+  await store.transaction((db) => {
     const { membership: me } = requirePerm(db, actor, leagueId, "members.manage");
     const target = db.memberships.find((m) => m.leagueId === leagueId && m.userId === userId && m.status === "active");
     if (!target) throw notFound("Member");
@@ -332,8 +332,8 @@ export function setMemberRole(store: Store, actor: Actor, leagueId: Id, userId: 
 }
 
 /** Deactivating revokes access immediately but keeps the membership (and any linked bowler history). */
-export function setMemberStatus(store: Store, actor: Actor, leagueId: Id, userId: Id, status: "deactivated" | "removed" | "active") {
-  store.transaction((db) => {
+export async function setMemberStatus(store: Store, actor: Actor, leagueId: Id, userId: Id, status: "deactivated" | "removed" | "active") {
+  await store.transaction((db) => {
     const { membership: me } = requirePerm(db, actor, leagueId, "members.manage");
     const target = db.memberships.find((m) => m.leagueId === leagueId && m.userId === userId);
     if (!target) throw notFound("Member");
@@ -346,8 +346,8 @@ export function setMemberStatus(store: Store, actor: Actor, leagueId: Id, userId
   });
 }
 
-export function leaveLeague(store: Store, actor: Actor, leagueId: Id) {
-  store.transaction((db) => {
+export async function leaveLeague(store: Store, actor: Actor, leagueId: Id) {
+  await store.transaction((db) => {
     const m = activeMembership(db, leagueId, actor.id);
     if (!m) throw notFound("Membership");
     if (m.role === "owner" && countActiveOwners(db, leagueId) <= 1) throw conflict("You own this league. Transfer ownership to another member before leaving.");
@@ -356,8 +356,8 @@ export function leaveLeague(store: Store, actor: Actor, leagueId: Id) {
   });
 }
 
-export function linkMemberToBowler(store: Store, actor: Actor, leagueId: Id, userId: Id, bowlerId: Id | null) {
-  store.transaction((db) => {
+export async function linkMemberToBowler(store: Store, actor: Actor, leagueId: Id, userId: Id, bowlerId: Id | null) {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "members.manage");
     const m = db.memberships.find((x) => x.leagueId === leagueId && x.userId === userId && x.status === "active");
     if (!m) throw notFound("Member");
@@ -370,8 +370,8 @@ export function linkMemberToBowler(store: Store, actor: Actor, leagueId: Id, use
   });
 }
 
-export function transferOwnership(store: Store, actor: Actor, leagueId: Id, toUserId: Id, confirmName: string) {
-  store.transaction((db) => {
+export async function transferOwnership(store: Store, actor: Actor, leagueId: Id, toUserId: Id, confirmName: string) {
+  await store.transaction((db) => {
     const { league, membership } = requirePerm(db, actor, leagueId, "ownership.transfer");
     if (confirmName.trim() !== league.name) throw invalid("Type the league's exact name to confirm the transfer.");
     const target = db.memberships.find((m) => m.leagueId === leagueId && m.userId === toUserId && m.status === "active");
@@ -382,8 +382,8 @@ export function transferOwnership(store: Store, actor: Actor, leagueId: Id, toUs
   });
 }
 
-export function archiveLeague(store: Store, actor: Actor, leagueId: Id, confirmName: string) {
-  store.transaction((db) => {
+export async function archiveLeague(store: Store, actor: Actor, leagueId: Id, confirmName: string) {
+  await store.transaction((db) => {
     const { league } = requirePerm(db, actor, leagueId, "league.delete");
     if (confirmName.trim() !== league.name) throw invalid("Type the league's exact name to confirm.");
     league.archivedAt = now();
@@ -392,8 +392,8 @@ export function archiveLeague(store: Store, actor: Actor, leagueId: Id, confirmN
 }
 
 /** Operator recovery path (CLI). Restores an owner when every administrator account is gone. */
-export function recoverOwner(store: Store, slug: string, email: string, by = "operator-cli") {
-  store.transaction((db) => {
+export async function recoverOwner(store: Store, slug: string, email: string, by = "operator-cli") {
+  await store.transaction((db) => {
     const league = db.leagues.find((l) => l.slug === slug);
     if (!league) throw notFound("League");
     const user = db.users.find((u) => u.email === normalizeEmail(email));

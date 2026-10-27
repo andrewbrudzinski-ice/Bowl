@@ -10,7 +10,7 @@ export const metadata = { title: "Notifications" };
 
 export default async function Notifications() {
   const actor = await requireActor("/notifications");
-  const items = listNotifications(getStore(), actor.id);
+  const items = await listNotifications(getStore(), actor.id);
   const unread = items.filter((i) => !i.readAt).length;
   return (
     <div className="wrap max-w-3xl py-8">

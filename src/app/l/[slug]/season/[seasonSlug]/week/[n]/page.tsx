@@ -34,7 +34,7 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
   const weeks = [...model.data.weeks].sort((a, b) => a.number - b.number);
   const prev = weeks.find((w) => w.number === wk - 1);
   const next = weeks.find((w) => w.number === wk + 1);
-  const records = official ? getStore().read((db) => {
+  const records = official ? await getStore().read((db) => {
     const models = ctx.seasons.map((s) => (s.id === ctx.season!.id ? model : buildSeasonModel(seasonData(db, ctx.league.id, s.id))));
     return recordsBrokenInWeek(buildRecordBook(models), ctx.season!.id, wk);
   }) : [];

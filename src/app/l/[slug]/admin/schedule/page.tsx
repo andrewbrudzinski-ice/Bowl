@@ -19,8 +19,8 @@ export default async function ScheduleAdmin({ params }: { params: Promise<{ slug
   const season = ctx.season;
   const kind = ctx.cfg.format === "individual" ? "individual" : "team";
   const store = getStore();
-  const { ids } = store.read((db) => participantsForSchedule(db, ctx.league.id, season.id));
-  const preview = ids.length >= 2 ? previewSchedule(store, ctx.actor, ctx.league.id, season.id) : null;
+  const { ids } = await store.read((db) => participantsForSchedule(db, ctx.league.id, season.id));
+  const preview = ids.length >= 2 ? await previewSchedule(store, ctx.actor, ctx.league.id, season.id) : null;
   const weeks = [...m.data.weeks].sort((a, b) => a.number - b.number);
   const names = ids.map((id) => participant(ctx, id, kind).name);
   const options = (kind === "team" ? m.data.teams.filter((t) => t.active) : m.data.bowlers.filter((b) => b.active)).map((x) => ({ id: x.id, name: x.name }));

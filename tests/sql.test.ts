@@ -25,16 +25,11 @@ const fails = async (p: Promise<unknown>) => { try { await p; return null; } cat
 
 beforeAll(async () => {
   db = new PGlite();
-  await db.exec(`
-    create schema auth;
-    create table auth.users (id uuid primary key);
-    create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.sub', true), '')::uuid $$;
-    create role anon; create role authenticated;
-  `);
+  await db.exec(fs.readFileSync(path.join(__dirname, "../supabase/local-prelude.sql"), "utf8"));
   await db.exec(fs.readFileSync(path.join(__dirname, "../supabase/migrations/0001_schema.sql"), "utf8"));
   await db.exec(`grant usage on schema public to anon, authenticated; grant select, insert, update, delete on all tables in schema public to authenticated; grant select on all tables in schema public to anon;
     revoke update, delete on audit_log from anon, authenticated;`);
-  for (const id of Object.values(U)) await db.exec(`insert into auth.users values ('${id}'); insert into profiles (id, display_name) values ('${id}', 'u-${id.slice(-1)}');`);
+  for (const id of Object.values(U)) await db.exec(`insert into profiles (id, display_name) values ('${id}', 'u-${id.slice(-1)}');`);
   await db.exec(`
     insert into leagues (id, slug, name, default_config, created_by, visibility) values ('${L1}', 'alpha', 'Alpha', '{}', '${U.owner}', 'private'), ('${L2}', 'beta', 'Beta', '{}', '${U.other}', 'private');
     insert into memberships (league_id, user_id, role) values ('${L1}', '${U.owner}', 'owner'), ('${L1}', '${U.scorer}', 'scorekeeper'), ('${L1}', '${U.viewer}', 'viewer'), ('${L1}', '${U.assistant}', 'assistant'), ('${L1}', '${U.com}', 'commissioner'), ('${L2}', '${U.other}', 'owner');
@@ -115,7 +110,7 @@ describe("schema & RLS (supabase/migrations/0001_schema.sql)", () => {
 
   it("enforces: one active owner, finalized-needs-rule-version, no self-play, no double-booking, same-league lineups", async () => {
     expect(await fails(db.exec(`insert into memberships (league_id, user_id, role) values ('${L1}', '${U.other}', 'owner')`))).toMatch(/duplicate key|one_active_owner/);
-    expect(await fails(db.exec(`insert into matchups (season_id, week_number, kind, side_a, state) values ('${S1}', 2, 'team', gen_random_uuid(), 'finalized')`))).toMatch(/violates check/);
+    expect(await fails(db.exec(`insert into matchups (season_id, week_number, kind, side_a, side_b, state) values ('${S1}', 2, 'team', gen_random_uuid(), gen_random_uuid(), 'finalized')`))).toMatch(/violates check/);
     const [ta] = (await db.query<{ id: string }>(`select id from teams where league_id='${L1}' order by name`)).rows;
     expect(await fails(db.exec(`insert into matchups (season_id, week_number, kind, side_a, side_b) values ('${S1}', 2, 'team', '${ta.id}', '${ta.id}')`))).toMatch(/violates check/);
     expect(await fails(db.exec(`insert into matchups (season_id, week_number, kind, side_a) values ('${S1}', 1, 'team', '${ta.id}')`))).toMatch(/duplicate key/);

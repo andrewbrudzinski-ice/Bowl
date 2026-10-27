@@ -25,7 +25,7 @@ export const teamSchema = z.object({
   logo: z.string().trim().max(3).optional(),
 });
 
-export function addTeam(store: Store, actor: Actor, leagueId: Id, raw: z.input<typeof teamSchema>): Id {
+export function addTeam(store: Store, actor: Actor, leagueId: Id, raw: z.input<typeof teamSchema>): Promise<Id> {
   const p = teamSchema.safeParse(raw);
   if (!p.success) throw invalid(p.error.issues[0].message);
   return store.transaction((db) => {
@@ -43,8 +43,8 @@ export function addTeam(store: Store, actor: Actor, leagueId: Id, raw: z.input<t
   });
 }
 
-export function updateTeam(store: Store, actor: Actor, leagueId: Id, teamId: Id, raw: Partial<z.input<typeof teamSchema>> & { active?: boolean }) {
-  store.transaction((db) => {
+export async function updateTeam(store: Store, actor: Actor, leagueId: Id, teamId: Id, raw: Partial<z.input<typeof teamSchema>> & { active?: boolean }) {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "roster.manage");
     const t = teamIn(db, leagueId, teamId);
     const before = { ...t };
@@ -80,7 +80,7 @@ export const bowlerSchema = z.object({
   notes: z.string().trim().max(500).optional(),
 });
 
-export function addBowler(store: Store, actor: Actor, leagueId: Id, raw: z.input<typeof bowlerSchema>): Id {
+export function addBowler(store: Store, actor: Actor, leagueId: Id, raw: z.input<typeof bowlerSchema>): Promise<Id> {
   const p = bowlerSchema.safeParse(raw);
   if (!p.success) throw invalid(p.error.issues[0].message);
   return store.transaction((db) => {
@@ -96,8 +96,8 @@ export function addBowler(store: Store, actor: Actor, leagueId: Id, raw: z.input
   });
 }
 
-export function updateBowler(store: Store, actor: Actor, leagueId: Id, bowlerId: Id, raw: Partial<z.input<typeof bowlerSchema>> & { active?: boolean }) {
-  store.transaction((db) => {
+export async function updateBowler(store: Store, actor: Actor, leagueId: Id, bowlerId: Id, raw: Partial<z.input<typeof bowlerSchema>> & { active?: boolean }) {
+  await store.transaction((db) => {
     const b = bowlerIn(db, leagueId, bowlerId);
     const { membership } = requirePerm(db, actor, leagueId, "profile.edit_own");
     const isOwnProfile = membership.bowlerId === bowlerId;
@@ -139,11 +139,11 @@ function assertWeekEditable(db: DB, leagueId: Id, seasonId: Id, week: number) {
   if (week < eligible) throw invalid(`Week ${week} already has finalized results. Roster changes can take effect from week ${eligible} onward; history stays intact.`);
 }
 
-export function addToRoster(
+export async function addToRoster(
   store: Store, actor: Actor, leagueId: Id, seasonId: Id,
   input: { bowlerId: Id; teamId: Id | null; enteringAverage: number | null; isSub?: boolean; fromWeek?: number }
 ) {
-  store.transaction((db) => {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "roster.manage");
     seasonIn(db, leagueId, seasonId);
     bowlerIn(db, leagueId, input.bowlerId);
@@ -163,8 +163,8 @@ export function addToRoster(
 }
 
 /** Moves a bowler to another team effective `week`, closing the old assignment so past results keep their team. */
-export function changeTeam(store: Store, actor: Actor, leagueId: Id, seasonId: Id, bowlerId: Id, teamId: Id | null, week: number) {
-  store.transaction((db) => {
+export async function changeTeam(store: Store, actor: Actor, leagueId: Id, seasonId: Id, bowlerId: Id, teamId: Id | null, week: number) {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "roster.manage");
     seasonIn(db, leagueId, seasonId);
     bowlerIn(db, leagueId, bowlerId);
@@ -192,8 +192,8 @@ export function changeTeam(store: Store, actor: Actor, leagueId: Id, seasonId: I
   });
 }
 
-export function setEnteringAverage(store: Store, actor: Actor, leagueId: Id, seasonId: Id, bowlerId: Id, average: number | null) {
-  store.transaction((db) => {
+export async function setEnteringAverage(store: Store, actor: Actor, leagueId: Id, seasonId: Id, bowlerId: Id, average: number | null) {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "roster.manage");
     seasonIn(db, leagueId, seasonId);
     if (average != null && (!Number.isFinite(average) || average < 0 || average > 300)) throw invalid("Entering average must be between 0 and 300.");
@@ -205,8 +205,8 @@ export function setEnteringAverage(store: Store, actor: Actor, leagueId: Id, sea
   });
 }
 
-export function setSubstitute(store: Store, actor: Actor, leagueId: Id, seasonId: Id, bowlerId: Id, isSub: boolean) {
-  store.transaction((db) => {
+export async function setSubstitute(store: Store, actor: Actor, leagueId: Id, seasonId: Id, bowlerId: Id, isSub: boolean) {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "roster.manage");
     seasonIn(db, leagueId, seasonId);
     const entries = db.roster.filter((r) => r.seasonId === seasonId && r.bowlerId === bowlerId && r.toWeek == null);
@@ -217,8 +217,8 @@ export function setSubstitute(store: Store, actor: Actor, leagueId: Id, seasonId
 }
 
 /** Removes a bowler from a season roster. Only allowed when they have no recorded scores that season. */
-export function removeFromRoster(store: Store, actor: Actor, leagueId: Id, seasonId: Id, bowlerId: Id) {
-  store.transaction((db) => {
+export async function removeFromRoster(store: Store, actor: Actor, leagueId: Id, seasonId: Id, bowlerId: Id) {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "roster.manage");
     seasonIn(db, leagueId, seasonId);
     const ids = new Set(db.matchups.filter((m) => m.seasonId === seasonId).map((m) => m.id));
@@ -236,8 +236,8 @@ export function removeFromRoster(store: Store, actor: Actor, leagueId: Id, seaso
 
 // ---------- weeks ----------
 
-export function updateWeek(store: Store, actor: Actor, leagueId: Id, seasonId: Id, weekNumber: number, patch: { date?: string; status?: WeekStatus; label?: string }) {
-  store.transaction((db) => {
+export async function updateWeek(store: Store, actor: Actor, leagueId: Id, seasonId: Id, weekNumber: number, patch: { date?: string; status?: WeekStatus; label?: string }) {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "schedule.manage");
     seasonIn(db, leagueId, seasonId);
     const w = db.weeks.find((x) => x.seasonId === seasonId && x.number === weekNumber);
@@ -299,7 +299,7 @@ function fillLineups(db: DB, leagueId: Id, m: Matchup) {
   m.lineupB = m.sideB ? defaultLineup(data, m.sideB, m.weekNumber, size) : [];
 }
 
-export function createMatchup(store: Store, actor: Actor, leagueId: Id, seasonId: Id, input: { week: number; sideA: Id; sideB: Id | null }): Id {
+export function createMatchup(store: Store, actor: Actor, leagueId: Id, seasonId: Id, input: { week: number; sideA: Id; sideB: Id | null }): Promise<Id> {
   return store.transaction((db) => {
     requirePerm(db, actor, leagueId, "schedule.manage");
     const season = seasonIn(db, leagueId, seasonId);
@@ -327,8 +327,8 @@ export function createMatchup(store: Store, actor: Actor, leagueId: Id, seasonId
   });
 }
 
-export function deleteMatchup(store: Store, actor: Actor, leagueId: Id, matchupId: Id) {
-  store.transaction((db) => {
+export async function deleteMatchup(store: Store, actor: Actor, leagueId: Id, matchupId: Id) {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "schedule.manage");
     const { matchup } = matchupIn(db, leagueId, matchupId);
     if (isOfficial(matchup.state) && matchup.sideB) throw conflict("This matchup is finalized. Reopen it before removing it.");
@@ -339,8 +339,8 @@ export function deleteMatchup(store: Store, actor: Actor, leagueId: Id, matchupI
 }
 
 /** Moves an unplayed matchup to another week (history of the old slot is kept in the audit log). */
-export function moveMatchup(store: Store, actor: Actor, leagueId: Id, matchupId: Id, toWeek: number) {
-  store.transaction((db) => {
+export async function moveMatchup(store: Store, actor: Actor, leagueId: Id, matchupId: Id, toWeek: number) {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "schedule.manage");
     const { matchup, season } = matchupIn(db, leagueId, matchupId);
     if (isOfficial(matchup.state) && matchup.sideB) throw conflict("This matchup is finalized. Reopen it before moving it.");
@@ -388,7 +388,7 @@ export function previewSchedule(store: Store, actor: Actor, leagueId: Id, season
 }
 
 /** Replaces unplayed regular-season matchups from `fromWeek` with a freshly generated round robin. */
-export function generateSchedule(store: Store, actor: Actor, leagueId: Id, seasonId: Id, opts: GenerateScheduleOptions = {}): { created: number; warnings: string[] } {
+export function generateSchedule(store: Store, actor: Actor, leagueId: Id, seasonId: Id, opts: GenerateScheduleOptions = {}): Promise<{ created: number; warnings: string[] }> {
   return store.transaction((db) => {
     requirePerm(db, actor, leagueId, "schedule.manage");
     const season = seasonIn(db, leagueId, seasonId);
@@ -417,17 +417,16 @@ export function generateSchedule(store: Store, actor: Actor, leagueId: Id, seaso
         created++;
       }
     }
-    const publications = db.audit.filter((a) => a.leagueId === leagueId && a.seasonId === seasonId && a.action === "schedule.generated").length;
     writeAudit(db, actor, { leagueId, seasonId, action: "schedule.generated", entityType: "season", entityId: seasonId, before: { replacedUnplayed: removed }, after: { created, fromWeek: from, participants: parts.length }, note: sched.warnings.join(" ") });
     const league = leagueById(db, leagueId);
-    notifyMembers(db, { leagueId, type: "schedule", title: "New schedule published", body: `${season.name}: weeks ${from}–${season.regularWeeks}.`, href: `/l/${league.slug}/schedule`, dedupeKey: `schedule:${seasonId}:${publications + 1}`, exceptUserId: actor.id });
+    notifyMembers(db, { leagueId, type: "schedule", title: "New schedule published", body: `${season.name}: weeks ${from}–${season.regularWeeks}.`, href: `/l/${league.slug}/schedule`, dedupeKey: `schedule:${seasonId}:${now()}`, exceptUserId: actor.id });
     return { created, warnings: sched.warnings };
   });
 }
 
 // ---------- playoffs ----------
 
-export function generatePlayoffBracket(store: Store, actor: Actor, leagueId: Id, seasonId: Id, opts: { force?: boolean } = {}): { created: number } {
+export function generatePlayoffBracket(store: Store, actor: Actor, leagueId: Id, seasonId: Id, opts: { force?: boolean } = {}): Promise<{ created: number }> {
   return store.transaction((db) => {
     requirePerm(db, actor, leagueId, "schedule.manage");
     const season = seasonIn(db, leagueId, seasonId);
@@ -519,7 +518,7 @@ export const newSeasonSchema = z.object({
   completePrevious: z.boolean().default(true),
 });
 
-export function createNextSeason(store: Store, actor: Actor, leagueId: Id, raw: z.input<typeof newSeasonSchema>): { seasonId: Id; slug: string } {
+export function createNextSeason(store: Store, actor: Actor, leagueId: Id, raw: z.input<typeof newSeasonSchema>): Promise<{ seasonId: Id; slug: string }> {
   const p = newSeasonSchema.safeParse(raw);
   if (!p.success) throw invalid(p.error.issues[0].message);
   const input = p.data;
@@ -569,8 +568,8 @@ export function createNextSeason(store: Store, actor: Actor, leagueId: Id, raw: 
   });
 }
 
-export function completeSeason(store: Store, actor: Actor, leagueId: Id, seasonId: Id) {
-  store.transaction((db) => {
+export async function completeSeason(store: Store, actor: Actor, leagueId: Id, seasonId: Id) {
+  await store.transaction((db) => {
     requirePerm(db, actor, leagueId, "season.manage");
     const season = seasonIn(db, leagueId, seasonId);
     const model = buildSeasonModel(seasonData(db, leagueId, seasonId));

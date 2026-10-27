@@ -28,7 +28,7 @@ export default async function TeamPage({ params, searchParams }: { params: Promi
   const stats = bowlerSeasonStats(m);
   const roster = m.data.roster.filter((r) => r.teamId === id).sort((a, b) => a.fromWeek - b.fromWeek);
   const nights = collectTeamNights(m).filter((t) => t.teamId === id);
-  const models = allModels(ctx);
+  const models = await allModels(ctx);
   const rivals = computeRivalries(models, "team", id, ctx.season.id);
   const share = shareHref(ctx, `/l/${slug}/teams/${id}${sq ? `?season=${sq}` : ""}`);
   const results = m.results.filter((r) => r.matchup.kind === "team" && (r.a.participantId === id || r.b?.participantId === id));

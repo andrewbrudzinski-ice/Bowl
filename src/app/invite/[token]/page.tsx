@@ -11,7 +11,7 @@ export const metadata = { title: "League invitation" };
 export default async function Invite({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ error?: string }> }) {
   const { token } = await params;
   const { error } = await searchParams;
-  const inv = previewInvitation(getStore(), token);
+  const inv = await previewInvitation(getStore(), token);
   const user = await getUser();
   return (
     <main id="main" className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 px-4 py-10">
