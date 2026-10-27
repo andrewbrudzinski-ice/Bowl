@@ -28,7 +28,7 @@ npm run dev                       # http://localhost:3000
 | Command | What it does |
 | --- | --- |
 | `npm run dev` / `build` / `start` | Next.js dev server / production build / serve the build |
-| `npm test` | Unit + integration + security tests (Vitest, ~120 tests incl. SQL/RLS) |
+| `npm test` | Unit + integration + security tests (Vitest, 134 tests incl. SQL/RLS; browser tests live in `e2e/`) |
 | `npm run lint` | Type-check (`tsc --noEmit`) |
 | `npm run seed:demo -- <email>` | Create a removable demo league (refuses in production) |
 | `npm run db:migrate` | Apply SQL migrations to `DATABASE_URL` / `BOWL_PGLITE_DIR` |
