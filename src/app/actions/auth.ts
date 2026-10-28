@@ -35,7 +35,7 @@ export async function logoutAction() {
 export async function forgotAction(_: ActionState, fd: FormData) {
   return run(async () => {
     const res = await requestPasswordReset(getStore(), str(fd, "email"));
-    if (res) await sendMail({ to: res.user.email, subject: "Reset your Bowl password", text: `Use this link within 60 minutes to choose a new password:\n\n${appUrl(`/reset/${res.token}`)}\n\nIf you didn't ask for this, ignore this email.` });
+    if (res) await sendMail({ to: res.user.email, subject: "Reset your Sweeper password", text: `Use this link within 60 minutes to choose a new password:\n\n${appUrl(`/reset/${res.token}`)}\n\nIf you didn't ask for this, ignore this email.` });
     // Identical response whether or not the account exists.
     return { ok: true, message: "If an account exists for that email, a reset link is on its way. In development the link is printed in the server console." };
   });

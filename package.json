@@ -18,7 +18,8 @@
     "test:pg": "BOWL_TEST_STORE=pglite vitest run",
     "test:pg:server": "BOWL_TEST_STORE=pg vitest run",
     "check:callbacks": "node scripts/check-store-callbacks.cjs",
-    "check:bundle": "node scripts/check-bundle.cjs"
+    "check:bundle": "node scripts/check-bundle.cjs",
+    "build:logo": "tsx scripts/build-logo.tsx"
   },
   "dependencies": {
     "lucide-react": "^1.61.0",
