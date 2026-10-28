@@ -25,6 +25,8 @@ jobs:
       - run: npm run build
         env:
           SESSION_SECRET: ci-build-only
+      - name: Deployment bundle includes the migrations (serverless hosts)
+        run: npm run check:bundle
 
   test-file:
     name: Tests (file store)

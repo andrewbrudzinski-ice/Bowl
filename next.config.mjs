@@ -2,6 +2,9 @@
 const nextConfig = {
   poweredByHeader: false,
   serverExternalPackages: ["pg", "@electric-sql/pglite"],
+  // The database layer reads supabase/migrations at runtime (to check the schema is up to date). That path is computed, so Next's file tracing
+  // can't see it and a serverless host (Vercel) would not ship the folder: every request failed with ENOENT scandir '/var/task/supabase/migrations'.
+  outputFileTracingIncludes: { "/": ["./supabase/**/*"], "/**/*": ["./supabase/**/*"] }, // "/" separately: "/**/*" does not match the root route
   // Server actions reject bodies over 1 MB by default, but league backups and CSV imports are allowed up to 25 MB (checked in
   // src/app/actions/admin.ts). Without this, restoring any backup over 1 MB fails with a generic "Something went wrong".
   experimental: { serverActions: { bodySizeLimit: "26mb" } },
