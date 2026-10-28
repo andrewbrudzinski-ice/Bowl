@@ -69,8 +69,6 @@ interface PinProps {
   pivot?: "base" | "center";
   /** Must match the PinDefs id in the same svg. */
   id: string;
-  /** Soften far pins slightly, like depth of field. */
-  blur?: string;
 }
 
 /** The pin artwork in its own 40x100 box with no transform, so an animation can move it. */
@@ -93,9 +91,9 @@ export function PinBody({ ch, fill = IVORY, stripe = RED, ink = INK, id }: Pick<
   );
 }
 
-function Pin({ x, y, rot = 0, scale = 1, pivot = "base", blur, ...art }: PinProps): ReactElement {
+function Pin({ x, y, rot = 0, scale = 1, pivot = "base", ...art }: PinProps): ReactElement {
   return (
-    <g transform={`translate(${x} ${y}) rotate(${rot}) scale(${scale}) translate(-20 ${pivot === "center" ? -50 : -100})`} filter={blur}>
+    <g transform={`translate(${x} ${y}) rotate(${rot}) scale(${scale}) translate(-20 ${pivot === "center" ? -50 : -100})`}>
       {/* called, not rendered as <PinBody/>: Pin is also used inside next/og icons, which only accept host elements */}
       {PinBody(art)}
     </g>
@@ -197,9 +195,6 @@ export function SceneDefs(): ReactElement {
         <filter id="swl-soft" x="-20%" y="-80%" width="140%" height="260%">
           <feGaussianBlur stdDeviation="7" />
         </filter>
-        <filter id="swl-dof" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="0.8" />
-        </filter>
         <filter id="swl-shadow" x="-60%" y="-200%" width="220%" height="500%">
           <feGaussianBlur stdDeviation="4" />
         </filter>
@@ -295,7 +290,7 @@ export function SweeperLogo({ className, title = "Sweeper" }: { className?: stri
       <LaneBackdrop />
       <PinShadows />
       {LETTERS.map((p, i) => (
-        <Pin key={i} id="swl" ch={p.ch} x={p.x} y={p.y} rot={p.rot} scale={p.s} blur={p.s < 0.95 ? "url(#swl-dof)" : undefined} />
+        <Pin key={i} id="swl" ch={p.ch} x={p.x} y={p.y} rot={p.rot} scale={p.s} />
       ))}
       <SweepBarAcross y={322} />
       <SceneVignette />

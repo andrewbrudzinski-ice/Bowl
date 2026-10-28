@@ -170,7 +170,6 @@ export function SweeperIntro({ className, title = "Sweeper" }: { className?: str
               pins.current[i] = el;
             }}
             transform={pinTransform({ x: p.x, y: p.y, rot: p.rot, scale: p.s })}
-            filter={p.s < 0.95 ? "url(#swl-dof)" : undefined}
           >
             <PinBody id="swl" ch={p.ch} />
           </g>
