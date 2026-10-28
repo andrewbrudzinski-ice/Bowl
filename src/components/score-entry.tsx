@@ -244,7 +244,7 @@ export function ScoreEntry({ data }: { data: EntryData }) {
   return (
     <div ref={formRef} className="grid gap-4">
       {banner ? <div className="alert alert-info" role="status"><span>{banner}</span><button className="btn btn-ghost btn-sm ml-auto" onClick={() => setBanner(null)} aria-label="Dismiss">×</button></div> : null}
-      <div className="card sticky top-14 z-20 flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+      <div className="card sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-20 flex flex-wrap items-center justify-between gap-2 px-3 py-2">
         <div className="text-[13px]"><b>Week {data.week}</b> <span className="muted">· {data.dateLabel} · {G} games · scores are scratch</span>{anyDirty ? <span className="ml-2 badge badge-warn">UNSAVED CHANGES</span> : <span className="ml-2 badge badge-win">ALL SAVED</span>}</div>
         <button className="btn btn-primary btn-sm" disabled={pending || !dirtyMatchups.length} onClick={() => saveMany(dirtyMatchups)}><Save size={14} aria-hidden />Save all drafts{dirtyMatchups.length ? ` (${dirtyMatchups.length})` : ""}</button>
       </div>
