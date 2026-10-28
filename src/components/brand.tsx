@@ -35,7 +35,7 @@ const leftSide = PROFILE.map(([y, w]): [number, number] => [20 - w, y]).reverse(
 const PIN_PATH = `M20 0${smooth(rightSide)} L${leftSide[0][0].toFixed(2)} 100${smooth(leftSide)} Z`;
 
 /** Gradients and the pin clip shared by every pin in one svg. `id` keeps ids unique when several svgs share a page. */
-function PinDefs({ id }: { id: string }): ReactElement {
+export function PinDefs({ id }: { id: string }): ReactElement {
   return (
     <defs>
       <clipPath id={`${id}-pin`}>
@@ -73,9 +73,10 @@ interface PinProps {
   blur?: string;
 }
 
-function Pin({ ch, x, y, rot = 0, scale = 1, fill = IVORY, stripe = RED, ink = INK, pivot = "base", id, blur }: PinProps): ReactElement {
+/** The pin artwork in its own 40x100 box with no transform, so an animation can move it. */
+export function PinBody({ ch, fill = IVORY, stripe = RED, ink = INK, id }: Pick<PinProps, "ch" | "fill" | "stripe" | "ink" | "id">): ReactElement {
   return (
-    <g transform={`translate(${x} ${y}) rotate(${rot}) scale(${scale}) translate(-20 ${pivot === "center" ? -50 : -100})`} filter={blur}>
+    <g>
       <g clipPath={`url(#${id}-pin)`}>
         <rect x={0} y={0} width={40} height={100} fill={fill} />
         <rect x={0} y={27} width={40} height={3.6} fill={stripe} />
@@ -92,13 +93,22 @@ function Pin({ ch, x, y, rot = 0, scale = 1, fill = IVORY, stripe = RED, ink = I
   );
 }
 
+function Pin({ x, y, rot = 0, scale = 1, pivot = "base", blur, ...art }: PinProps): ReactElement {
+  return (
+    <g transform={`translate(${x} ${y}) rotate(${rot}) scale(${scale}) translate(-20 ${pivot === "center" ? -50 : -100})`} filter={blur}>
+      {/* called, not rendered as <PinBody/>: Pin is also used inside next/og icons, which only accept host elements */}
+      {PinBody(art)}
+    </g>
+  );
+}
+
 /** Lane edge positions at a given y for the perspective scene (a lane narrowing from 760 wide at y=520 to 200 at y=150). */
-const laneLeft = (y: number) => 300 - (280 * (y - 150)) / 370;
-const laneRight = (y: number) => 500 + (280 * (y - 150)) / 370;
+export const laneLeft = (y: number) => 300 - (280 * (y - 150)) / 370;
+export const laneRight = (y: number) => 500 + (280 * (y - 150)) / 370;
 const LANE = "M300 150 L500 150 L780 520 L20 520 Z";
 
 /** The seven pins of S-W-E-E-P-E-R, knocked every which way ahead of the bar: nearer ones larger and sharper, farther ones smaller and softer. */
-const LETTERS: { ch: string; x: number; y: number; rot: number; s: number }[] = [
+export const LETTERS: { ch: string; x: number; y: number; rot: number; s: number }[] = [
   { ch: "S", x: 128, y: 296, rot: -34, s: 1.1 },
   { ch: "W", x: 250, y: 204, rot: 22, s: 0.92 },
   { ch: "E", x: 338, y: 292, rot: -9, s: 1.16 },
@@ -109,7 +119,7 @@ const LETTERS: { ch: string; x: number; y: number; rot: number; s: number }[] = 
 ];
 
 /** The sweeper bar from the bowler's end: a brushed-chrome beam across the lane on two struts, throwing a soft shadow onto the boards. */
-function SweepBarAcross({ y }: { y: number }): ReactElement {
+export function SweepBarAcross({ y }: { y: number }): ReactElement {
   const l = laneLeft(y) - 18;
   const r = laneRight(y) + 18;
   return (
@@ -137,14 +147,9 @@ function SweepBarAcross({ y }: { y: number }): ReactElement {
   );
 }
 
-export function SweeperLogo({ className, title = "Sweeper" }: { className?: string; title?: string }): ReactElement {
-  const boards = Array.from({ length: 38 }, (_, i) => ({ top: 300 + ((i + 1) * 200) / 39, bottom: 20 + ((i + 1) * 760) / 39, a: 0.07 + ((i * 7) % 5) * 0.028 }));
-  const arrows = [0.18, 0.34, 0.5, 0.66, 0.82];
-  const deck: [number, number][] = [[-87, 154], [-29, 154], [29, 154], [87, 154], [-58, 164], [0, 164], [58, 164], [-29, 174], [29, 174], [0, 184]];
+export function SceneDefs(): ReactElement {
   return (
-    <svg viewBox="0 20 800 508" className={className} role="img" aria-label={title} xmlns="http://www.w3.org/2000/svg">
-      <title>{title}</title>
-      <defs>
+    <defs>
         <linearGradient id="swl-wood" x1="0" x2="0" y1="150" y2="520" gradientUnits="userSpaceOnUse">
           <stop offset="0" stopColor="#e6c389" />
           <stop offset="0.4" stopColor="#cf9b5a" />
@@ -209,8 +214,17 @@ export function SweeperLogo({ className, title = "Sweeper" }: { className?: stri
         <clipPath id="swl-lanes">
           <path d="M270 150 L530 150 L840 520 L-40 520 Z" />
         </clipPath>
-      </defs>
-      <PinDefs id="swl" />
+    </defs>
+  );
+}
+
+/** Gutters, the glossy lane, the pin-deck spots, arrows, foul line and sheen; the near end fades into the page. */
+export function LaneBackdrop(): ReactElement {
+  const boards = Array.from({ length: 38 }, (_, i) => ({ top: 300 + ((i + 1) * 200) / 39, bottom: 20 + ((i + 1) * 760) / 39, a: 0.07 + ((i * 7) % 5) * 0.028 }));
+  const arrows = [0.18, 0.34, 0.5, 0.66, 0.82];
+  const deck: [number, number][] = [[-87, 154], [-29, 154], [29, 154], [87, 154], [-58, 164], [0, 164], [58, 164], [-29, 174], [29, 174], [0, 184]];
+  return (
+    <g>
       {/* gutters, then the glossy lane; the near end fades into the page */}
       <g mask="url(#swl-fade)">
       <path d="M286 150 L514 150 L822 520 L-22 520 Z" fill="url(#swl-gutter)" />
@@ -244,19 +258,47 @@ export function SweeperLogo({ className, title = "Sweeper" }: { className?: stri
       <path d={LANE} fill="url(#swl-sheen-h)" />
       <ellipse cx={400} cy={176} rx={140} ry={20} fill="#fff" opacity={0.14} filter="url(#swl-soft)" />
       </g>
+    </g>
+  );
+}
+
+/** Soft shadows of the airborne pins on the boards. */
+export function PinShadows(): ReactElement {
+  return (
+    <g>
       {/* soft shadows of the airborne pins on the boards */}
       <g fill="#1a0f05" opacity={0.3} filter="url(#swl-shadow)">
         {LETTERS.map((p, i) => (
           <ellipse key={i} cx={p.x + p.rot * 0.4} cy={p.y + 46 * p.s} rx={15 * p.s} ry={4.5 * p.s} />
         ))}
       </g>
+    </g>
+  );
+}
+
+export function SceneVignette(): ReactElement {
+  return (
+    <g>
+      <g mask="url(#swl-fade)">
+        <rect x={-40} y={150} width={880} height={370} fill="url(#swl-vignette)" clipPath="url(#swl-lanes)" />
+      </g>
+    </g>
+  );
+}
+
+export function SweeperLogo({ className, title = "Sweeper" }: { className?: string; title?: string }): ReactElement {
+  return (
+    <svg viewBox="0 20 800 508" className={className} role="img" aria-label={title} xmlns="http://www.w3.org/2000/svg">
+      <title>{title}</title>
+      <SceneDefs />
+      <PinDefs id="swl" />
+      <LaneBackdrop />
+      <PinShadows />
       {LETTERS.map((p, i) => (
         <Pin key={i} id="swl" ch={p.ch} x={p.x} y={p.y} rot={p.rot} scale={p.s} blur={p.s < 0.95 ? "url(#swl-dof)" : undefined} />
       ))}
       <SweepBarAcross y={322} />
-      <g mask="url(#swl-fade)">
-        <rect x={-40} y={150} width={880} height={370} fill="url(#swl-vignette)" clipPath="url(#swl-lanes)" />
-      </g>
+      <SceneVignette />
     </svg>
   );
 }
