@@ -1,4 +1,6 @@
-# Bowl — bowling league platform
+<p align="center"><img src="public/logo.svg" alt="Sweeper: a sweep bar clearing seven pins that spell S-W-E-E-P-E-R, seen looking down the lane" width="560"></p>
+
+# Sweeper — bowling league platform
 
 A mobile-first website for running bowling leagues: configurable handicap and scoring rules, weekly matchup
 pages, live standings and playoffs, bowler profiles, records, awards, commissioner tools, versioned rules and

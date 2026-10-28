@@ -1,3 +1,4 @@
+import { SweeperLogo, Wordmark } from "@/components/brand";
 import Link from "next/link";
 import { Plus, Sparkles } from "lucide-react";
 import { createDemoAction, removeDemoAction } from "@/app/actions/leagues";
@@ -19,10 +20,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
   return (
     <div className="wrap py-8">
       <header className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--accent)] text-xl font-black text-[var(--accent-ink)]">B</span>
-          <span className="text-xl font-bold tracking-tight">Bowl</span>
-        </div>
+        <Wordmark className="text-xl" size={36} />
         <nav className="flex items-center gap-2" aria-label="Account">
           {user ? (
             <>
@@ -42,7 +40,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
         {error ? <div className="mb-4"><Alert tone="error">{error}</Alert></div> : null}
         <section className="mb-8 max-w-2xl">
           <h1 className="text-[34px] font-extrabold leading-tight tracking-tight">Your league, run like a pro.</h1>
-          <p className="muted mt-2 text-[15px]">Handicaps that follow your rules, matchup pages that read like game recaps, live standings, records and awards — for the league you actually bowl in.</p>
+          <p className="muted mt-2 text-[15px]">Sweeper clears up the bookkeeping: handicaps that follow your rules, matchup pages that read like game recaps, live standings, records and awards — for the league you actually bowl in.</p>
           {!user ? (
             <div className="mt-4 flex gap-2">
               <Link href="/register" className="btn btn-primary">Get started</Link>
@@ -50,6 +48,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
             </div>
           ) : null}
         </section>
+
+        {!user ? <SweeperLogo className="mx-auto mb-10 w-full max-w-2xl" /> : null}
 
         {user ? (
           <section aria-labelledby="mine" className="mb-8">

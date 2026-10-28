@@ -4,11 +4,11 @@ import "./globals.css";
 import { PwaRegister } from "@/components/pwa-register";
 
 export const metadata: Metadata = {
-  title: { default: "Bowl · League HQ", template: "%s · Bowl" },
+  title: { default: "Sweeper · League HQ", template: "%s · Sweeper" },
   description: "Run a bowling league like a pro: handicaps, matchups, standings, records and awards.",
-  applicationName: "Bowl",
+  applicationName: "Sweeper",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "Bowl", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Sweeper", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
 };
 

@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Bowl · League HQ",
-    short_name: "Bowl",
+    name: "Sweeper · League HQ",
+    short_name: "Sweeper",
     description: "Bowling league standings, matchups and scorekeeping.",
     start_url: "/",
     scope: "/",
