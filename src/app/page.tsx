@@ -1,4 +1,5 @@
-import { SweeperLogo, Wordmark } from "@/components/brand";
+import { Wordmark } from "@/components/brand";
+import { SweeperIntro } from "@/components/sweeper-intro";
 import Link from "next/link";
 import { Plus, Sparkles } from "lucide-react";
 import { createDemoAction, removeDemoAction } from "@/app/actions/leagues";
@@ -49,7 +50,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
           ) : null}
         </section>
 
-        {!user ? <SweeperLogo className="mx-auto mb-10 w-full max-w-2xl" /> : null}
+        {!user ? <SweeperIntro className="mx-auto mb-10 w-full max-w-2xl" /> : null}
 
         {user ? (
           <section aria-labelledby="mine" className="mb-8">

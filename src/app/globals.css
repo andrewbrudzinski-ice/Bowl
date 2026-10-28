@@ -146,3 +146,10 @@ button { font: inherit; }
 @media print { .no-print { display: none !important; } body { background: white; color: black; } }
 
 @media (max-width: 480px) { .tbl th, .tbl td { padding-left: 6px; padding-right: 6px; } .score-input { height: 38px; font-size: 15px; } }
+
+/* Home-page logo animation: hidden until its script has set the first frame, with a CSS-only fallback so it always appears. */
+.sw-intro { opacity: 0; animation: sw-reveal 0.01s linear 1.5s forwards; cursor: pointer; background: none; border: 0; padding: 0; }
+.sw-intro[data-ready="1"] { opacity: 1; animation: none; }
+.sw-intro:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+@keyframes sw-reveal { to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .sw-intro { opacity: 1; animation: none; } }
