@@ -43,7 +43,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
   );
   return (
     <div style={style} className="min-h-dvh pb-20 md:pb-8">
-      <header className="no-print sticky top-0 z-30 border-b border-line bg-bg/90 backdrop-blur">
+      <header className="no-print sticky top-0 z-30 -mt-[env(safe-area-inset-top)] border-b border-line bg-bg/90 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="wrap flex h-14 items-center gap-3">
           <details className="relative min-w-0 shrink">
             <summary className="flex cursor-pointer items-center gap-2.5 rounded-lg py-1 pr-2 hover:bg-hover" aria-label="Switch league">
