@@ -84,7 +84,7 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
             )}
           </Card>
           <Card>
-            <CardHead title="Week awards" right={<Link className="text-[var(--accent)]" href={`/l/${slug}/stats?tab=awards`}>All awards →</Link>} />
+            <CardHead title="Week awards" right={<Link className="text-[var(--accent-text)]" href={`/l/${slug}/stats?tab=awards`}>All awards →</Link>} />
             {awards.length === 0 ? <EmptyState title="No awards calculated" /> : (
               <ul className="divide-y divide-line">{awards.map((a) => (
                 <li key={a.id} className="px-3.5 py-2.5"><div className="eyebrow">{a.name}</div><div className="text-[13.5px] font-semibold">{a.winners.map((w) => w.name).join(", ")}</div><div className="muted text-xs">{a.winners[0].detail}</div></li>

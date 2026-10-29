@@ -98,7 +98,7 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
                       <td key={g.game}>
                         <div className={`score text-[18px] leading-none ${won ? "underline decoration-2 underline-offset-4" : "text-[color:var(--color-muted)] !font-semibold"}`} aria-label={val == null ? "no score" : `${val}${won ? ", won game" : ""}`}>
                           {val ?? "–"}
-                          {won ? <Check size={11} aria-hidden className="ml-0.5 inline align-super text-[var(--accent)]" /> : null}
+                          {won ? <Check size={11} aria-hidden className="ml-0.5 inline align-super text-[var(--accent-text)]" /> : null}
                         </div>
                         {showHdcp && sg.scratch != null ? <div className="faint num text-[10px]">{sg.scratch}+{(sg.adjusted ?? 0) - sg.scratch}</div> : null}
                       </td>
@@ -134,7 +134,7 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
                     : ""}
         </span>
         {href ? (
-          <Link href={href} className="font-semibold text-[var(--accent)] hover:underline">
+          <Link href={href} className="font-semibold text-[var(--accent-text)] hover:underline">
             {status.final ? "Full recap →" : "Matchup details →"}
           </Link>
         ) : null}

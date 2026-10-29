@@ -61,7 +61,7 @@ export default async function BowlerProfile({ params, searchParams }: { params: 
               {team ? <Link className="hover:underline" href={participant(ctx, team.id, "team", sq).href}>{team.name}</Link> : <span>{stats?.isSub ? "Substitute" : "No team"}</span>}
               {stats?.isSub ? <Badge>SUB</Badge> : null}
               {!bowler.active ? <Badge tone="warn">INACTIVE</Badge> : null}
-              {ctx.can("roster.manage") ? <Link className="text-[var(--accent)]" href={`/l/${slug}/admin/roster`}>Manage</Link> : null}
+              {ctx.can("roster.manage") ? <Link className="text-[var(--accent-text)]" href={`/l/${slug}/admin/roster`}>Manage</Link> : null}
             </div>
           </div>
         </div>
@@ -90,7 +90,7 @@ export default async function BowlerProfile({ params, searchParams }: { params: 
             )}
           </Card>
           <Card>
-            <CardHead title="Records held" right={<Link className="text-[var(--accent)]" href={`/l/${slug}/stats?tab=records`}>Record book →</Link>} />
+            <CardHead title="Records held" right={<Link className="text-[var(--accent-text)]" href={`/l/${slug}/stats?tab=records`}>Record book →</Link>} />
             {myRecords.length === 0 ? <EmptyState title="No league records held" /> : <ul className="divide-y divide-line">{myRecords.map((r) => <li key={r.key} className="flex justify-between gap-3 px-3.5 py-2 text-[13px]"><span>{r.title}{r.holders.length > 1 ? <span className="muted"> (tied)</span> : null}</span><span className="num font-semibold">{r.holders.find((h) => h.holderId === id)?.detail}</span></li>)}</ul>}
           </Card>
         </>
@@ -109,7 +109,7 @@ export default async function BowlerProfile({ params, searchParams }: { params: 
 
           {hc && ctx.cfg.handicap.enabled ? (
             <Card>
-              <CardHead title={`Handicap for week ${nextWeek}`} right={<Link className="text-[var(--accent)]" href={`/l/${slug}/rules`}>League formula →</Link>} />
+              <CardHead title={`Handicap for week ${nextWeek}`} right={<Link className="text-[var(--accent-text)]" href={`/l/${slug}/rules`}>League formula →</Link>} />
               <div className="grid gap-3 p-3.5 md:grid-cols-2">
                 <div>
                   <div className="num text-[15px] font-semibold">{hc.breakdown.formula}</div>

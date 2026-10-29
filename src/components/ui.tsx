@@ -13,18 +13,18 @@ export function CardHead({ title, right, icon }: { title: ReactNode; right?: Rea
         {icon}
         {title}
       </h2>
-      {right ? <div className="flex items-center gap-2 text-xs">{right}</div> : null}
+      {right ? <div className="flex items-center gap-3 text-[13px] font-semibold">{right}</div> : null}
     </header>
   );
 }
 
 export function PageHeader({ title, sub, actions, eyebrow }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; eyebrow?: ReactNode }) {
   return (
-    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div className="min-w-0">
-        {eyebrow ? <div className="eyebrow mb-1">{eyebrow}</div> : null}
+        {eyebrow ? <div className="eyebrow mb-1.5">{eyebrow}</div> : null}
         <h1 className="h-page">{title}</h1>
-        {sub ? <p className="muted mt-1 max-w-2xl text-[13px]">{sub}</p> : null}
+        {sub ? <p className="muted mt-2 max-w-2xl text-[15px]">{sub}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
@@ -42,14 +42,14 @@ export function Badge({ children, tone = "neutral", title }: { children: ReactNo
 
 export function Stat({ label, value, sub, href }: { label: string; value: ReactNode; sub?: ReactNode; href?: string }) {
   const body = (
-    <div className="card h-full px-3 py-2.5">
+    <div className="card h-full px-4 py-4">
       <div className="eyebrow">{label}</div>
-      <div className="score mt-0.5 text-[22px] leading-tight">{value}</div>
-      {sub ? <div className="muted mt-0.5 truncate text-xs">{sub}</div> : null}
+      <div className="score mt-1.5 text-[26px] leading-tight">{value}</div>
+      {sub ? <div className="muted mt-1 truncate text-[13px]">{sub}</div> : null}
     </div>
   );
   return href ? (
-    <Link href={href} className="block rounded-[10px] transition-colors hover:[&>div]:bg-hover">
+    <Link href={href} className="block rounded-[20px] transition-colors hover:[&>div]:bg-raised">
       {body}
     </Link>
   ) : (
@@ -59,10 +59,10 @@ export function Stat({ label, value, sub, href }: { label: string; value: ReactN
 
 export function EmptyState({ title, children, action, icon }: { title: string; children?: ReactNode; action?: ReactNode; icon?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-2 px-6 py-9 text-center">
+    <div className="flex flex-col items-center gap-2.5 px-6 py-12 text-center">
       {icon ? <div className="text-faint">{icon}</div> : null}
-      <p className="text-sm font-semibold">{title}</p>
-      {children ? <p className="muted max-w-md text-[13px]">{children}</p> : null}
+      <p className="text-[15px] font-semibold">{title}</p>
+      {children ? <p className="muted max-w-md text-[14px]">{children}</p> : null}
       {action ? <div className="mt-1">{action}</div> : null}
     </div>
   );
@@ -76,7 +76,7 @@ export function Alert({ tone = "info", children, title }: { tone?: "info" | "war
       <Icon size={16} className={`mt-0.5 shrink-0 ${color}`} aria-hidden />
       <div className="min-w-0">
         {title ? <div className="font-semibold">{title}</div> : null}
-        <div className="text-[13px]">{children}</div>
+        <div className="text-[14px]">{children}</div>
       </div>
     </div>
   );
@@ -100,7 +100,7 @@ export function TeamMark({ name, color, logo, size = 28 }: { name: string; color
   return (
     <span
       aria-hidden
-      className="inline-flex shrink-0 items-center justify-center rounded-md font-extrabold text-[#0a0d12]"
+      className="inline-flex shrink-0 items-center justify-center rounded-lg font-extrabold text-[#0a0d12]"
       style={{ width: size, height: size, background: color, fontSize: size * 0.42 }}
     >
       {(logo || name.slice(0, 1)).toUpperCase()}
@@ -123,7 +123,7 @@ export function FormChips({ form }: { form: ("W" | "L" | "T")[] }) {
 
 export function Tabs({ items, current }: { items: { href: string; label: string; key: string }[]; current: string }) {
   return (
-    <nav className="pill-nav mb-4" aria-label="Sections">
+    <nav className="pill-nav mb-6" aria-label="Sections">
       {items.map((i) => (
         <Link key={i.key} href={i.href} className="tab" aria-current={i.key === current ? "page" : undefined}>
           {i.label}
@@ -146,9 +146,9 @@ export function Delta({ value, digits = 0, suffix = "" }: { value: number; digit
 
 export function KV({ k, children }: { k: string; children: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-line py-1.5 last:border-0">
-      <dt className="muted text-[13px]">{k}</dt>
-      <dd className="num text-right text-[13px] font-medium">{children}</dd>
+    <div className="flex items-baseline justify-between gap-4 border-b border-line py-2.5 last:border-0">
+      <dt className="muted text-[14px]">{k}</dt>
+      <dd className="num text-right text-[14px] font-medium">{children}</dd>
     </div>
   );
 }

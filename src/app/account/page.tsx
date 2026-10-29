@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { passwordAction, prefsAction, profileAction } from "@/app/actions/auth";
 import { ActionForm } from "@/components/action-form";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Card, CardHead } from "@/components/ui";
 import { requireActor, getUser } from "@/server/session";
 import { getStore } from "@/server/db";
@@ -27,6 +28,7 @@ export default async function Account() {
       <Link href="/" className="muted text-[13px] hover:text-fg">← Home</Link>
       <h1 className="h-page mb-4 mt-2">Account</h1>
       <div className="grid gap-4">
+        <Card><CardHead title="Appearance" /><div className="grid gap-3 p-5"><p className="muted text-[14px]">Choose how Sweeper looks on this device. Auto follows your phone or computer setting.</p><div><ThemeToggle /></div></div></Card>
         <Card><CardHead title="Profile" /><div className="p-4"><ActionForm action={profileAction} submit="Save profile"><div className="field"><label htmlFor="name">Display name</label><input id="name" name="name" defaultValue={user.name} className="input" required maxLength={80} /></div><div className="field"><label>Email</label><input className="input" value={user.email} readOnly aria-readonly /><span className="help">Your sign-in email can't be changed here.</span></div></ActionForm></div></Card>
         <Card><CardHead title="Notifications" /><div className="p-4"><ActionForm action={prefsAction} submit="Save notification settings">
           {PREFS.map(([k, label, help]) => <label key={k} className="check items-start"><input type="checkbox" name={k} defaultChecked={(user.prefs as unknown as Record<string, boolean>)[k]} className="mt-0.5" /><span><span className="font-semibold">{label}</span><span className="help block">{help}</span></span></label>)}

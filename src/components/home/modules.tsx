@@ -31,7 +31,7 @@ export function StandingsModule({ ctx }: { ctx: LeagueCtx }) {
   const played = rows.some((r) => r.played > 0);
   return (
     <Card>
-      <CardHead title="Standings" icon={<Trophy size={14} />} right={<Link className="text-[var(--accent)]" href={`/l/${ctx.league.slug}/standings`}>Full table →</Link>} />
+      <CardHead title="Standings" icon={<Trophy size={14} />} right={<Link className="text-[var(--accent-text)]" href={`/l/${ctx.league.slug}/standings`}>Full table →</Link>} />
       {rows.length === 0 ? (
         <EmptyState title="No teams yet">Add teams and bowlers, then generate a schedule from the Commissioner area.</EmptyState>
       ) : !played ? (
@@ -55,7 +55,7 @@ export function MatchupsModule({ ctx }: { ctx: LeagueCtx }) {
   const kind = ctx.cfg.format === "individual" ? "individual" : "team";
   return (
     <Card>
-      <CardHead title={week ? `Up next · Week ${wk}${week.date ? ` · ${formatDate(week.date, { weekday: "short", month: "short", day: "numeric" })}` : ""}` : "Up next"} icon={<CalendarClock size={14} />} right={<Link className="text-[var(--accent)]" href={`/l/${ctx.league.slug}/schedule`}>Schedule →</Link>} />
+      <CardHead title={week ? `Up next · Week ${wk}${week.date ? ` · ${formatDate(week.date, { weekday: "short", month: "short", day: "numeric" })}` : ""}` : "Up next"} icon={<CalendarClock size={14} />} right={<Link className="text-[var(--accent-text)]" href={`/l/${ctx.league.slug}/schedule`}>Schedule →</Link>} />
       {results.length === 0 ? (
         <EmptyState title="No upcoming matchups">{m.results.length ? "Every scheduled matchup has been finalized." : ctx.can("schedule.manage") ? "Generate a schedule in Commissioner → Schedule." : "The commissioner hasn't published a schedule yet."}</EmptyState>
       ) : (
@@ -77,7 +77,7 @@ export function ResultsModule({ ctx }: { ctx: LeagueCtx }) {
   const rec = recordsEntering(ctx, wk);
   return (
     <Card>
-      <CardHead title={wk ? `Latest results · Week ${wk}` : "Latest results"} icon={<Medal size={14} />} right={wk ? <Link className="text-[var(--accent)]" href={`/l/${ctx.league.slug}/season/${ctx.season!.slug}/week/${wk}`}>Week recap →</Link> : null} />
+      <CardHead title={wk ? `Latest results · Week ${wk}` : "Latest results"} icon={<Medal size={14} />} right={wk ? <Link className="text-[var(--accent-text)]" href={`/l/${ctx.league.slug}/season/${ctx.season!.slug}/week/${wk}`}>Week recap →</Link> : null} />
       {results.length === 0 ? (
         <EmptyState title="No finalized results yet">Scores appear here once the commissioner finalizes a week.</EmptyState>
       ) : (
@@ -98,7 +98,7 @@ export async function NewsModule({ ctx }: { ctx: LeagueCtx }) {
   );
   return (
     <Card>
-      <CardHead title="League news" icon={<Megaphone size={14} />} right={<Link className="text-[var(--accent)]" href={`/l/${ctx.league.slug}/news`}>Archive →</Link>} />
+      <CardHead title="League news" icon={<Megaphone size={14} />} right={<Link className="text-[var(--accent-text)]" href={`/l/${ctx.league.slug}/news`}>Archive →</Link>} />
       {items.length === 0 ? (
         <EmptyState title="No announcements yet">{ctx.can("announcements.post") ? "Post dates, schedule changes and recaps from Commissioner → News." : "Commissioner announcements will show up here."}</EmptyState>
       ) : (
@@ -163,7 +163,7 @@ export function LeadersModule({ ctx }: { ctx: LeagueCtx }) {
   const hs = topWithTies(stats, (s) => s.highSeries?.scratch ?? null);
   return (
     <Card>
-      <CardHead title="Scoring leaders" icon={<Flame size={14} />} right={<Link className="text-[var(--accent)]" href={`/l/${ctx.league.slug}/stats`}>All stats →</Link>} />
+      <CardHead title="Scoring leaders" icon={<Flame size={14} />} right={<Link className="text-[var(--accent-text)]" href={`/l/${ctx.league.slug}/stats`}>All stats →</Link>} />
       {avgLeaders.length === 0 ? (
         <EmptyState title="Leaders appear after a few games">Bowlers need at least {min} games to be ranked by average.</EmptyState>
       ) : (
@@ -215,7 +215,7 @@ export async function RecordsModule({ ctx }: { ctx: LeagueCtx }) {
   if (leagueAvg != null) tiles.push({ label: "League scoring average", value: fmt1(leagueAvg), sub: `${allGames} games bowled` });
   return (
     <Card>
-      <CardHead title="Season highlights" icon={<Trophy size={14} />} right={<Link className="text-[var(--accent)]" href={`/l/${ctx.league.slug}/stats?tab=records`}>Record book →</Link>} />
+      <CardHead title="Season highlights" icon={<Trophy size={14} />} right={<Link className="text-[var(--accent-text)]" href={`/l/${ctx.league.slug}/stats?tab=records`}>Record book →</Link>} />
       {tiles.length === 0 ? (
         <EmptyState title="Highlights appear as results come in">Highest game, biggest win and closest matchup are calculated from finalized scores only.</EmptyState>
       ) : (

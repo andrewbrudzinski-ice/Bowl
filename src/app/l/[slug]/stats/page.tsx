@@ -89,7 +89,7 @@ async function Awards({ ctx, week, slug, sq }: { ctx: Awaited<ReturnType<typeof 
   return (
     <div className="grid gap-4">
       <Card>
-        <CardHead title="Season awards" right={ctx.can("awards.manage") ? <Link className="text-[var(--accent)]" href={`/l/${slug}/admin/settings?section=awards`}>Configure →</Link> : null} />
+        <CardHead title="Season awards" right={ctx.can("awards.manage") ? <Link className="text-[var(--accent-text)]" href={`/l/${slug}/admin/settings?section=awards`}>Configure →</Link> : null} />
         {seasonAwards.length === 0 ? <EmptyState title="No awards yet">Season awards need enough finalized games to meet each award's qualification rules.</EmptyState> : (
           <ul className="divide-y divide-line">{seasonAwards.map((a) => (
             <li key={a.id} className="px-3.5 py-3">
