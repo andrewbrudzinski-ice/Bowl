@@ -94,7 +94,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
                 {mine.map(({ league, role }) => (
                   <li key={league.id} className="card card-link relative p-5">
                     <Link href={`/l/${league.slug}`} className="flex items-center gap-4 after:absolute after:inset-0 after:rounded-[20px]">
-                      <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-extrabold text-[#241707] shadow-sm" style={{ background: resolveAccent(league.accent) }} aria-hidden>{league.logoText}</span>
+                      <span className="metal inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-extrabold text-[#1b1304]" style={{ backgroundColor: resolveAccent(league.accent) }} aria-hidden>{league.logoText}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[16px] font-bold tracking-tight">{league.name}</span>
                         <span className="muted block text-[13px]">{ROLE_LABELS[role]}{league.isDemo ? " · Demo data" : ""}</span>
@@ -118,7 +118,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ e
               {pub.map((l) => (
                 <li key={l.id} className="card card-link p-5">
                   <Link href={`/l/${l.slug}`} className="flex items-center gap-4">
-                    <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-extrabold text-[#241707] shadow-sm" style={{ background: resolveAccent(l.accent) }} aria-hidden>{l.logoText}</span>
+                    <span className="metal inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-sm font-extrabold text-[#1b1304]" style={{ backgroundColor: resolveAccent(l.accent) }} aria-hidden>{l.logoText}</span>
                     <span className="min-w-0 flex-1"><span className="block truncate text-[16px] font-bold tracking-tight">{l.name}</span><span className="muted line-clamp-1 text-[13px]">{l.description || "Public standings and results"}</span></span>
                     <ChevronRight size={18} aria-hidden className="shrink-0 text-faint" />
                   </Link>

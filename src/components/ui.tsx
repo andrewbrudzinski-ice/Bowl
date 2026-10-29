@@ -6,14 +6,17 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   return <section className={`card ${className}`}>{children}</section>;
 }
 
-export function CardHead({ title, right, icon }: { title: ReactNode; right?: ReactNode; icon?: ReactNode }) {
+export function CardHead({ title, right, icon, sub }: { title: ReactNode; right?: ReactNode; icon?: ReactNode; sub?: ReactNode }) {
   return (
     <header className="card-head">
-      <h2 className="h-section flex items-center gap-2">
-        {icon}
-        {title}
-      </h2>
-      {right ? <div className="flex items-center gap-3 text-[13px] font-semibold">{right}</div> : null}
+      <div className="min-w-0">
+        <h2 className="h-section flex items-center gap-2">
+          {icon}
+          {title}
+        </h2>
+        {sub ? <p className="muted mt-0.5 text-[13px]">{sub}</p> : null}
+      </div>
+      {right ? <div className="flex shrink-0 items-center gap-3 text-[13px] font-semibold">{right}</div> : null}
     </header>
   );
 }
@@ -84,14 +87,15 @@ export function Alert({ tone = "info", children, title }: { tone?: "info" | "war
 
 export function Avatar({ name, color, url, size = 32 }: { name: string; color: string; url?: string | null; size?: number }) {
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "?";
-  const style = { width: size, height: size, background: color, fontSize: size * 0.38 };
+  const style = { width: size, height: size, fontSize: size * 0.38 };
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={url} alt="" width={size} height={size} referrerPolicy="no-referrer" loading="lazy" className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />;
   }
   return (
-    <span aria-hidden className="inline-flex shrink-0 items-center justify-center rounded-full font-bold text-[#0a0d12]" style={style}>
+    <span aria-hidden className="relative inline-flex shrink-0 items-center justify-center rounded-full border border-line bg-raised font-bold tracking-tight text-muted" style={style}>
       {initials}
+      <span className="absolute -bottom-px -right-px rounded-full ring-2 ring-[var(--color-surface)]" style={{ width: Math.max(7, size * 0.26), height: Math.max(7, size * 0.26), background: color }} />
     </span>
   );
 }
@@ -100,10 +104,11 @@ export function TeamMark({ name, color, logo, size = 28 }: { name: string; color
   return (
     <span
       aria-hidden
-      className="inline-flex shrink-0 items-center justify-center rounded-lg font-extrabold text-[#0a0d12]"
-      style={{ width: size, height: size, background: color, fontSize: size * 0.42 }}
+      className="relative inline-flex shrink-0 items-center justify-center rounded-[10px] border border-line bg-raised font-extrabold tracking-tight text-fg"
+      style={{ width: size, height: size, fontSize: size * 0.4 }}
     >
       {(logo || name.slice(0, 1)).toUpperCase()}
+      <span className="absolute -bottom-px -right-px rounded-full ring-2 ring-[var(--color-surface)]" style={{ width: Math.max(7, size * 0.27), height: Math.max(7, size * 0.27), background: color }} />
     </span>
   );
 }

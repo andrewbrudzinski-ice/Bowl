@@ -12,8 +12,8 @@ const jakarta = localFont({
   display: "swap",
 });
 
-/** Runs before first paint: applies a saved light/dark choice (otherwise the CSS follows the device setting). */
-const THEME_SCRIPT = `try{var t=localStorage.getItem("sweeper-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
+/** Runs before first paint. Dark is the default; a saved "light" or "system" (follow the device) choice is applied here. */
+const THEME_SCRIPT = `try{var t=localStorage.getItem("sweeper-theme");if(t==="light"||t==="system")document.documentElement.dataset.theme=t}catch(e){}`;
 
 export const metadata: Metadata = {
   title: { default: "Sweeper · League HQ", template: "%s · Sweeper" },
@@ -25,11 +25,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f5f0e6" },
-    { media: "(prefers-color-scheme: dark)", color: "#15110c" },
-  ],
-  colorScheme: "light dark",
+  themeColor: "#0b0b0b",
+  colorScheme: "dark light",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",

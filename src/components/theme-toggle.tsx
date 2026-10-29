@@ -2,32 +2,35 @@
 import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 
-type Choice = "system" | "light" | "dark";
+type Choice = "dark" | "light" | "system";
 const KEY = "sweeper-theme";
 const OPTIONS: { value: Choice; label: string; Icon: typeof Sun }[] = [
-  { value: "system", label: "Auto", Icon: Monitor },
-  { value: "light", label: "Light", Icon: Sun },
   { value: "dark", label: "Dark", Icon: Moon },
+  { value: "light", label: "Light", Icon: Sun },
+  { value: "system", label: "Auto", Icon: Monitor },
 ];
 
-/** Light / dark / follow-the-device switch. The choice is kept in this browser only; <html data-theme> is set before first paint by a script in the root layout. */
+/**
+ * Dark / light / follow-the-device switch. Dark is the default. The choice is kept in this browser only; <html data-theme> is set
+ * before first paint by a script in the root layout ("light" and "system" are stored; dark is simply the absence of a choice).
+ */
 export function ThemeToggle({ compact = false }: { compact?: boolean }) {
-  const [choice, setChoice] = useState<Choice>("system");
+  const [choice, setChoice] = useState<Choice>("dark");
   useEffect(() => {
     try {
       const v = localStorage.getItem(KEY);
-      if (v === "light" || v === "dark") setChoice(v);
+      if (v === "light" || v === "system") setChoice(v);
     } catch {
-      /* storage blocked: stays on "system" */
+      /* storage blocked: stays on the dark default */
     }
   }, []);
   const pick = (value: Choice) => {
     setChoice(value);
     const root = document.documentElement;
-    if (value === "system") root.removeAttribute("data-theme");
+    if (value === "dark") root.removeAttribute("data-theme");
     else root.dataset.theme = value;
     try {
-      if (value === "system") localStorage.removeItem(KEY);
+      if (value === "dark") localStorage.removeItem(KEY);
       else localStorage.setItem(KEY, value);
     } catch {
       /* ignore */

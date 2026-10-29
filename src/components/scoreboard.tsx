@@ -11,9 +11,9 @@ export function ParticipantName({ p, record, rank, size = 28, link = true }: { p
     <>
       <TeamMark name={p.name} color={p.color} logo={p.logo} size={size} />
       <span className="min-w-0 leading-tight">
-        <span className="block truncate text-[14px] font-semibold">{p.name}</span>
+        <span className="block truncate text-[15px] font-semibold tracking-tight">{p.name}</span>
         {record ? (
-          <span className="muted block truncate text-[11px] num">
+          <span className="muted block truncate text-[12.5px] num">
             {recordText(record)}
             {rank ? ` · ${ordinal(rank)}` : ""}
           </span>
@@ -22,11 +22,11 @@ export function ParticipantName({ p, record, rank, size = 28, link = true }: { p
     </>
   );
   return link ? (
-    <Link href={p.href} className="flex min-w-0 items-center gap-2 hover:underline">
+    <Link href={p.href} className="flex min-w-0 items-center gap-3 hover:underline">
       {inner}
     </Link>
   ) : (
-    <span className="flex min-w-0 items-center gap-2">{inner}</span>
+    <span className="flex min-w-0 items-center gap-3">{inner}</span>
   );
 }
 
@@ -35,8 +35,9 @@ function sideTotals(r: MatchupResult, side: SideLine) {
 }
 
 /**
- * Sports-style scoreboard. Winners are marked with a label ("W"), bold weight, underline and a check — never color alone.
- * Unofficial scores are shown but visibly labelled provisional.
+ * Sports-style scoreboard: each side shows its series total, the games behind it and the points earned. Winners are marked with a
+ * "Won" label, stronger weight and a check on the games they took — never color alone. Unofficial scores are shown but visibly
+ * labelled provisional.
  */
 export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLabel }: { r: MatchupResult; a: Participant; b?: Participant; recA?: RecordLine; recB?: RecordLine; href?: string; compact?: boolean; dateLabel?: string }) {
   const status = resultStatus(r);
@@ -45,11 +46,10 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
   const winA = status.final && r.winner === "A";
   const winB = status.final && r.winner === "B";
   const tie = status.final && r.winner === "tie";
-  const label = (side: "A" | "B") => {
+  const outcome = (side: "A" | "B") => {
     if (!status.final || r.isBye || r.forfeitBy) return null;
-    if (tie) return <Badge title="Tied">T</Badge>;
-    const w = r.winner === side;
-    return w ? <Badge tone="win" title="Winner">W</Badge> : <Badge tone="loss" title="Loss">L</Badge>;
+    if (tie) return <Badge title="Tied">Tied</Badge>;
+    return r.winner === side ? <Badge tone="win" title="Winner">Won</Badge> : <Badge tone="loss" title="Loss">Lost</Badge>;
   };
   const rows: { side: "A" | "B"; p: Participant; line: SideLine; rec?: RecordLine; win: boolean }[] = [{ side: "A", p: a, line: r.a, rec: recA, win: winA }];
   if (bb && b) rows.push({ side: "B", p: b, line: bb, rec: recB, win: winB });
@@ -57,67 +57,55 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
   const dimmed = !status.final;
   return (
     <article className="card overflow-hidden" aria-label={`${a.name}${b ? ` versus ${b.name}` : " bye"}`}>
-      <header className="flex items-center justify-between gap-2 border-b border-line px-3 py-1.5">
+      <header className="flex items-center justify-between gap-3 px-5 pt-4">
         <span className="eyebrow">{dateLabel ?? `Week ${r.weekNumber}`}{r.matchup.playoffRound ? ` · Playoff round ${r.matchup.playoffRound}` : ""}</span>
         <Badge tone={status.tone}>{status.label}</Badge>
       </header>
       {r.isBye ? (
-        <div className="flex items-center justify-between px-3 py-3">
+        <div className="flex items-center justify-between gap-3 px-5 py-5">
           <ParticipantName p={a} record={recA} />
-          <span className="muted text-xs">Bye week{r.a.points ? ` · ${fmtPts(r.a.points)} pts` : ""}</span>
+          <span className="muted text-[13px]">Bye week{r.a.points ? ` · ${fmtPts(r.a.points)} pts` : ""}</span>
         </div>
       ) : (
-        <div className="tbl-wrap">
-          <table className="tbl" style={{ tableLayout: "auto" }}>
-            <caption className="sr-only">Game-by-game scores</caption>
-            <thead>
-              <tr>
-                <th scope="col">Participant</th>
-                {r.games.map((g) => (
-                  <th key={g.game} scope="col">G{g.game}</th>
-                ))}
-                <th scope="col">Series</th>
-                <th scope="col">Pts</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(({ side, p, line, rec, win }) => (
-                <tr key={side} className="scoreboard-row" style={dimmed ? { opacity: 0.88 } : undefined}>
-                  <td className="relative" style={{ minWidth: compact ? 130 : 170 }}>
-                    {win ? <span className="win-bar" aria-hidden /> : null}
-                    <div className="flex items-center gap-2 pl-1">
-                      <ParticipantName p={p} record={rec} size={compact ? 24 : 28} />
-                      <span className="ml-auto">{label(side)}</span>
+        <ul className="px-5">
+          {rows.map(({ side, p, line, rec, win }) => {
+            const seriesWon = r.seriesWinner === side && status.final;
+            return (
+              <li key={side} className="scoreboard-row border-b border-line py-5 last:border-b-0" style={dimmed ? { opacity: 0.9 } : undefined}>
+                <div className="flex items-start justify-between gap-4">
+                  <ParticipantName p={p} record={rec} size={compact ? 32 : 36} />
+                  <div className="shrink-0 text-right">
+                    <div className={`score text-[28px] leading-none ${seriesWon || !status.final ? "text-fg" : "text-muted"}`} aria-label={`Series ${sideTotals(r, line) || "no score"}`}>{sideTotals(r, line) || "–"}</div>
+                    {showHdcp ? <div className="faint num mt-1.5 text-[11px]">{line.scratchSeries}+{line.handicapSeries}</div> : null}
+                    <div className="mt-2 flex items-center justify-end gap-2">
+                      {outcome(side)}
+                      <span className={`num text-[13.5px] font-bold ${win ? "text-fg" : "text-muted"}`}>{status.final || line.points ? `${fmtPts(line.points)} pt${line.points === 1 ? "" : "s"}` : "–"}</span>
                     </div>
-                  </td>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(r.games.length, 5)}, minmax(0, 1fr))` }}>
                   {r.games.map((g, i) => {
                     const sg = line.games[i];
                     const won = gameWinner(i) === side;
                     const val = sg.basis;
                     return (
-                      <td key={g.game}>
-                        <div className={`score text-[18px] leading-none ${won ? "underline decoration-2 underline-offset-4" : "text-[color:var(--color-muted)] !font-semibold"}`} aria-label={val == null ? "no score" : `${val}${won ? ", won game" : ""}`}>
+                      <div key={g.game} className="rounded-xl bg-raised px-2 py-2.5 text-center" aria-label={`Game ${g.game}: ${val == null ? "no score" : val}${won ? ", won game" : ""}`}>
+                        <div className="faint text-[10.5px] font-semibold leading-none">G{g.game}</div>
+                        <div className={`score mt-1.5 text-[17px] leading-none ${won ? "text-fg" : "text-muted !font-semibold"}`}>
                           {val ?? "–"}
                           {won ? <Check size={11} aria-hidden className="ml-0.5 inline align-super text-[var(--accent-text)]" /> : null}
                         </div>
-                        {showHdcp && sg.scratch != null ? <div className="faint num text-[10px]">{sg.scratch}+{(sg.adjusted ?? 0) - sg.scratch}</div> : null}
-                      </td>
+                        {showHdcp && sg.scratch != null ? <div className="faint num mt-1 text-[10px] leading-none">{sg.scratch}+{(sg.adjusted ?? 0) - sg.scratch}</div> : null}
+                      </div>
                     );
                   })}
-                  <td>
-                    <div className={`score text-[18px] leading-none ${r.seriesWinner === side && status.final ? "underline decoration-2 underline-offset-4" : "text-[color:var(--color-muted)] !font-semibold"}`}>{sideTotals(r, line) || "–"}</div>
-                    {showHdcp ? <div className="faint num text-[10px]">{line.scratchSeries}+{line.handicapSeries}</div> : null}
-                  </td>
-                  <td>
-                    <div className={`score text-[18px] leading-none ${win ? "text-fg" : "text-muted"}`}>{status.final || line.points ? fmtPts(line.points) : "–"}</div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-3 py-1.5 text-xs">
+      <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line bg-[color-mix(in_srgb,var(--color-raised)_55%,transparent)] px-5 py-3.5 text-[13px]">
         <span className="muted">
           {r.isBye
             ? ""
