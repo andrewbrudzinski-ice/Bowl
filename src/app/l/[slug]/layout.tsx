@@ -3,7 +3,8 @@ import type { CSSProperties, ReactNode } from "react";
 import { Bell } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { DesktopNav, MobileNav, SeasonSwitcher, type NavItem } from "@/components/league-nav";
-import { accentInk } from "@/components/theme";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { accentVars, resolveAccent } from "@/components/theme";
 import { getLeagueCtx } from "@/server/context";
 import { getStore } from "@/server/db";
 import { unreadCount } from "@/server/services/content";
@@ -30,40 +31,44 @@ export default async function LeagueLayout({ children, params }: { children: Rea
     { href: `${base}/rules`, label: "Rules", icon: "rules" },
   ];
   if (ctx.can("league.view_admin")) items.push({ href: `${base}/admin`, label: "Commissioner", icon: "admin" });
-  const style = { "--accent": ctx.league.accent, "--accent-ink": accentInk(ctx.league.accent) } as CSSProperties;
+  const style = accentVars(ctx.league.accent);
   const accountMenu = ctx.actor ? (
-    <div className="grid gap-1.5">
-      <div className="muted px-1 text-xs">Signed in as {ctx.actor.name}</div>
+    <div className="grid gap-2">
+      <div className="muted px-1 pb-1 text-[13px]">Signed in as <span className="font-semibold text-fg">{ctx.actor.name}</span></div>
       <Link href="/account" className="btn btn-sm justify-start">Account & notifications</Link>
       <Link href="/" className="btn btn-sm justify-start">My leagues</Link>
       <form action={logoutAction}><button className="btn btn-sm w-full justify-start" type="submit">Sign out</button></form>
+      <div className="mt-1 border-t border-line px-1 pt-3"><div className="eyebrow mb-2">Appearance</div><ThemeToggle /></div>
     </div>
   ) : (
-    <Link href={`/login?next=${encodeURIComponent(base)}`} className="btn btn-primary btn-sm">Sign in</Link>
+    <div className="grid gap-3">
+      <Link href={`/login?next=${encodeURIComponent(base)}`} className="btn btn-primary btn-sm">Sign in</Link>
+      <div className="border-t border-line px-1 pt-3"><div className="eyebrow mb-2">Appearance</div><ThemeToggle /></div>
+    </div>
   );
   return (
-    <div style={style} className="min-h-dvh pb-20 md:pb-8">
-      <header className="no-print sticky top-0 z-30 -mt-[env(safe-area-inset-top)] border-b border-line bg-bg/90 pt-[env(safe-area-inset-top)] backdrop-blur">
-        <div className="wrap flex h-14 items-center gap-3">
+    <div style={style} className="min-h-dvh pb-28 md:pb-12">
+      <header className="no-print sticky top-0 z-30 -mt-[env(safe-area-inset-top)] border-b border-line bg-bg/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+        <div className="wrap flex h-16 items-center gap-3">
           <details className="relative min-w-0 shrink">
-            <summary className="flex cursor-pointer items-center gap-2.5 rounded-lg py-1 pr-2 hover:bg-hover" aria-label="Switch league">
-              <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--accent)] text-[13px] font-black text-[var(--accent-ink)]" aria-hidden>
+            <summary className="flex cursor-pointer items-center gap-3 rounded-xl py-1.5 pl-1 pr-3 transition-colors hover:bg-hover" aria-label="Switch league">
+              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-[13px] font-extrabold text-[var(--accent-ink)] shadow-sm" aria-hidden>
                 {ctx.league.logoText}
               </span>
               <span className="min-w-0 text-left leading-tight">
-                <span className="block max-w-[34vw] truncate text-[14px] font-bold md:max-w-[240px]">{ctx.league.name}</span>
-                <span className="muted block max-w-[34vw] truncate text-[11px] md:max-w-[240px]">{ctx.season?.name ?? "No season yet"}</span>
+                <span className="block max-w-[34vw] truncate text-[15px] font-bold tracking-tight md:max-w-[240px]">{ctx.league.name}</span>
+                <span className="muted block max-w-[34vw] truncate text-xs md:max-w-[240px]">{ctx.season?.name ?? "No season yet"}</span>
               </span>
             </summary>
-            <div className="card absolute left-0 top-12 z-40 w-64 p-1.5 shadow-xl">
-              <div className="eyebrow px-2 py-1">Your leagues</div>
+            <div className="card absolute left-0 top-14 z-40 w-72 p-2 !shadow-[var(--shadow-lg)]">
+              <div className="eyebrow px-2.5 py-1.5">Your leagues</div>
               {mine.length ? mine.map((m) => (
-                <Link key={m.league.id} href={`/l/${m.league.slug}`} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] hover:bg-hover" aria-current={m.league.id === ctx.league.id ? "true" : undefined}>
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-md text-[10px] font-black text-[#0a0d12]" style={{ background: m.league.accent }}>{m.league.logoText}</span>
+                <Link key={m.league.id} href={`/l/${m.league.slug}`} className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition-colors hover:bg-hover" aria-current={m.league.id === ctx.league.id ? "true" : undefined}>
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-extrabold text-[#241707]" style={{ background: resolveAccent(m.league.accent) }}>{m.league.logoText}</span>
                   <span className="min-w-0 flex-1 truncate">{m.league.name}</span>
                 </Link>
               )) : <div className="muted px-2 py-1.5 text-xs">You're browsing as a guest.</div>}
-              {ctx.actor ? <Link href="/leagues/new" className="mt-1 block rounded-md border-t border-line px-2 py-2 text-[13px] text-[var(--accent)] hover:bg-hover">+ Create a league</Link> : null}
+              {ctx.actor ? <Link href="/leagues/new" className="mt-1 block rounded-xl border-t border-line px-2.5 py-2.5 text-sm font-semibold text-[var(--accent-text)] transition-colors hover:bg-hover">+ Create a league</Link> : null}
             </div>
           </details>
           <div className="hidden min-w-0 flex-1 md:block"><DesktopNav items={items} home={base} /></div>
@@ -77,7 +82,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
             ) : null}
             <details className="relative hidden md:block">
               <summary className="btn btn-sm" aria-label="Account">{ctx.actor ? ctx.actor.name.split(" ")[0] : "Guest"}</summary>
-              <div className="card absolute right-0 top-10 z-40 w-56 p-2 shadow-xl">{accountMenu}</div>
+              <div className="card absolute right-0 top-12 z-40 w-64 p-3 !shadow-[var(--shadow-lg)]">{accountMenu}</div>
             </details>
           </div>
         </div>
@@ -86,7 +91,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
         <div className="border-b border-line bg-raised text-center text-xs">
           <div className="wrap py-1.5 muted">
             You're viewing this league as a {ctx.access.via === "link" ? "guest with a private link" : "public visitor"}. Admin tools and member info are hidden.{" "}
-            {!ctx.actor ? <Link className="text-[var(--accent)]" href={`/login?next=${encodeURIComponent(base)}`}>Sign in</Link> : null}
+            {!ctx.actor ? <Link className="text-[var(--accent-text)]" href={`/login?next=${encodeURIComponent(base)}`}>Sign in</Link> : null}
           </div>
         </div>
       ) : null}
@@ -95,7 +100,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
           <div className="wrap py-1.5"><span className="font-bold text-warn">DEMO DATA</span> <span className="muted">— every name, score and result in this league is simulated.{ctx.can("demo.reset") ? <> Remove it in <Link className="underline" href={`${base}/admin/seasons`}>Commissioner → Seasons</Link>.</> : null}</span></div>
         </div>
       ) : null}
-      <main id="main" className="wrap pt-5">{children}</main>
+      <main id="main" className="wrap pt-8">{children}</main>
       <MobileNav items={items} home={base} extra={accountMenu} />
     </div>
   );

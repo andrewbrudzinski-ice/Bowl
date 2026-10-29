@@ -5,6 +5,7 @@ import { ConfirmAction } from "@/components/confirm-action";
 import { RulesEditor } from "@/components/rules-editor";
 import { AwardsEditor, HomepageEditor } from "@/components/settings-editors";
 import { Alert, Badge, Card, CardHead, EmptyState, PageHeader, Tabs } from "@/components/ui";
+import { resolveAccent } from "@/components/theme";
 import { AWARD_DEFS, defaultAwardsConfig } from "@/domain/awards";
 import { firstEligibleWeek } from "@/domain/rulechange";
 import { getLeagueCtx } from "@/server/context";
@@ -41,7 +42,7 @@ export default async function Settings({ params, searchParams }: { params: Promi
           <div className="field sm:col-span-2"><label htmlFor="g-name">League name</label><input id="g-name" name="name" defaultValue={l.name} className="input" required maxLength={60} /></div>
           <div className="field sm:col-span-2"><label htmlFor="g-desc">Description</label><textarea id="g-desc" name="description" defaultValue={l.description} className="textarea" maxLength={300} /></div>
           <div className="field"><label htmlFor="g-logo">Logo letters</label><input id="g-logo" name="logoText" defaultValue={l.logoText} className="input" maxLength={3} /></div>
-          <div className="field"><label htmlFor="g-acc">Accent color</label><input id="g-acc" name="accent" type="color" defaultValue={l.accent} className="h-9 w-20 rounded border border-line-strong bg-bg p-0.5" /></div>
+          <div className="field"><label htmlFor="g-acc">Accent color</label><input id="g-acc" name="accent" type="color" defaultValue={resolveAccent(l.accent)} className="h-9 w-20 rounded border border-line-strong bg-bg p-0.5" /></div>
         </ActionForm></div></Card>
       ) : null}
       {section === "rules" && ctx.can("settings.rules") ? (

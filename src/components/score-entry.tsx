@@ -244,7 +244,7 @@ export function ScoreEntry({ data }: { data: EntryData }) {
   return (
     <div ref={formRef} className="grid gap-4">
       {banner ? <div className="alert alert-info" role="status"><span>{banner}</span><button className="btn btn-ghost btn-sm ml-auto" onClick={() => setBanner(null)} aria-label="Dismiss">×</button></div> : null}
-      <div className="card sticky top-[calc(3.5rem+env(safe-area-inset-top))] z-20 flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+      <div className="card sticky top-[calc(4rem+env(safe-area-inset-top))] z-20 flex flex-wrap items-center justify-between gap-2 px-3 py-2">
         <div className="text-[13px]"><b>Week {data.week}</b> <span className="muted">· {data.dateLabel} · {G} games · scores are scratch</span>{anyDirty ? <span className="ml-2 badge badge-warn">UNSAVED CHANGES</span> : <span className="ml-2 badge badge-win">ALL SAVED</span>}</div>
         <button className="btn btn-primary btn-sm" disabled={pending || !dirtyMatchups.length} onClick={() => saveMany(dirtyMatchups)}><Save size={14} aria-hidden />Save all drafts{dirtyMatchups.length ? ` (${dirtyMatchups.length})` : ""}</button>
       </div>
@@ -462,7 +462,7 @@ function FinalizeDialog({ modal, data, onCancel, onConfirm, pending }: { modal: 
   const moves = p.standingsAfter.map((r) => ({ r, b: before.get(r.id) })).filter((x) => !x.b || x.b.rank !== x.r.rank || x.b.points !== x.r.points);
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-labelledby="fin-title">
-      <button className="absolute inset-0 bg-black/70" onClick={onCancel} aria-label="Close" tabIndex={-1} />
+      <button className="absolute inset-0 bg-[var(--overlay)]" onClick={onCancel} aria-label="Close" tabIndex={-1} />
       <div className="card relative max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-b-none p-4 sm:rounded-b-[10px]">
         <h2 id="fin-title" className="text-[16px] font-bold">Finalize {m.a.name} vs {m.b?.name}?</h2>
         <p className="muted mt-1 text-[13px]">Result: <b className="text-fg">{p.summary.winner === "tie" ? "Tie" : p.summary.winner === "A" ? m.a.name : m.b?.name} {fmtPts(p.summary.a)}–{fmtPts(p.summary.b)}</b>. Handicaps and the rule version are locked in when you finalize.</p>

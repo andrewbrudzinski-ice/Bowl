@@ -2,7 +2,9 @@
 import { useState, useTransition } from "react";
 import { Check } from "lucide-react";
 import { createLeagueAction } from "@/app/actions/leagues";
+import { accentInk } from "@/components/theme";
 import { STARTER_TEMPLATES, validateConfig, type RuleConfig } from "@/domain/config";
+import { BRAND_ACCENT } from "@/domain/brand";
 import { describeRules } from "@/domain/describe";
 import { RuleForm } from "./rule-form";
 
@@ -22,7 +24,7 @@ const VIS: [string, string, string][] = [
 export function LeagueWizard({ copyOptions, defaultConfig }: { copyOptions: CopyOption[]; defaultConfig: RuleConfig }) {
   const year = new Date().getFullYear();
   const [step, setStep] = useState(0);
-  const [b, setB] = useState({ name: "", description: "", logoText: "", accent: "#38bdf8", visibility: "private", seasonName: `${year} Season`, year, startDate: `${year}-01-06`, regularWeeks: 10, teamNames: "" });
+  const [b, setB] = useState({ name: "", description: "", logoText: "", accent: BRAND_ACCENT, visibility: "private", seasonName: `${year} Season`, year, startDate: `${year}-01-06`, regularWeeks: 10, teamNames: "" });
   const [cfg, setCfg] = useState<RuleConfig>(defaultConfig);
   const [templateId, setTemplateId] = useState("traditional-handicap-team");
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export function LeagueWizard({ copyOptions, defaultConfig }: { copyOptions: Copy
               <div className="field sm:col-span-2"><label htmlFor="name">League name</label><input id="name" className="input" value={b.name} onChange={(e) => up("name", e.target.value)} maxLength={60} placeholder="Friday Night Strikers" autoFocus /></div>
               <div className="field sm:col-span-2"><label htmlFor="desc">Description</label><textarea id="desc" className="textarea" value={b.description} onChange={(e) => up("description", e.target.value)} maxLength={300} placeholder="Who you are, where you bowl, what night." /></div>
               <div className="field"><label htmlFor="logo">Logo letters</label><input id="logo" className="input" value={b.logoText} onChange={(e) => up("logoText", e.target.value.toUpperCase().slice(0, 3))} placeholder={b.name.slice(0, 2).toUpperCase() || "FNS"} maxLength={3} /><span className="help">Up to three letters shown in your league's mark.</span></div>
-              <div className="field"><label htmlFor="accent">Accent color</label><div className="flex items-center gap-2"><input id="accent" type="color" value={b.accent} onChange={(e) => up("accent", e.target.value)} className="h-9 w-12 cursor-pointer rounded-md border border-line-strong bg-bg p-0.5" /><span className="num muted text-xs">{b.accent}</span><span className="inline-flex h-9 flex-1 items-center justify-center rounded-md text-[13px] font-bold" style={{ background: b.accent, color: "#04141c" }}>Preview</span></div></div>
+              <div className="field"><label htmlFor="accent">Accent color</label><div className="flex items-center gap-2"><input id="accent" type="color" value={b.accent} onChange={(e) => up("accent", e.target.value)} className="h-9 w-12 cursor-pointer rounded-md border border-line-strong bg-bg p-0.5" /><span className="num muted text-xs">{b.accent}</span><span className="inline-flex h-9 flex-1 items-center justify-center rounded-md text-[13px] font-bold" style={{ background: b.accent, color: accentInk(b.accent) }}>Preview</span></div></div>
               <div className="field"><label htmlFor="sn">Season name</label><input id="sn" className="input" value={b.seasonName} onChange={(e) => up("seasonName", e.target.value)} /></div>
               <div className="field"><label htmlFor="yr">Year</label><input id="yr" className="input" type="number" value={b.year} onChange={(e) => up("year", Number(e.target.value))} /></div>
               <div className="field"><label htmlFor="sd">First bowling night</label><input id="sd" className="input" type="date" value={b.startDate} onChange={(e) => up("startDate", e.target.value)} /></div>
@@ -85,7 +87,7 @@ export function LeagueWizard({ copyOptions, defaultConfig }: { copyOptions: Copy
         {step === 5 ? (
           <div className="grid gap-4">
             <div><h2 className="text-[17px] font-bold">Review</h2><p className="muted text-[13px]">Check everything, then create your league. Use the step tabs above to go back and edit any section.</p></div>
-            <div className="card p-3.5"><div className="flex items-center gap-3"><span className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-sm font-black" style={{ background: b.accent, color: "#04141c" }}>{b.logoText || b.name.slice(0, 2).toUpperCase()}</span><div><div className="text-[16px] font-bold">{b.name}</div><div className="muted text-xs">{b.seasonName} · starts {b.startDate} · {b.regularWeeks} weeks · {VIS.find((v) => v[0] === b.visibility)?.[1]} · {teamNames.length} team{teamNames.length === 1 ? "" : "s"} listed</div></div></div></div>
+            <div className="card p-3.5"><div className="flex items-center gap-3"><span className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-sm font-black" style={{ background: b.accent, color: accentInk(b.accent) }}>{b.logoText || b.name.slice(0, 2).toUpperCase()}</span><div><div className="text-[16px] font-bold">{b.name}</div><div className="muted text-xs">{b.seasonName} · starts {b.startDate} · {b.regularWeeks} weeks · {VIS.find((v) => v[0] === b.visibility)?.[1]} · {teamNames.length} team{teamNames.length === 1 ? "" : "s"} listed</div></div></div></div>
             <div className="grid gap-3 md:grid-cols-2">{describeRules(cfg).map((s) => <div key={s.id} className="card"><div className="card-head"><h3 className="h-section">{s.title}</h3><button type="button" className="btn btn-ghost btn-sm" onClick={() => setStep(s.id === "format" ? 1 : s.id === "scoring" || s.id === "situations" ? 2 : s.id === "handicap" ? 3 : 4)}>Edit</button></div><dl className="px-3.5 py-1">{s.items.map((i) => <div key={i.label} className="border-b border-line py-1.5 last:border-0"><div className="flex justify-between gap-3 text-[13px]"><dt className="muted">{i.label}</dt><dd className="text-right font-medium">{i.value}</dd></div></div>)}</dl></div>)}</div>
             {!check.ok ? <div className="alert alert-error">These rules need fixing before you can create the league: {check.issues.find((i) => i.severity === "error")?.message}</div> : null}
             {error ? <div className="alert alert-error" role="alert">{error}</div> : null}

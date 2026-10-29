@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { defaultAwardsConfig } from "@/domain/awards";
+import { BRAND_ACCENT } from "@/domain/brand";
 import { validateConfig, type RuleConfig } from "@/domain/config";
 import type { Id, League, ModuleSetting, Role, Season, Team, Week } from "@/domain/types";
 import { activeMembership, leagueById, notifyUser, requirePerm, writeAudit, type Actor } from "../access";
@@ -30,7 +31,7 @@ export const createLeagueSchema = z.object({
   name: z.string().trim().min(2, "League name needs at least 2 characters.").max(60),
   description: z.string().trim().max(300).default(""),
   logoText: z.string().trim().max(3).default(""),
-  accent: hex.default("#38bdf8"),
+  accent: hex.default(BRAND_ACCENT),
   visibility: z.enum(["private", "unlisted", "public"]).default("private"),
   season: z.object({
     name: z.string().trim().min(1).max(60),

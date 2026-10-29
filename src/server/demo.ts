@@ -1,3 +1,4 @@
+import { BRAND_ACCENT } from "@/domain/brand";
 import { normalizeConfig, DEFAULT_CONFIG } from "@/domain/config";
 import type { Id } from "@/domain/types";
 import { requirePerm, type Actor } from "./access";
@@ -47,7 +48,7 @@ export async function createDemoLeague(store: Store, owner: Actor): Promise<{ sl
     name: "Friday Night Strikers (Demo)",
     description: "Demo league with simulated bowlers and scores. Safe to explore — and to delete.",
     logoText: "FNS",
-    accent: "#38bdf8",
+    accent: BRAND_ACCENT,
     visibility: "private",
     season: { name: "2025 Season", year: 2025, startDate: "2025-01-10", regularWeeks: 10 },
     config: cfg2025,

@@ -16,7 +16,7 @@ export function SubmitButton({ children, className = "btn btn-primary", pending,
 
 /** A <form> bound to a server action with inline error/success feedback and a pending state. */
 export function ActionForm({
-  action, children, submit = "Save", submitClass, className = "grid gap-3", reset = false, secondary,
+  action, children, submit = "Save", submitClass, className = "grid gap-5", reset = false, secondary,
 }: {
   action: Action;
   children: ReactNode;
@@ -49,7 +49,7 @@ export function ActionForm({
           {state.message}
         </div>
       ) : null}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-3 pt-1">
         <SubmitButton pending={pending} className={submitClass ?? "btn btn-primary"}>
           {submit}
         </SubmitButton>
