@@ -27,7 +27,7 @@ export default async function Rules({ params, searchParams }: { params: Promise<
         {sections.map((s) => (
           <Card key={s.id}>
             <CardHead title={s.title} />
-            <dl className="px-5 py-1">{s.items.map((i) => <div key={i.label} className="border-b border-line py-2 last:border-0"><div className="flex items-baseline justify-between gap-4"><dt className="muted text-[13px]">{i.label}</dt><dd className="text-right text-[13px] font-medium">{i.value}</dd></div>{i.note ? <p className="faint mt-0.5 text-[13px]">{i.note}</p> : null}</div>)}</dl>
+            <dl className="px-5 py-1">{s.items.map((i) => <div key={i.label} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-baseline gap-x-4 border-b border-line py-3 last:border-0"><dt className="muted text-[14px]">{i.label}</dt><dd className="text-right text-[14px] font-medium">{i.value}{i.note ? <span className="faint mt-0.5 block text-[13px] font-normal">{i.note}</span> : null}</dd></div>)}</dl>
           </Card>
         ))}
       </div>

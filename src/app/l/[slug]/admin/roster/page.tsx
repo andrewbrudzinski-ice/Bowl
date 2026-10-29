@@ -77,12 +77,13 @@ export default async function RosterAdmin({ params }: { params: Promise<{ slug: 
                   <details>
                     <summary className="flex cursor-pointer flex-wrap items-center gap-2">
                       <Avatar name={b.name} color={b.avatarColor} url={b.avatarUrl} size={28} />
-                      <Link href={`/l/${slug}/bowlers/${b.id}`} className="font-semibold hover:underline">{b.name}</Link>
+                      <span className="font-semibold">{b.name}</span>
                       <span className="muted text-[13px]">{t?.name ?? (e.isSub ? "Substitute" : "No team")}</span>
                       {e.isSub ? <Badge>SUB</Badge> : null}{!b.active ? <Badge tone="warn">INACTIVE</Badge> : null}
                       <span className="num muted ml-auto text-[13px]">ent {e.enteringAverage ?? "—"} · avg {fmt1(s?.average)} · {s?.games ?? 0} gms</span>
                     </summary>
                     <div className="mt-3 grid gap-4 pl-9 md:grid-cols-3">
+                      <div className="md:col-span-3"><Link href={`/l/${slug}/bowlers/${b.id}`} className="text-[13px] font-semibold text-[var(--accent-text)] underline underline-offset-4">View {b.name}'s profile</Link></div>
                       {!individual ? <ActionForm action={changeTeamAction.bind(null, slug, season.id)} submit="Change team" className="grid gap-2"><input type="hidden" name="bowler" value={b.id} /><div className="field"><label htmlFor={`ct-${e.id}`}>Move to</label><select id={`ct-${e.id}`} name="team" className="select" defaultValue={e.teamId ?? ""}><option value="">No team</option>{teams.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div><div className="field"><label htmlFor={`cw-${e.id}`}>Starting week</label><input id={`cw-${e.id}`} name="week" type="number" min={eligible} defaultValue={eligible} className="input" /></div></ActionForm> : null}
                       <ActionForm action={setAverageAction.bind(null, slug, season.id)} submit="Save average" className="grid gap-2"><input type="hidden" name="bowler" value={b.id} /><div className="field"><label htmlFor={`ea-${e.id}`}>Entering average</label><input id={`ea-${e.id}`} name="entering" type="number" min={0} max={300} defaultValue={e.enteringAverage ?? ""} className="input" /></div><span className="help">Finalized weeks keep their locked handicaps.</span></ActionForm>
                       <div className="flex flex-wrap content-start gap-2">

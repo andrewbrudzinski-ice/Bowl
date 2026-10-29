@@ -88,17 +88,17 @@ export default async function LeagueLayout({ children, params }: { children: Rea
         </div>
       </header>
       {ctx.anonymousView ? (
-        <div className="border-b border-line bg-raised text-center text-xs">
+        <aside aria-label="Viewing as a guest" className="border-b border-line bg-raised text-center text-[13px]">
           <div className="wrap py-1.5 muted">
             You're viewing this league as a {ctx.access.via === "link" ? "guest with a private link" : "public visitor"}. Admin tools and member info are hidden.{" "}
-            {!ctx.actor ? <Link className="text-[var(--accent-text)]" href={`/login?next=${encodeURIComponent(base)}`}>Sign in</Link> : null}
+            {!ctx.actor ? <Link className="font-semibold text-[var(--accent-text)] underline underline-offset-4" href={`/login?next=${encodeURIComponent(base)}`}>Sign in</Link> : null}
           </div>
-        </div>
+        </aside>
       ) : null}
       {ctx.league.isDemo ? (
-        <div className="border-b border-[color-mix(in_srgb,var(--color-warn)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-warn)_8%,transparent)] text-center text-xs">
+        <aside aria-label="Demo data notice" className="border-b border-[color-mix(in_srgb,var(--color-warn)_40%,transparent)] bg-[color-mix(in_srgb,var(--color-warn)_8%,transparent)] text-center text-[13px]">
           <div className="wrap py-1.5"><span className="font-bold text-warn">DEMO DATA</span> <span className="muted">— every name, score and result in this league is simulated.{ctx.can("demo.reset") ? <> Remove it in <Link className="underline" href={`${base}/admin/seasons`}>Commissioner → Seasons</Link>.</> : null}</span></div>
-        </div>
+        </aside>
       ) : null}
       <main id="main" className="wrap pt-8">{children}</main>
       <MobileNav items={items} home={base} extra={accountMenu} />

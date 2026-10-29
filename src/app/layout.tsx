@@ -16,6 +16,7 @@ const jakarta = localFont({
 const THEME_SCRIPT = `try{var t=localStorage.getItem("sweeper-theme");if(t==="light"||t==="system")document.documentElement.dataset.theme=t}catch(e){}`;
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.APP_URL || "http://localhost:3000"),
   title: { default: "Sweeper · League HQ", template: "%s · Sweeper" },
   description: "Run a bowling league like a pro: handicaps, matchups, standings, records and awards.",
   applicationName: "Sweeper",

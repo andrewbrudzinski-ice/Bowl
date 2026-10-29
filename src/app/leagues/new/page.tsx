@@ -20,11 +20,11 @@ export default async function NewLeague() {
     { userIds: [actor.id], userLeagues: ["seasons"] }
   );
   return (
-    <div className="wrap max-w-4xl py-8">
+    <main id="main" className="wrap max-w-4xl py-8">
       <Link href="/" className="muted text-[13px] hover:text-fg">← Home</Link>
-      <h1 className="h-page mb-1 mt-2">Create a league</h1>
-      <p className="muted mb-5 text-[13px]">Six short steps. Every rule is configurable — templates are just starting points.</p>
-      <main id="main"><LeagueWizard copyOptions={copyOptions} defaultConfig={normalizeConfig(DEFAULT_CONFIG)} /></main>
-    </div>
+      <h1 className="h-page mb-2 mt-2">Create a league</h1>
+      <p className="muted mb-8 text-[15px]">Six short steps. Every rule is configurable — templates are just starting points.</p>
+      <LeagueWizard copyOptions={copyOptions} defaultConfig={normalizeConfig(DEFAULT_CONFIG)} />
+    </main>
   );
 }

@@ -326,7 +326,7 @@ export function MarkArt({ onAccent }: { onAccent: boolean }): ReactElement {
       </defs>
       {PinDefs({ id: "swm" })}
       {/* the lane narrowing away from the viewer */}
-      <path d="M25 20 L39 20 L62 62 L2 62 Z" fill={onAccent ? "#071626" : "#0f172a"} />
+      <path d="M25 20 L39 20 L62 62 L2 62 Z" fill={onAccent ? "#071626" : "#161616"} />
       <path d="M26.2 20 L37.8 20 L57 58 L7 58 Z" fill="url(#swm-lane)" />
       <path d="M32 20 L32 58 M29.4 20 L21 58 M34.6 20 L43 58" stroke="#000" strokeWidth={0.5} opacity={0.22} />
       {/* three pins knocked into the air, nearer ones larger */}

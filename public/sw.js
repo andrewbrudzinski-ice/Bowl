@@ -3,7 +3,7 @@
  * - NEVER caches HTML or API responses for league pages: private league data must not be stored by the worker,
  *   and scores can't be saved offline (there is no sync system), so stale pages would mislead.
  */
-const CACHE = "bowl-static-v1";
+const CACHE = "bowl-static-v2"; // bumped with the redesign so installed copies drop the old blue icons and offline page
 const OFFLINE_URL = "/offline";
 
 self.addEventListener("install", (event) => {

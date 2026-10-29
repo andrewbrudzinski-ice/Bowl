@@ -54,7 +54,6 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
   const rows: { side: "A" | "B"; p: Participant; line: SideLine; rec?: RecordLine; win: boolean }[] = [{ side: "A", p: a, line: r.a, rec: recA, win: winA }];
   if (bb && b) rows.push({ side: "B", p: b, line: bb, rec: recB, win: winB });
   const gameWinner = (g: number) => (r.games[g]?.status === "scored" || r.games[g]?.status === "forfeit" ? r.games[g].winner : null);
-  const dimmed = !status.final;
   return (
     <article className="card overflow-hidden" aria-label={`${a.name}${b ? ` versus ${b.name}` : " bye"}`}>
       <header className="flex items-center justify-between gap-3 px-5 pt-4">
@@ -71,7 +70,7 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
           {rows.map(({ side, p, line, rec, win }) => {
             const seriesWon = r.seriesWinner === side && status.final;
             return (
-              <li key={side} className="scoreboard-row border-b border-line py-5 last:border-b-0" style={dimmed ? { opacity: 0.9 } : undefined}>
+              <li key={side} className="scoreboard-row border-b border-line py-5 last:border-b-0">
                 <div className="flex items-start justify-between gap-4">
                   <ParticipantName p={p} record={rec} size={compact ? 32 : 36} />
                   <div className="shrink-0 text-right">

@@ -19,7 +19,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
       </ActionForm>
       <div className="mt-6 flex justify-between text-[14px]">
         <Link href="/forgot" className="muted hover:text-fg">Forgot password?</Link>
-        <Link href={`/register${sp.next ? `?next=${encodeURIComponent(sp.next)}` : ""}`} className="text-[var(--accent-text)]">Create an account</Link>
+        <Link href={`/register${sp.next ? `?next=${encodeURIComponent(sp.next)}` : ""}`} className="font-semibold text-[var(--accent-text)] underline underline-offset-4">Create an account</Link>
       </div>
     </>
   );

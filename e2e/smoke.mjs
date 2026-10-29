@@ -63,6 +63,7 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 900 }], ["mo
   await visit(`${BASE}/l/${SLUG}/season/2026/week/6`);
   const mu = (await hrefs(`a[href^="/l/${SLUG}/matchup/"]`))[0];
   { const r = await visit(BASE + mu); ok(r.status() === 200, `${label} ${mu} → ${r.status()}`); }
+  { const r = await page.request.get(BASE + mu + "/scorecard"); ok(r.status() === 200 && /image\/png/.test(r.headers()["content-type"] ?? ""), `${label} ${mu}/scorecard renders a PNG (${r.status()})`); }
   ok(errors.length === 0, `${label}: no console/page errors${errors.length ? " — " + errors.slice(0, 3).join(" | ") : ""}`);
   await ctx.close();
 }
