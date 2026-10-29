@@ -18,7 +18,7 @@ const BAR_HIT = 200;
 const T_BAR_START = 0.3;
 const T_HIT = 1.2;
 const T_BAR_BACK = 2.3;
-const FLIGHT = 1.0;
+const FLIGHT = 1.1;
 /** The top edge of the logo's viewBox, plus a little air. */
 const TOP = 30;
 /** Resting opacity of a pin shadow (what <PinShadows> draws). */
@@ -40,12 +40,8 @@ const standScale = (y: number) => 0.46 + (y - 160) * 0.004;
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const easeInCubic = (t: number) => t * t * t;
+const easeOutQuad = (t: number) => 1 - (1 - t) * (1 - t);
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
-const easeOutBack = (t: number) => {
-  const c1 = 1.5;
-  const c3 = c1 + 1;
-  return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-};
 
 /** The bar's height on screen at time t: off the bottom, charging up the lane, then easing back to rest. */
 export function barY(t: number): number {
@@ -69,7 +65,13 @@ interface PinFrame {
   u: number;
 }
 
-/** One pin's position at time t. At t >= T_END this is exactly the finished logo. */
+/**
+ * One pin's position at time t. At t >= T_END this is exactly the finished logo.
+ *
+ * Each pin follows one projectile-style arc: it travels from the cluster to its letter spot with a single ease-out (quick off the
+ * bar, a gentle landing) while a parabola lifts it up and brings it back down, so the path bends once at the top and never doubles
+ * back. The spin runs one way, one full turn, and slows to the pin's final lean.
+ */
 export function pinFrame(i: number, t: number): PinFrame {
   const f = LETTERS[i];
   const st = STAND[i];
@@ -77,16 +79,17 @@ export function pinFrame(i: number, t: number): PinFrame {
   const launch = T_HIT + (191 - st.y) * 0.012;
   const u = clamp01((t - launch) / FLIGHT);
   if (u <= 0) return { x: st.x, y: st.y, rot: 0, scale: s0, u: 0 };
-  const e = easeOutCubic(u);
-  const hump = 4 * u * (1 - u);
-  const dir = i % 2 === 0 ? 1 : -1;
-  const scale = lerp(s0, f.s, e) * (1 + 0.15 * hump);
+  if (u >= 1) return { x: f.x, y: f.y, rot: f.rot, scale: f.s, u: 1 };
+  const h = easeOutQuad(u);
+  const arc = 4 * u * (1 - u);
+  // The arc rises as high as it likes (taller for pins that travel further) but never so high that the pin's head leaves the frame.
+  const room = (st.y + f.y) / 2 - TOP - 100 * ((s0 + f.s) / 2) * 1.12;
+  const lift = Math.max(12, Math.min(80 + 0.18 * Math.abs(f.x - st.x), room));
   return {
-    x: lerp(st.x, f.x, e),
-    // the arc rises as far as the picture allows (the pin's head stays inside the frame), never lower than a straight line
-    y: Math.max(lerp(st.y, f.y, e) - (110 + 20 * (i % 3)) * hump, Math.min(lerp(st.y, f.y, e), TOP + 100 * scale)),
-    rot: f.rot * easeOutBack(u) + dir * 120 * Math.sin(Math.PI * u),
-    scale,
+    x: lerp(st.x, f.x, h),
+    y: lerp(st.y, f.y, h) - lift * arc,
+    rot: lerp(0, f.rot + (f.rot < 0 ? -360 : 360), easeOutCubic(u)),
+    scale: lerp(s0, f.s, h) * (1 + 0.12 * arc),
     u,
   };
 }
