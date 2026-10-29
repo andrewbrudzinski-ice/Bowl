@@ -18,7 +18,7 @@ export default async function Notifications() {
       <Card>
         {items.length === 0 ? <EmptyState title="You're all caught up">League news, results and invitations will appear here. Choose what you get in <Link className="underline" href="/account">Account settings</Link>.</EmptyState> : (
           <ul className="divide-y divide-line">{items.map((n) => (
-            <li key={n.id}><Link href={n.href} className="card-link block px-4 py-3"><div className="flex items-center gap-2"><span className="text-[14px] font-semibold">{n.title}</span>{!n.readAt ? <Badge tone="accent">NEW</Badge> : null}</div><div className="muted text-[13px]">{n.body}</div><div className="faint mt-0.5 text-xs">{n.leagueName} · {formatDateTime(n.createdAt)}</div></Link></li>
+            <li key={n.id}><Link href={n.href} className="card-link block px-4 py-3"><div className="flex items-center gap-2"><span className="text-[14px] font-semibold">{n.title}</span>{!n.readAt ? <Badge tone="accent">NEW</Badge> : null}</div><div className="muted text-[13px]">{n.body}</div><div className="faint mt-0.5 text-[13px]">{n.leagueName} · {formatDateTime(n.createdAt)}</div></Link></li>
           ))}</ul>
         )}
       </Card>

@@ -24,17 +24,17 @@ export default async function Members({ params, searchParams }: { params: Promis
   const active = members.filter((m) => m.status === "active");
   const inactive = members.filter((m) => m.status !== "active");
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6 md:gap-8">
       <PageHeader title="Members & access" eyebrow={ctx.league.name} sub="Roles control what each person can do. Permissions are enforced on the server, not just hidden in the interface." />
       {sp.error ? <Alert tone="error">{sp.error}</Alert> : null}
       <Card>
         <CardHead title="Invite someone" />
-        <div className="p-4"><ActionForm action={inviteAction.bind(null, slug)} submit="Create invitation" reset className="grid gap-3 sm:grid-cols-4">
+        <div className="p-5"><ActionForm action={inviteAction.bind(null, slug)} submit="Create invitation" reset className="grid gap-3 sm:grid-cols-4">
           <div className="field sm:col-span-2"><label htmlFor="iv-e">Email (optional)</label><input id="iv-e" name="email" type="email" className="input" placeholder="friend@example.com" /><span className="help">Leave blank for a shareable link anyone can use once. With an email, only that address can accept.</span></div>
           <div className="field"><label htmlFor="iv-r">Role</label><select id="iv-r" name="role" className="select" defaultValue="bowler">{grantable.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}</select></div>
           <div className="field"><label htmlFor="iv-t">Expires in</label><select id="iv-t" name="ttl" className="select" defaultValue="7"><option value="1">1 day</option><option value="7">7 days</option><option value="30">30 days</option></select></div>
         </ActionForm></div>
-        {invites.length ? <ul className="divide-y divide-line border-t border-line">{invites.slice(0, 10).map((i) => { const state = i.revokedAt ? "revoked" : i.acceptedAt ? "used" : i.expiresAt < new Date().toISOString() ? "expired" : "pending"; return <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-[13px]"><span>{ROLE_LABELS[i.role]} · {i.email ?? "link"} <Badge tone={state === "pending" ? "accent" : state === "used" ? "win" : "neutral"}>{state.toUpperCase()}</Badge> <span className="faint text-xs">{formatDateTime(i.createdAt)}</span></span>{state === "pending" ? <ConfirmAction className="btn btn-ghost btn-sm" action={revokeInviteAction.bind(null, slug, i.id)} confirm="Revoke this invitation?">Revoke</ConfirmAction> : null}</li>; })}</ul> : null}
+        {invites.length ? <ul className="divide-y divide-line border-t border-line">{invites.slice(0, 10).map((i) => { const state = i.revokedAt ? "revoked" : i.acceptedAt ? "used" : i.expiresAt < new Date().toISOString() ? "expired" : "pending"; return <li key={i.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-[13px]"><span>{ROLE_LABELS[i.role]} · {i.email ?? "link"} <Badge tone={state === "pending" ? "accent" : state === "used" ? "win" : "neutral"}>{state.toUpperCase()}</Badge> <span className="faint text-[13px]">{formatDateTime(i.createdAt)}</span></span>{state === "pending" ? <ConfirmAction className="btn btn-ghost btn-sm" action={revokeInviteAction.bind(null, slug, i.id)} confirm="Revoke this invitation?">Revoke</ConfirmAction> : null}</li>; })}</ul> : null}
       </Card>
 
       <Card>
@@ -46,13 +46,13 @@ export default async function Members({ params, searchParams }: { params: Promis
             return (
               <li key={m.id} className="px-4 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div><div className="font-semibold">{m.name}{isSelf ? <span className="muted"> (you)</span> : null}</div><div className="muted text-xs">{ctx.can("members.manage") ? m.email : ""} · joined {formatDateTime(m.joinedAt)}</div></div>
+                  <div><div className="font-semibold">{m.name}{isSelf ? <span className="muted"> (you)</span> : null}</div><div className="muted text-[13px]">{ctx.can("members.manage") ? m.email : ""} · joined {formatDateTime(m.joinedAt)}</div></div>
                   <Badge tone={m.role === "owner" ? "accent" : "neutral"}>{ROLE_LABELS[m.role].toUpperCase()}</Badge>
                 </div>
                 {editable ? (
                   <div className="mt-2 flex flex-wrap items-end gap-3">
-                    <ActionForm action={setRoleAction.bind(null, slug, m.userId)} submit="Change role" submitClass="btn btn-sm" className="flex items-end gap-2"><div className="field"><label htmlFor={`r-${m.id}`} className="sr-only">Role</label><select id={`r-${m.id}`} name="role" defaultValue={m.role} className="select !h-8 !w-52 text-xs">{grantable.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}</select></div></ActionForm>
-                    {bowlers.length ? <ActionForm action={linkBowlerAction.bind(null, slug, m.userId)} submit="Link" submitClass="btn btn-sm" className="flex items-end gap-2"><div className="field"><label htmlFor={`b-${m.id}`} className="sr-only">Linked bowler</label><select id={`b-${m.id}`} name="bowler" defaultValue={m.bowlerId ?? ""} className="select !h-8 !w-44 text-xs"><option value="">No bowler linked</option>{bowlers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div></ActionForm> : null}
+                    <ActionForm action={setRoleAction.bind(null, slug, m.userId)} submit="Change role" submitClass="btn btn-sm" className="flex items-end gap-2"><div className="field"><label htmlFor={`r-${m.id}`} className="sr-only">Role</label><select id={`r-${m.id}`} name="role" defaultValue={m.role} className="select !h-8 !w-52 text-[13px]">{grantable.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}</select></div></ActionForm>
+                    {bowlers.length ? <ActionForm action={linkBowlerAction.bind(null, slug, m.userId)} submit="Link" submitClass="btn btn-sm" className="flex items-end gap-2"><div className="field"><label htmlFor={`b-${m.id}`} className="sr-only">Linked bowler</label><select id={`b-${m.id}`} name="bowler" defaultValue={m.bowlerId ?? ""} className="select !h-8 !w-44 text-[13px]"><option value="">No bowler linked</option>{bowlers.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div></ActionForm> : null}
                     <ConfirmAction className="btn btn-danger btn-sm" action={memberStatusAction.bind(null, slug, m.userId, "deactivated")} confirm={`Revoke ${m.name}'s access? Their scores and history are kept.`}>Revoke access</ConfirmAction>
                   </div>
                 ) : null}
@@ -80,7 +80,7 @@ export default async function Members({ params, searchParams }: { params: Promis
           ) : null}
           <form action={leaveAction.bind(null, slug)}><button className="btn btn-danger btn-sm" type="submit">Leave this league</button><span className="help ml-2">Owners must transfer ownership first.</span></form>
           {ctx.can("league.delete") ? <ActionForm action={archiveLeagueAction.bind(null, slug)} submit="Archive league" submitClass="btn btn-danger" className="grid gap-2 border-t border-line pt-3 sm:max-w-md"><div className="field"><label htmlFor="ar">Archive this league (hides it from everyone; data is retained)</label><input id="ar" name="confirm" className="input" placeholder="Type the league name" autoComplete="off" /></div></ActionForm> : null}
-          <p className="faint text-xs">Locked out of every administrator account? The site operator can restore an owner with <code>npm run recover-owner -- {slug} you@example.com</code> (see the handoff docs).</p>
+          <p className="faint text-[13px]">Locked out of every administrator account? The site operator can restore an owner with <code>npm run recover-owner -- {slug} you@example.com</code> (see the handoff docs).</p>
         </div>
       </Card>
     </div>

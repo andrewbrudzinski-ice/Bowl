@@ -21,7 +21,7 @@ export default async function AdminLayout({ children, params }: { children: Reac
   ].filter((i) => i.show);
   return (
     <div>
-      <div className="mb-1 flex items-center gap-2"><span className="badge badge-accent">COMMISSIONER</span><Link href={`/l/${slug}`} className="muted text-xs hover:text-fg">← Back to league</Link></div>
+      <div className="mb-4 flex items-center gap-3"><span className="badge badge-accent">COMMISSIONER</span><Link href={`/l/${slug}`} className="muted text-[13px] hover:text-fg">← Back to league</Link></div>
       <AdminTabs items={items} base={base} />
       {children}
     </div>

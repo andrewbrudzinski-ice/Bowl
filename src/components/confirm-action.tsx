@@ -16,7 +16,7 @@ export function ConfirmAction({ action, children, confirm, className = "btn btn-
         if (prompt && !arg) return;
         start(async () => { const r = (await action(arg ?? undefined)) ?? { ok: true }; setMsg(r); router.refresh(); });
       }}>{pending ? "Working…" : children}</button>
-      {msg?.error ? <span role="alert" className="text-xs text-loss">{msg.error}</span> : msg?.message ? <span role="status" className="text-xs text-win">{msg.message}</span> : null}
+      {msg?.error ? <span role="alert" className="text-[13px] text-loss">{msg.error}</span> : msg?.message ? <span role="status" className="text-[13px] text-win">{msg.message}</span> : null}
     </span>
   );
 }

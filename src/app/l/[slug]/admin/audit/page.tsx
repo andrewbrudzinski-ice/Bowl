@@ -24,18 +24,18 @@ export default async function Audit({ params, searchParams }: { params: Promise<
         <CardHead title={`${all.length} entries`} />
         {rows.length === 0 ? <EmptyState title="Nothing recorded" /> : (
           <ul className="divide-y divide-line">{rows.map((a) => (
-            <li key={a.id} className="px-3.5 py-2.5 text-[13px]">
-              <div className="flex flex-wrap items-center gap-2"><Badge>{a.action}</Badge><span className="font-semibold">{a.userName}</span><span className="faint text-xs">{formatDateTime(a.at)}</span></div>
+            <li key={a.id} className="px-5 py-2.5 text-[13px]">
+              <div className="flex flex-wrap items-center gap-2"><Badge>{a.action}</Badge><span className="font-semibold">{a.userName}</span><span className="faint text-[13px]">{formatDateTime(a.at)}</span></div>
               {a.note ? <div className="muted mt-0.5">“{a.note}”</div> : null}
               {a.before != null || a.after != null ? (
-                <details className="mt-1"><summary className="faint cursor-pointer text-xs hover:text-muted">Before / after</summary>
-                  <div className="mt-1 grid gap-2 md:grid-cols-2"><pre className="max-h-56 overflow-auto rounded bg-bg p-2 text-[11px] leading-snug">{JSON.stringify(a.before, null, 1)}</pre><pre className="max-h-56 overflow-auto rounded bg-bg p-2 text-[11px] leading-snug">{JSON.stringify(a.after, null, 1)}</pre></div>
+                <details className="mt-1"><summary className="faint cursor-pointer text-[13px] hover:text-muted">Before / after</summary>
+                  <div className="mt-1 grid gap-2 md:grid-cols-2"><pre className="max-h-56 overflow-auto rounded bg-bg p-2 text-[12px] leading-snug">{JSON.stringify(a.before, null, 1)}</pre><pre className="max-h-56 overflow-auto rounded bg-bg p-2 text-[12px] leading-snug">{JSON.stringify(a.after, null, 1)}</pre></div>
                 </details>
               ) : null}
             </li>
           ))}</ul>
         )}
-        {all.length > per ? <div className="flex justify-between border-t border-line px-3.5 py-2 text-[13px]">{page > 1 ? <Link className="btn btn-sm" href={`/l/${slug}/admin/audit?${new URLSearchParams({ ...(sp.type ? { type: sp.type } : {}), page: String(page - 1) })}`}>← Newer</Link> : <span />}{page * per < all.length ? <Link className="btn btn-sm" href={`/l/${slug}/admin/audit?${new URLSearchParams({ ...(sp.type ? { type: sp.type } : {}), page: String(page + 1) })}`}>Older →</Link> : null}</div> : null}
+        {all.length > per ? <div className="flex justify-between border-t border-line px-5 py-2 text-[13px]">{page > 1 ? <Link className="btn btn-sm" href={`/l/${slug}/admin/audit?${new URLSearchParams({ ...(sp.type ? { type: sp.type } : {}), page: String(page - 1) })}`}>← Newer</Link> : <span />}{page * per < all.length ? <Link className="btn btn-sm" href={`/l/${slug}/admin/audit?${new URLSearchParams({ ...(sp.type ? { type: sp.type } : {}), page: String(page + 1) })}`}>Older →</Link> : null}</div> : null}
       </Card>
     </div>
   );

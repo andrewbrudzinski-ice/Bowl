@@ -242,9 +242,9 @@ export function ScoreEntry({ data }: { data: EntryData }) {
   };
 
   return (
-    <div ref={formRef} className="grid gap-4">
+    <div ref={formRef} className="grid gap-6">
       {banner ? <div className="alert alert-info" role="status"><span>{banner}</span><button className="btn btn-ghost btn-sm ml-auto" onClick={() => setBanner(null)} aria-label="Dismiss">×</button></div> : null}
-      <div className="card sticky top-[calc(4rem+env(safe-area-inset-top))] z-20 flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+      <div className="card sticky top-[calc(4rem+env(safe-area-inset-top))] z-20 flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 !shadow-[var(--shadow-md)]">
         <div className="text-[13px]"><b>Week {data.week}</b> <span className="muted">· {data.dateLabel} · {G} games · scores are scratch</span>{anyDirty ? <span className="ml-2 badge badge-warn">UNSAVED CHANGES</span> : <span className="ml-2 badge badge-win">ALL SAVED</span>}</div>
         <button className="btn btn-primary btn-sm" disabled={pending || !dirtyMatchups.length} onClick={() => saveMany(dirtyMatchups)}><Save size={14} aria-hidden />Save all drafts{dirtyMatchups.length ? ` (${dirtyMatchups.length})` : ""}</button>
       </div>
@@ -333,58 +333,66 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
     const sl = result ? (side === "A" ? result.a : result.b) : null;
     return (
       <div className="min-w-0">
-        <div className="mb-1 flex items-center gap-2 px-1"><span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: info.color }} aria-hidden /><h4 className="truncate text-[13px] font-bold">{info.name}</h4>{d.forfeitBy === side ? <span className="badge badge-loss">FORFEIT</span> : null}</div>
-        <div className="tbl-wrap">
-          <table className="tbl">
-            <caption className="sr-only">{info.name} scores</caption>
-            <thead><tr><th scope="col" className="!pl-2">Bowler</th><th scope="col" title="Handicap per game">Hdcp</th>{Array.from({ length: G }, (_, i) => <th key={i} scope="col" className="!px-1">G{i + 1}</th>)}<th scope="col">Ser</th>{showAdj ? <th scope="col" className="hidden sm:table-cell">Adj</th> : null}</tr></thead>
-            <tbody>
-              {sideRows(side).map((b, ri) => {
-                const row = rowOffset(side) + ri;
-                const p = data.pool[b];
-                const line = sl?.lineup.find((l) => l.bowlerId === b);
-                const isAbs = !!d.absent[b];
-                return (
-                  <tr key={b}>
-                    <td className="!pl-2">
-                      <div className="flex min-w-[88px] flex-col leading-tight">
-                        <span className="truncate text-[13px] font-semibold">{p?.name ?? b}{p?.isSub ? <span className="badge ml-1">SUB</span> : null}</span>
-                        <span className="faint num text-[10px]">avg {p?.average ?? "—"}</span>
-                        {!locked ? (
-                          <span className="mt-0.5 flex gap-2 text-[11px]">
-                            <label className="check !gap-1"><input type="checkbox" checked={isAbs} onChange={(e) => patch(m.id, (x) => ({ ...x, absent: { ...x.absent, [b]: e.target.checked } }))} />Absent</label>
-                            {m.kind === "team" && p?.isSub ? <button type="button" className="underline text-muted" onClick={() => removeFromLineup(side, b)}>remove</button> : null}
-                          </span>
-                        ) : null}
+        <div className="mb-3 flex items-center gap-2.5 px-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: info.color }} aria-hidden /><h4 className="truncate text-[15px] font-bold tracking-tight">{info.name}</h4>{d.forfeitBy === side ? <span className="badge badge-loss">FORFEIT</span> : null}</div>
+        <ul className="overflow-hidden rounded-2xl border border-line bg-[color-mix(in_srgb,var(--color-raised)_45%,transparent)]" aria-label={`${info.name} scores`}>
+          {sideRows(side).map((b, ri) => {
+            const row = rowOffset(side) + ri;
+            const p = data.pool[b];
+            const line = sl?.lineup.find((l) => l.bowlerId === b);
+            const isAbs = !!d.absent[b];
+            return (
+              <li key={b} className="border-b border-line p-4 last:border-b-0">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="truncate text-[15px] font-semibold tracking-tight">{p?.name ?? b}{p?.isSub ? <span className="badge ml-2">SUB</span> : null}</div>
+                    <div className="faint num mt-0.5 text-[12.5px]">avg {p?.average ?? "—"}{hdcp || showAdj ? <> · hdcp <b className="font-semibold text-muted">{line?.handicap ?? p?.handicap ?? 0}</b></> : null}</div>
+                    {!locked ? (
+                      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
+                        <label className="check !gap-2"><input type="checkbox" checked={isAbs} onChange={(e) => patch(m.id, (x) => ({ ...x, absent: { ...x.absent, [b]: e.target.checked } }))} />Absent</label>
+                        {m.kind === "team" && p?.isSub ? <button type="button" className="text-muted underline" onClick={() => removeFromLineup(side, b)}>remove</button> : null}
                       </div>
-                    </td>
-                    <td className="num">{line?.handicap ?? p?.handicap ?? 0}</td>
-                    {Array.from({ length: G }, (_, i) => {
-                      const g = i + 1;
-                      const f = flagFor(b, g);
-                      const gl = line?.games[i];
-                      return (
-                        <td key={g} className="!px-0.5" style={{ minWidth: 46 }}>
-                          {isAbs ? <div className="num muted text-center text-[13px]" title="Blind score">{gl?.scratch ?? "—"}<sup>b</sup></div> : (
-                            <input className="score-input" inputMode="numeric" pattern="[0-9]*" autoComplete="off" disabled={locked || d.forfeitBy != null} value={d.cells[key(b, g)] ?? ""} data-cell={`${mi}:${row}:${g}`} data-flag={f.flag} title={f.why}
-                              aria-label={`${p?.name ?? b}, game ${g}${f.why ? `, ${f.why}` : ""}`} aria-invalid={f.flag === "error"}
-                              onChange={(e) => setCell(b, g, e.target.value, row)} onFocus={(e) => e.currentTarget.select()} onKeyDown={(e) => onKey(e, mi, row, g)} />
-                          )}
-                        </td>
-                      );
-                    })}
-                    <td className="score">{line && line.gamesScored ? line.scratchSeries : "–"}</td>
-                    {showAdj ? <td className="num hidden sm:table-cell">{line && line.gamesScored ? line.adjustedSeries : "–"}</td> : null}
-                  </tr>
-                );
-              })}
-            </tbody>
-            {sl ? <tfoot><tr><td className="!pl-2 text-[12px] font-semibold">Team</td><td className="num">{sl.lineup.reduce((t, l) => t + l.handicap, 0)}</td>{sl.games.map((g, i) => <td key={i} className="num font-semibold">{(result!.basis === "handicap" ? g.adjusted : g.scratch) ?? "–"}</td>)}<td className="score">{sl.scratchSeries || "–"}</td>{showAdj ? <td className="score hidden sm:table-cell">{sl.adjustedSeries || "–"}</td> : null}</tr></tfoot> : null}
-          </table>
-        </div>
+                    ) : null}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="faint text-[11px] font-semibold">Series</div>
+                    <div className="score text-[24px] leading-tight">{line && line.gamesScored ? line.scratchSeries : "–"}</div>
+                    {showAdj ? <div className="faint num text-[12px]">adj {line && line.gamesScored ? line.adjustedSeries : "–"}</div> : null}
+                  </div>
+                </div>
+                <div className="mt-3.5 grid gap-2.5" style={{ gridTemplateColumns: `repeat(${G}, minmax(0, 1fr))` }}>
+                  {Array.from({ length: G }, (_, i) => {
+                    const g = i + 1;
+                    const f = flagFor(b, g);
+                    const gl = line?.games[i];
+                    return (
+                      <div key={g} className="grid gap-1">
+                        <span className="faint text-center text-[11px] font-semibold">G{g}</span>
+                        {isAbs ? <div className="num muted flex h-11 items-center justify-center rounded-xl border border-dashed border-line-strong text-[14px]" title="Blind score">{gl?.scratch ?? "—"}<sup>b</sup></div> : (
+                          <input className="score-input" inputMode="numeric" pattern="[0-9]*" autoComplete="off" disabled={locked || d.forfeitBy != null} value={d.cells[key(b, g)] ?? ""} data-cell={`${mi}:${row}:${g}`} data-flag={f.flag} title={f.why}
+                            aria-label={`${p?.name ?? b}, game ${g}${f.why ? `, ${f.why}` : ""}`} aria-invalid={f.flag === "error"}
+                            onChange={(e) => setCell(b, g, e.target.value, row)} onFocus={(e) => e.currentTarget.select()} onKeyDown={(e) => onKey(e, mi, row, g)} />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </li>
+            );
+          })}
+          {sl ? (
+            <li className="flex items-center justify-between gap-4 bg-raised px-4 py-3.5 text-[13px]">
+              <span className="font-semibold">Team</span>
+              <span className="num flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
+                {sl.games.map((g, i) => <span key={i} className="text-muted">G{i + 1} <b className="font-semibold text-fg">{(result!.basis === "handicap" ? g.adjusted : g.scratch) ?? "–"}</b></span>)}
+                <span className="text-muted">Series <b className="text-[15px] font-bold text-fg">{sl.scratchSeries || "–"}</b></span>
+                {showAdj ? <span className="text-muted">Adj <b className="font-semibold text-fg">{sl.adjustedSeries || "–"}</b></span> : null}
+              </span>
+            </li>
+          ) : null}
+        </ul>
         {!locked && m.kind === "team" && sideRows(side).length < m.bowlersPerTeam + 2 ? (
-          <label className="mt-1.5 flex items-center gap-2 px-1 text-[12px]"><span className="muted">Add a bowler</span>
-            <select className="select !h-7 !w-auto text-xs" value="" onChange={(e) => e.target.value && addSub(side, e.target.value)} aria-label={`Add a bowler to ${info.name}`}>
+          <label className="mt-3 flex items-center gap-3 px-1 text-[13px]"><span className="muted">Add a bowler</span>
+            <select className="select !h-9 !w-auto !rounded-[10px] text-[13px]" value="" onChange={(e) => e.target.value && addSub(side, e.target.value)} aria-label={`Add a bowler to ${info.name}`}>
               <option value="">Choose…</option>
               {m.subs.filter((s) => ![...d.lineupA, ...d.lineupB].includes(s.id)).map((s) => <option key={s.id} value={s.id}>{s.name}{s.team ? ` (${s.team})` : ""}</option>)}
             </select>
@@ -398,30 +406,30 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
   const finalNow = m.official;
   return (
     <section className={`card overflow-hidden ${msg?.tone === "error" ? "!border-loss" : ""}`} aria-label={`${m.a.name} versus ${m.b?.name ?? "bye"}`}>
-      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-2">
-        <div className="min-w-0 text-[14px] font-bold"><a className="hover:underline" href={m.href}>{m.a.name}{m.b ? <span className="muted font-medium"> vs </span> : null}{m.b?.name}</a></div>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+        <div className="min-w-0 text-[16px] font-bold tracking-tight"><a className="hover:underline" href={m.href}>{m.a.name}{m.b ? <span className="muted font-medium"> vs </span> : null}{m.b?.name}</a></div>
         <div className="flex items-center gap-2">
           {d.dirty ? <span className="badge badge-warn">UNSAVED</span> : null}
           <span className={`badge ${stateTone}`}>{finalNow ? <Lock size={10} aria-hidden /> : null}{STATE_LABEL[m.state]}</span>
         </div>
       </header>
-      {!m.b ? <p className="muted px-3 py-3 text-[13px]">Bye week — nothing to enter.</p> : (
+      {!m.b ? <p className="muted px-5 py-5 text-[14px]">Bye week — nothing to enter.</p> : (
         <>
-          <div className="grid gap-4 p-3 lg:grid-cols-2">
+          <div className="grid gap-7 p-5 lg:grid-cols-2">
             {renderSide("A")}{renderSide("B")}
           </div>
           {result ? (
-            <div className="border-t border-line bg-raised px-3 py-2 text-[13px]" aria-live="polite">
+            <div className="border-t border-line bg-raised px-5 py-4 text-[14px]" aria-live="polite">
               {d.forfeitBy ? <b>{d.forfeitBy === "A" ? m.b.name : m.a.name} wins by forfeit.</b> : result.winner && result.complete ? (
                 <span><b>{result.winner === "tie" ? "Matchup tied" : `${result.winner === "A" ? m.a.name : m.b.name} wins`}</b> <span className="num">{fmtPts(result.a.points)}–{fmtPts(result.b!.points)} pts · {result.basis === "handicap" ? "adjusted" : "scratch"} series {result.a.basisSeries}–{result.b!.basisSeries}{result.margin != null ? ` (margin ${result.margin})` : ""}</span> <span className="faint">(preview — not official)</span></span>
               ) : <span className="muted">{result.missing.length ? `${result.missing.length} score${result.missing.length === 1 ? "" : "s"} missing — no result yet.` : "Enter scores to see the result."}</span>}
             </div>
           ) : null}
-          {msg ? <div className={`alert m-3 ${msg.tone === "ok" ? "alert-ok" : "alert-error"}`} role={msg.tone === "error" ? "alert" : "status"}><div><div className="font-semibold">{msg.text}</div>{msg.issues?.length ? <ul className="mt-1 list-disc pl-4 text-[13px]">{msg.issues.map((i, k) => <li key={k}>{i}</li>)}</ul> : null}</div></div> : null}
-          <footer className="flex flex-wrap items-center gap-2 border-t border-line px-3 py-2">
+          {msg ? <div className={`alert m-5 ${msg.tone === "ok" ? "alert-ok" : "alert-error"}`} role={msg.tone === "error" ? "alert" : "status"}><div><div className="font-semibold">{msg.text}</div>{msg.issues?.length ? <ul className="mt-1 list-disc pl-4 text-[13px]">{msg.issues.map((i, k) => <li key={k}>{i}</li>)}</ul> : null}</div></div> : null}
+          <footer className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-4">
             {!finalNow || correcting ? (
               <>
-                <label className="field !flex-row items-center gap-2"><span className="label">Forfeit</span><select className="select !h-8 !w-auto text-xs" disabled={locked} value={d.forfeitBy ?? ""} onChange={(e) => patch(m.id, (x) => ({ ...x, forfeitBy: (e.target.value || null) as Side | null }))}><option value="">None</option><option value="A">{m.a.name} forfeits</option><option value="B">{m.b.name} forfeits</option></select></label>
+                <label className="field !flex-row items-center gap-2"><span className="label">Forfeit</span><select className="select !h-9 !w-auto !rounded-[10px] text-[13px]" disabled={locked} value={d.forfeitBy ?? ""} onChange={(e) => patch(m.id, (x) => ({ ...x, forfeitBy: (e.target.value || null) as Side | null }))}><option value="">None</option><option value="A">{m.a.name} forfeits</option><option value="B">{m.b.name} forfeits</option></select></label>
                 {!correcting ? (
                   <>
                     <button className="btn btn-sm" disabled={pending || !d.dirty || hasError} onClick={onSave}><Save size={13} aria-hidden />Save draft</button>
@@ -429,18 +437,18 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
                     {data.canFinalize ? <button className="btn btn-primary btn-sm" disabled={pending || hasError || (!!result && !result.complete && !d.forfeitBy)} onClick={onFinalize}><Check size={13} aria-hidden />Preview & finalize</button> : null}
                   </>
                 ) : null}
-                {hasError ? <span className="inline-flex items-center gap-1 text-xs text-loss"><AlertTriangle size={13} aria-hidden />Fix the red scores to continue</span> : null}
+                {hasError ? <span className="inline-flex items-center gap-1 text-[13px] text-loss"><AlertTriangle size={13} aria-hidden />Fix the red scores to continue</span> : null}
               </>
             ) : (
               <>
-                <span className="muted text-xs">Finalized results are protected from accidental edits.</span>
+                <span className="muted text-[13px]">Finalized results are protected from accidental edits.</span>
                 {data.canCorrect ? <button className="btn btn-sm ml-auto" onClick={() => onCorrecting({ reason: "", confirm: false })}>Correct result…</button> : null}
                 {data.canCorrect ? <button className="btn btn-danger btn-sm" onClick={onReopen} disabled={pending}>Reopen</button> : null}
               </>
             )}
           </footer>
           {correcting ? (
-            <div className="grid gap-2 border-t border-line bg-[color-mix(in_srgb,var(--color-warn)_6%,transparent)] p-3">
+            <div className="grid gap-3 border-t border-line bg-[color-mix(in_srgb,var(--color-warn)_6%,transparent)] p-5">
               <p className="text-[13px]"><b>Correcting a finalized result.</b> Edit the scores above, then explain the change. The old and new values are written to the audit history, and standings recalculate.</p>
               <div className="field"><label htmlFor={`reason-${m.id}`}>Reason for the correction</label><input id={`reason-${m.id}`} className="input" value={correcting.reason} onChange={(e) => onCorrecting({ ...correcting, reason: e.target.value })} placeholder="e.g. Misread game 2 on the scoresheet" /></div>
               <label className="check"><input type="checkbox" checked={correcting.confirm} onChange={(e) => onCorrecting({ ...correcting, confirm: e.target.checked })} />I understand this changes an official result.</label>
@@ -463,8 +471,8 @@ function FinalizeDialog({ modal, data, onCancel, onConfirm, pending }: { modal: 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-labelledby="fin-title">
       <button className="absolute inset-0 bg-[var(--overlay)]" onClick={onCancel} aria-label="Close" tabIndex={-1} />
-      <div className="card relative max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-b-none p-4 sm:rounded-b-[10px]">
-        <h2 id="fin-title" className="text-[16px] font-bold">Finalize {m.a.name} vs {m.b?.name}?</h2>
+      <div className="card relative max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-b-none p-6 !shadow-[var(--shadow-lg)] sm:rounded-b-[20px]">
+        <h2 id="fin-title" className="text-[18px] font-extrabold tracking-tight">Finalize {m.a.name} vs {m.b?.name}?</h2>
         <p className="muted mt-1 text-[13px]">Result: <b className="text-fg">{p.summary.winner === "tie" ? "Tie" : p.summary.winner === "A" ? m.a.name : m.b?.name} {fmtPts(p.summary.a)}–{fmtPts(p.summary.b)}</b>. Handicaps and the rule version are locked in when you finalize.</p>
         <div className="mt-3">
           <div className="eyebrow mb-1">Impact on standings</div>
@@ -473,7 +481,7 @@ function FinalizeDialog({ modal, data, onCancel, onConfirm, pending }: { modal: 
           )}
         </div>
         {p.issues.some((i) => i.severity === "warning") ? <ul className="alert alert-warn mt-3 list-disc pl-6 text-[13px]">{p.issues.filter((i) => i.severity === "warning").map((i, k) => <li key={k}>{i.message}</li>)}</ul> : null}
-        <div className="mt-4 flex justify-end gap-2"><button className="btn" onClick={onCancel}>Not yet</button><button ref={ref} className="btn btn-primary" onClick={onConfirm} disabled={pending}>Finalize result</button></div>
+        <div className="mt-6 flex justify-end gap-3"><button className="btn" onClick={onCancel}>Not yet</button><button ref={ref} className="btn btn-primary" onClick={onConfirm} disabled={pending}>Finalize result</button></div>
       </div>
     </div>
   );
