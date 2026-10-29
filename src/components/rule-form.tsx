@@ -35,10 +35,10 @@ function Num({ c, path, label, help, min, max, step = 1, nullable = false, suffi
       <div className="flex items-center gap-2">
         <input id={id} type="number" inputMode="decimal" className="input" min={min} max={max} step={step} disabled={c.disabled} value={v ?? ""} aria-invalid={!!c.issues[path]} aria-describedby={help ? `${id}-h` : undefined}
           onChange={(e) => c.set(path, e.target.value === "" ? (nullable ? null : 0) : Number(e.target.value))} />
-        {suffix ? <span className="muted text-xs">{suffix}</span> : null}
+        {suffix ? <span className="muted text-[13px]">{suffix}</span> : null}
       </div>
       {help ? <span id={`${id}-h`} className="help">{help}</span> : null}
-      {c.issues[path] ? <span className="text-xs text-loss" role="alert">{c.issues[path]}</span> : null}
+      {c.issues[path] ? <span className="text-[13px] text-loss" role="alert">{c.issues[path]}</span> : null}
     </div>
   );
 }
@@ -52,7 +52,7 @@ function Sel<T extends string>({ c, path, label, help, options }: { c: Ctl; path
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>
       {help ? <span id={`${id}-h`} className="help">{help}</span> : null}
-      {c.issues[path] ? <span className="text-xs text-loss" role="alert">{c.issues[path]}</span> : null}
+      {c.issues[path] ? <span className="text-[13px] text-loss" role="alert">{c.issues[path]}</span> : null}
     </div>
   );
 }
@@ -70,7 +70,7 @@ function Bool({ c, path, label, help }: { c: Ctl; path: string; label: string; h
 }
 
 const Group = ({ title, children, note }: { title: string; children: ReactNode; note?: ReactNode }) => (
-  <fieldset className="grid gap-3 rounded-[10px] border border-line p-3.5">
+  <fieldset className="grid gap-3 rounded-[10px] border border-line p-5">
     <legend className="eyebrow px-1.5">{title}</legend>
     {note ? <p className="help -mt-1">{note}</p> : null}
     <div className="grid gap-3 sm:grid-cols-2">{children}</div>
@@ -86,7 +86,7 @@ export function HandicapExample({ cfg }: { cfg: RuleConfig }) {
   const G = cfg.scoring.gamesPerSession;
   const rows = [120, 140, 160, 180, 200, 220, 240].map((a) => [a, calculateHandicap({ average: a, base }, h).handicap] as const);
   return (
-    <div className="rounded-[10px] border border-line bg-raised p-3.5" aria-live="polite">
+    <div className="rounded-[10px] border border-line bg-raised p-5" aria-live="polite">
       <div className="eyebrow mb-2">Live example</div>
       {!h.enabled ? <p className="text-[13px]">Handicap is off: everyone bowls scratch.</p> : (
         <>
@@ -95,7 +95,7 @@ export function HandicapExample({ cfg }: { cfg: RuleConfig }) {
             <div className="num text-[22px] font-bold leading-none">{b.handicap} <span className="muted text-[13px] font-medium">pins per game</span></div>
           </div>
           <p className="num mt-2 text-[13px]">{b.formula}</p>
-          <ul className="muted mt-1 list-disc pl-4 text-xs">{b.steps.map((s, i) => <li key={i}>{s}</li>)}</ul>
+          <ul className="muted mt-1 list-disc pl-4 text-[13px]">{b.steps.map((s, i) => <li key={i}>{s}</li>)}</ul>
           <p className="mt-2 text-[13px]">Over a {G}-game series that is <b className="num">{b.handicap * G}</b> handicap pins: a scratch series of {G * 190} becomes <b className="num">{G * 190 + b.handicap * G}</b>.</p>
           {h.baseMode !== "fixed" ? <p className="help mt-1">Base is {h.baseMode === "league_average" ? "the league average" : "the highest average"} each week; the example uses {base} until averages exist.</p> : null}
           <div className="tbl-wrap mt-3"><table className="tbl"><thead><tr><th scope="col">Average</th>{rows.map(([a]) => <th key={a} scope="col">{a}</th>)}</tr></thead><tbody><tr><td className="muted">Handicap</td>{rows.map(([a, hh]) => <td key={a} className="num">{hh}</td>)}</tr></tbody></table></div>
@@ -137,7 +137,7 @@ function Tiebreakers({ c }: { c: Ctl }) {
           </select>
         </label>
       ) : null}
-      {c.issues["standings.tiebreakers"] ? <span className="text-xs text-loss">{c.issues["standings.tiebreakers"]}</span> : null}
+      {c.issues["standings.tiebreakers"] ? <span className="text-[13px] text-loss">{c.issues["standings.tiebreakers"]}</span> : null}
     </div>
   );
 }
@@ -159,7 +159,7 @@ export function RuleForm({ value, onChange, sections, disabled, lockStructural }
   const structuralNote = lockStructural ? "Locked: this can't change once scores exist. Apply it to a new season instead." : undefined;
   const cd: Ctl = lockStructural ? { ...c, disabled: true } : c;
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6 md:gap-8">
       {show("format") ? (
         <Group title="Competition format" note="How bowlers are matched up each week.">
           <Sel c={cd} path="format" label="Format" options={[["team", "Team vs. team"], ["individual", "Bowler vs. bowler"], ["both", "Teams, plus bowler vs. bowler inside each match"]]} help={structuralNote ?? "Team: bowlers' scores are added together. Individual: one bowler against one bowler. Combined: team totals decide the team match and each bowler also faces the bowler in the same position on the other team."} />

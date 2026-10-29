@@ -30,7 +30,7 @@ export default async function Invite({ params, searchParams }: { params: Promise
               <p className="text-[13px]"><b>{ROLE_LABELS[inv.role]}</b> — <span className="muted">{ROLE_DESCRIPTIONS[inv.role]}</span></p>
               {error ? <Alert tone="error">{error}</Alert> : null}
               {user ? (
-                <form action={acceptInviteAction.bind(null, token)} className="grid gap-2"><p className="muted text-xs">Joining as {user.name} ({user.email}).</p><button className="btn btn-primary" type="submit">Join league</button></form>
+                <form action={acceptInviteAction.bind(null, token)} className="grid gap-2"><p className="muted text-[13px]">Joining as {user.name} ({user.email}).</p><button className="btn btn-primary" type="submit">Join league</button></form>
               ) : (
                 <div className="grid gap-2"><Link className="btn btn-primary" href={`/register?next=${encodeURIComponent(`/invite/${token}`)}`}>Create an account to join</Link><Link className="btn" href={`/login?next=${encodeURIComponent(`/invite/${token}`)}`}>I already have an account</Link></div>
               )}

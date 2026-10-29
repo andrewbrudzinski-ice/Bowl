@@ -13,7 +13,7 @@ export function HomepageEditor({ slug, modules, labels }: { slug: string; module
   const router = useRouter();
   const move = (i: number, d: number) => setList((l) => { const n = [...l]; const j = i + d; if (j < 0 || j >= n.length) return l; [n[i], n[j]] = [n[j], n[i]]; return n; });
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-5">
       <p className="help">Turn modules on or off and reorder them. Wide modules (standings, matchups, results, highlights) span the full row; the rest sit side by side.</p>
       <ol className="grid gap-1.5">
         {list.map((m, i) => (
@@ -24,7 +24,7 @@ export function HomepageEditor({ slug, modules, labels }: { slug: string; module
           </li>
         ))}
       </ol>
-      <div className="flex items-center gap-3"><button className="btn btn-primary" disabled={pending} onClick={() => start(async () => { const r = await homepageAction(slug, list); setMsg(r?.ok ? "Homepage saved." : r?.error ?? "Couldn't save."); router.refresh(); })}>Save homepage</button>{msg ? <span role="status" className="text-xs text-win">{msg}</span> : null}</div>
+      <div className="flex items-center gap-3"><button className="btn btn-primary" disabled={pending} onClick={() => start(async () => { const r = await homepageAction(slug, list); setMsg(r?.ok ? "Homepage saved." : r?.error ?? "Couldn't save."); router.refresh(); })}>Save homepage</button>{msg ? <span role="status" className="text-[13px] text-win">{msg}</span> : null}</div>
     </div>
   );
 }
@@ -35,7 +35,7 @@ export function AwardsEditor({ slug, defs, value }: { slug: string; defs: AwardD
   const [pending, start] = useTransition();
   const router = useRouter();
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-5">
       <p className="help">Statistical awards are calculated from recorded scores using the rules below — nobody picks the winner. For judgment calls, add a <b>commissioner award</b> instead; those are always labelled as such.</p>
       {defs.map((d) => {
         const s = cfg[d.id] ?? { enabled: true, params: {} };
@@ -43,12 +43,12 @@ export function AwardsEditor({ slug, defs, value }: { slug: string; defs: AwardD
           <fieldset key={d.id} className="rounded-lg border border-line p-3">
             <legend className="px-1.5"><label className="check"><input type="checkbox" checked={s.enabled} onChange={(e) => setCfg((c) => ({ ...c, [d.id]: { ...s, enabled: e.target.checked } }))} /><span className="font-semibold">{d.name}</span><span className="badge">{d.scope === "week" ? "WEEKLY" : "SEASON"}</span></label></legend>
             <p className="muted text-[13px]">{d.description}</p>
-            <p className="faint mt-0.5 text-xs">Rule: {d.qualification}</p>
+            <p className="faint mt-0.5 text-[13px]">Rule: {d.qualification}</p>
             {d.params.length ? <div className="mt-2 grid gap-2 sm:grid-cols-2">{d.params.map((p) => <div key={p.key} className="field"><label htmlFor={`${d.id}-${p.key}`}>{p.label}</label><input id={`${d.id}-${p.key}`} type="number" className="input" min={p.min} max={p.max} disabled={!s.enabled} value={s.params[p.key] ?? p.default} onChange={(e) => setCfg((c) => ({ ...c, [d.id]: { ...s, params: { ...s.params, [p.key]: Number(e.target.value) } } }))} /></div>)}</div> : null}
           </fieldset>
         );
       })}
-      <div className="flex items-center gap-3"><button className="btn btn-primary" disabled={pending} onClick={() => start(async () => { const r = await awardsAction(slug, cfg); setMsg(r?.ok ? "Awards saved." : r?.error ?? "Couldn't save."); router.refresh(); })}>Save awards</button>{msg ? <span role="status" className="text-xs text-win">{msg}</span> : null}</div>
+      <div className="flex items-center gap-3"><button className="btn btn-primary" disabled={pending} onClick={() => start(async () => { const r = await awardsAction(slug, cfg); setMsg(r?.ok ? "Awards saved." : r?.error ?? "Couldn't save."); router.refresh(); })}>Save awards</button>{msg ? <span role="status" className="text-[13px] text-win">{msg}</span> : null}</div>
     </div>
   );
 }

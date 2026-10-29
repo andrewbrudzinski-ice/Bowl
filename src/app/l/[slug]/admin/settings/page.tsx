@@ -38,7 +38,7 @@ export default async function Settings({ params, searchParams }: { params: Promi
       <PageHeader title="League settings" eyebrow={l.name} />
       <Tabs items={tabs} current={section} />
       {section === "general" && ctx.can("settings.general") ? (
-        <Card><CardHead title="General" /><div className="p-4"><ActionForm action={generalAction.bind(null, slug)} submit="Save changes" className="grid gap-3 sm:grid-cols-2">
+        <Card><CardHead title="General" /><div className="p-5"><ActionForm action={generalAction.bind(null, slug)} submit="Save changes" className="grid gap-3 sm:grid-cols-2">
           <div className="field sm:col-span-2"><label htmlFor="g-name">League name</label><input id="g-name" name="name" defaultValue={l.name} className="input" required maxLength={60} /></div>
           <div className="field sm:col-span-2"><label htmlFor="g-desc">Description</label><textarea id="g-desc" name="description" defaultValue={l.description} className="textarea" maxLength={300} /></div>
           <div className="field"><label htmlFor="g-logo">Logo letters</label><input id="g-logo" name="logoText" defaultValue={l.logoText} className="input" maxLength={3} /></div>
@@ -47,19 +47,19 @@ export default async function Settings({ params, searchParams }: { params: Promi
       ) : null}
       {section === "rules" && ctx.can("settings.rules") ? (
         ctx.season && m ? (
-          <div className="grid gap-4">
+          <div className="grid gap-6 md:gap-8">
             <Alert tone="info" title={`Editing rules for ${ctx.season.name} (version ${ctx.season.ruleVersions[ctx.season.ruleVersions.length - 1].version})`}>Every change is previewed first and recorded in the audit log. Past seasons keep the rules they were played under. <Link className="underline" href={`/l/${slug}/rules`}>See the rules page</Link>.</Alert>
             <RulesEditor slug={slug} seasonId={ctx.season.id} seasonName={ctx.season.name} current={ctx.cfg} leagueDefault={l.defaultConfig} hasScores={m.data.scores.length > 0} eligibleWeek={firstEligibleWeek(m.data)} totalWeeks={m.data.weeks.length} names={names} canApplyHistorical={ctx.can("settings.rules")} />
           </div>
         ) : <Card><EmptyState title="Create a season to edit its rules" /></Card>
       ) : null}
-      {section === "appearance" && ctx.can("settings.general") ? <Card><CardHead title="Homepage modules" /><div className="p-4"><HomepageEditor slug={slug} modules={l.homepage} labels={Object.fromEntries(HOMEPAGE_MODULES.map((x) => [x.id, { label: x.label, description: x.description }]))} /></div></Card> : null}
+      {section === "appearance" && ctx.can("settings.general") ? <Card><CardHead title="Homepage modules" /><div className="p-5"><HomepageEditor slug={slug} modules={l.homepage} labels={Object.fromEntries(HOMEPAGE_MODULES.map((x) => [x.id, { label: x.label, description: x.description }]))} /></div></Card> : null}
       {section === "awards" && ctx.can("awards.manage") ? (
-        <div className="grid gap-4">
-          <Card><CardHead title="Statistical awards" /><div className="p-4"><AwardsEditor slug={slug} defs={AWARD_DEFS} value={{ ...defaultAwardsConfig(), ...l.awards }} /></div></Card>
+        <div className="grid gap-6 md:gap-8">
+          <Card><CardHead title="Statistical awards" /><div className="p-5"><AwardsEditor slug={slug} defs={AWARD_DEFS} value={{ ...defaultAwardsConfig(), ...l.awards }} /></div></Card>
           {ctx.season && m ? (
             <Card><CardHead title="Commissioner awards" right={<Badge tone="info">SUBJECTIVE</Badge>} />
-              <div className="p-4"><ActionForm action={commissionerAwardAction.bind(null, slug, ctx.season.id)} submit="Give award" reset className="grid gap-3 sm:grid-cols-2">
+              <div className="p-5"><ActionForm action={commissionerAwardAction.bind(null, slug, ctx.season.id)} submit="Give award" reset className="grid gap-3 sm:grid-cols-2">
                 <div className="field"><label htmlFor="ca-t">Award name</label><input id="ca-t" name="title" required maxLength={80} className="input" placeholder="Sportsmanship Award" /></div>
                 <div className="field"><label htmlFor="ca-r">Recipient</label><select id="ca-r" name="recipient" className="select">{m.data.bowlers.filter((b) => m.data.roster.some((r) => r.bowlerId === b.id)).map((b) => <option key={b.id} value={`bowler:${b.id}`}>{b.name}</option>)}{m.data.teams.filter((t) => t.active).map((t) => <option key={t.id} value={`team:${t.id}`}>Team: {t.name}</option>)}</select></div>
                 <div className="field"><label htmlFor="ca-w">Week (optional)</label><input id="ca-w" name="week" type="number" min={1} className="input" /></div>
@@ -71,7 +71,7 @@ export default async function Settings({ params, searchParams }: { params: Promi
         </div>
       ) : null}
       {section === "visibility" && ctx.can("settings.general") ? (
-        <div className="grid gap-4">
+        <div className="grid gap-6 md:gap-8">
           <Card><CardHead title="Who can see this league" right={<Badge tone="accent">{l.visibility.toUpperCase()}</Badge>} />
             <div className="grid gap-3 p-4">
               {ctx.can("settings.visibility") ? (
@@ -82,7 +82,7 @@ export default async function Settings({ params, searchParams }: { params: Promi
               <p className="help">Admin tools, the audit log, member emails and private notes are never shown to non-members, whatever the visibility. Changing visibility also replaces the private link.</p>
             </div>
           </Card>
-          {l.visibility === "unlisted" && ctx.can("settings.visibility") ? <Card><CardHead title="Private link" /><div className="grid gap-2 p-4"><code className="num break-all rounded bg-bg p-2 text-xs">{`${origin}/l/${slug}/enter?t=${l.shareToken}`}</code><ActionForm action={rotateTokenAction.bind(null, slug)} submit="Generate a new link (revokes the old one)" submitClass="btn btn-danger btn-sm"><span className="help">Anyone holding the old link loses access.</span></ActionForm></div></Card> : null}
+          {l.visibility === "unlisted" && ctx.can("settings.visibility") ? <Card><CardHead title="Private link" /><div className="grid gap-2 p-4"><code className="num break-all rounded bg-bg p-2 text-[13px]">{`${origin}/l/${slug}/enter?t=${l.shareToken}`}</code><ActionForm action={rotateTokenAction.bind(null, slug)} submit="Generate a new link (revokes the old one)" submitClass="btn btn-danger btn-sm"><span className="help">Anyone holding the old link loses access.</span></ActionForm></div></Card> : null}
           <Card><CardHead title="Members & permissions" /><p className="p-4 text-[13px]">Invite people, assign roles and revoke access in <Link className="underline" href={`/l/${slug}/admin/members`}>Members</Link>.</p></Card>
         </div>
       ) : null}

@@ -24,7 +24,7 @@ export default async function RosterAdmin({ params }: { params: Promise<{ slug: 
   const individual = ctx.cfg.format === "individual";
   const entries = m.data.roster.filter((r) => r.toWeek == null);
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6 md:gap-8">
       <PageHeader title="Teams & roster" eyebrow={season.name} sub="Bowlers are people; the roster is who bowls for whom this season. Moving a bowler never changes past results." />
       <div className="grid gap-4 lg:grid-cols-2">
         {!individual ? (
@@ -32,9 +32,9 @@ export default async function RosterAdmin({ params }: { params: Promise<{ slug: 
             <CardHead title="Teams" />
             <ul className="divide-y divide-line">
               {m.data.teams.map((t) => (
-                <li key={t.id} className="px-3.5 py-2.5">
+                <li key={t.id} className="px-5 py-2.5">
                   <details>
-                    <summary className="flex cursor-pointer items-center gap-2"><TeamMark name={t.name} color={t.color} logo={t.logo} size={24} /><span className="font-semibold">{t.name}</span>{!t.active ? <Badge tone="warn">INACTIVE</Badge> : null}<span className="faint ml-auto text-xs">Edit</span></summary>
+                    <summary className="flex cursor-pointer items-center gap-2"><TeamMark name={t.name} color={t.color} logo={t.logo} size={24} /><span className="font-semibold">{t.name}</span>{!t.active ? <Badge tone="warn">INACTIVE</Badge> : null}<span className="faint ml-auto text-[13px]">Edit</span></summary>
                     <div className="mt-2"><ActionForm action={updateTeamAction.bind(null, slug, t.id)} submit="Save team" className="grid gap-2 sm:grid-cols-2">
                       <div className="field"><label htmlFor={`tn-${t.id}`}>Name</label><input id={`tn-${t.id}`} name="name" defaultValue={t.name} className="input" /></div>
                       <div className="field"><label htmlFor={`ts-${t.id}`}>Short name</label><input id={`ts-${t.id}`} name="shortName" defaultValue={t.shortName} className="input" maxLength={5} /></div>
@@ -47,12 +47,12 @@ export default async function RosterAdmin({ params }: { params: Promise<{ slug: 
               ))}
               {m.data.teams.length === 0 ? <li><EmptyState title="No teams yet" /></li> : null}
             </ul>
-            <div className="border-t border-line p-3.5"><ActionForm action={addTeamAction.bind(null, slug)} submit="Add team" className="flex flex-wrap items-end gap-2" reset><div className="field"><label htmlFor="tname">New team name</label><input id="tname" name="name" required maxLength={40} className="input !w-52" /></div></ActionForm></div>
+            <div className="border-t border-line p-5"><ActionForm action={addTeamAction.bind(null, slug)} submit="Add team" className="flex flex-wrap items-end gap-2" reset><div className="field"><label htmlFor="tname">New team name</label><input id="tname" name="name" required maxLength={40} className="input !w-52" /></div></ActionForm></div>
           </Card>
         ) : null}
         <Card>
           <CardHead title="Add a bowler" />
-          <div className="p-3.5"><ActionForm action={addBowlerAction.bind(null, slug, season.id)} submit="Add bowler to this season" reset className="grid gap-3 sm:grid-cols-2">
+          <div className="p-5"><ActionForm action={addBowlerAction.bind(null, slug, season.id)} submit="Add bowler to this season" reset className="grid gap-3 sm:grid-cols-2">
             <div className="field"><label htmlFor="bname">Name</label><input id="bname" name="name" required maxLength={60} className="input" /></div>
             <div className="field"><label htmlFor="bnick">Nickname (optional)</label><input id="bnick" name="nickname" maxLength={30} className="input" /></div>
             {!individual ? <div className="field"><label htmlFor="bteam">Team</label><select id="bteam" name="team" className="select"><option value="">No team (substitute pool)</option>{teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div> : null}
@@ -60,7 +60,7 @@ export default async function RosterAdmin({ params }: { params: Promise<{ slug: 
             <div className="field"><label htmlFor="bphoto">Photo link (optional, https)</label><input id="bphoto" name="avatarUrl" type="url" className="input" placeholder="https://…" /></div>
             <label className="check self-end"><input type="checkbox" name="isSub" />Substitute only</label>
           </ActionForm></div>
-          {free.length ? <div className="border-t border-line p-3.5"><div className="eyebrow mb-2">Existing bowlers not on this season's roster</div><ActionForm action={rosterAddAction.bind(null, slug, season.id)} submit="Add to roster" className="flex flex-wrap items-end gap-2"><div className="field"><label htmlFor="rb">Bowler</label><select id="rb" name="bowler" className="select !w-48">{free.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>{!individual ? <div className="field"><label htmlFor="rt">Team</label><select id="rt" name="team" className="select !w-40"><option value="">None</option>{teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div> : null}<div className="field"><label htmlFor="ra">Entering avg</label><input id="ra" name="entering" type="number" className="input !w-24" /></div></ActionForm></div> : null}
+          {free.length ? <div className="border-t border-line p-5"><div className="eyebrow mb-2">Existing bowlers not on this season's roster</div><ActionForm action={rosterAddAction.bind(null, slug, season.id)} submit="Add to roster" className="flex flex-wrap items-end gap-2"><div className="field"><label htmlFor="rb">Bowler</label><select id="rb" name="bowler" className="select !w-48">{free.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>{!individual ? <div className="field"><label htmlFor="rt">Team</label><select id="rt" name="team" className="select !w-40"><option value="">None</option>{teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div> : null}<div className="field"><label htmlFor="ra">Entering avg</label><input id="ra" name="entering" type="number" className="input !w-24" /></div></ActionForm></div> : null}
         </Card>
       </div>
 
@@ -73,14 +73,14 @@ export default async function RosterAdmin({ params }: { params: Promise<{ slug: 
               const s = stats.find((x) => x.bowlerId === e.bowlerId);
               const t = e.teamId ? m.teamById.get(e.teamId) : null;
               return (
-                <li key={e.id} className="px-3.5 py-2.5">
+                <li key={e.id} className="px-5 py-2.5">
                   <details>
                     <summary className="flex cursor-pointer flex-wrap items-center gap-2">
                       <Avatar name={b.name} color={b.avatarColor} url={b.avatarUrl} size={28} />
                       <Link href={`/l/${slug}/bowlers/${b.id}`} className="font-semibold hover:underline">{b.name}</Link>
-                      <span className="muted text-xs">{t?.name ?? (e.isSub ? "Substitute" : "No team")}</span>
+                      <span className="muted text-[13px]">{t?.name ?? (e.isSub ? "Substitute" : "No team")}</span>
                       {e.isSub ? <Badge>SUB</Badge> : null}{!b.active ? <Badge tone="warn">INACTIVE</Badge> : null}
-                      <span className="num muted ml-auto text-xs">ent {e.enteringAverage ?? "—"} · avg {fmt1(s?.average)} · {s?.games ?? 0} gms</span>
+                      <span className="num muted ml-auto text-[13px]">ent {e.enteringAverage ?? "—"} · avg {fmt1(s?.average)} · {s?.games ?? 0} gms</span>
                     </summary>
                     <div className="mt-3 grid gap-4 pl-9 md:grid-cols-3">
                       {!individual ? <ActionForm action={changeTeamAction.bind(null, slug, season.id)} submit="Change team" className="grid gap-2"><input type="hidden" name="bowler" value={b.id} /><div className="field"><label htmlFor={`ct-${e.id}`}>Move to</label><select id={`ct-${e.id}`} name="team" className="select" defaultValue={e.teamId ?? ""}><option value="">No team</option>{teams.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div><div className="field"><label htmlFor={`cw-${e.id}`}>Starting week</label><input id={`cw-${e.id}`} name="week" type="number" min={eligible} defaultValue={eligible} className="input" /></div></ActionForm> : null}
