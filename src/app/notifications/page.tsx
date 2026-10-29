@@ -13,7 +13,7 @@ export default async function Notifications() {
   const items = await listNotifications(getStore(), actor.id);
   const unread = items.filter((i) => !i.readAt).length;
   return (
-    <div className="wrap max-w-3xl py-8">
+    <main id="main" className="wrap max-w-3xl py-8">
       <div className="mb-4 flex items-center justify-between"><div><Link href="/" className="muted text-[13px] hover:text-fg">← Home</Link><h1 className="h-page mt-2">Notifications</h1></div>{unread ? <form action={markReadAction}><button className="btn btn-sm" type="submit">Mark all read</button></form> : null}</div>
       <Card>
         {items.length === 0 ? <EmptyState title="You're all caught up">League news, results and invitations will appear here. Choose what you get in <Link className="underline" href="/account">Account settings</Link>.</EmptyState> : (
@@ -22,6 +22,6 @@ export default async function Notifications() {
           ))}</ul>
         )}
       </Card>
-    </div>
+    </main>
   );
 }

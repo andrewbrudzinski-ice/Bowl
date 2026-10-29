@@ -60,6 +60,7 @@ or component hardcodes a base average, a percentage, a game count or a point val
 ## Documentation
 
 - [docs/HANDOFF.md](docs/HANDOFF.md) — architecture, data model, what is done / not done, troubleshooting
+- [docs/DESIGN.md](docs/DESIGN.md) — themes, color tokens, type, components, generated images, accessibility check
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — environment variables, hosting, domains, HTTPS, releases
 - [docs/BACKUPS.md](docs/BACKUPS.md) — backups, restore, testing a backup
 - [docs/SUPABASE.md](docs/SUPABASE.md) — the Postgres schema, RLS, and the work to connect it

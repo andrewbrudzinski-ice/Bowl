@@ -16,7 +16,7 @@ export default async function Register({ searchParams }: { searchParams: Promise
         <div className="field"><label htmlFor="email">Email</label><input id="email" name="email" type="email" autoComplete="email" required className="input" /></div>
         <div className="field"><label htmlFor="password">Password</label><input id="password" name="password" type="password" autoComplete="new-password" minLength={8} required className="input" aria-describedby="pw-help" /><span id="pw-help" className="help">At least 8 characters.</span></div>
       </ActionForm>
-      <p className="muted mt-6 text-[14px]">Already have an account? <Link href={`/login${sp.next ? `?next=${encodeURIComponent(sp.next)}` : ""}`} className="text-[var(--accent-text)]">Sign in</Link></p>
+      <p className="muted mt-6 text-[14px]">Already have an account? <Link href={`/login${sp.next ? `?next=${encodeURIComponent(sp.next)}` : ""}`} className="font-semibold text-[var(--accent-text)] underline underline-offset-4">Sign in</Link></p>
     </>
   );
 }

@@ -333,7 +333,7 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
     const sl = result ? (side === "A" ? result.a : result.b) : null;
     return (
       <div className="min-w-0">
-        <div className="mb-3 flex items-center gap-2.5 px-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: info.color }} aria-hidden /><h4 className="truncate text-[15px] font-bold tracking-tight">{info.name}</h4>{d.forfeitBy === side ? <span className="badge badge-loss">FORFEIT</span> : null}</div>
+        <div className="mb-3 flex items-center gap-2.5 px-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: info.color }} aria-hidden /><h3 className="truncate text-[15px] font-bold tracking-tight">{info.name}</h3>{d.forfeitBy === side ? <span className="badge badge-loss">FORFEIT</span> : null}</div>
         <ul className="overflow-hidden rounded-2xl border border-line bg-[color-mix(in_srgb,var(--color-raised)_45%,transparent)]" aria-label={`${info.name} scores`}>
           {sideRows(side).map((b, ri) => {
             const row = rowOffset(side) + ri;
@@ -407,7 +407,7 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
   return (
     <section className={`card overflow-hidden ${msg?.tone === "error" ? "!border-loss" : ""}`} aria-label={`${m.a.name} versus ${m.b?.name ?? "bye"}`}>
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
-        <div className="min-w-0 text-[16px] font-bold tracking-tight"><a className="hover:underline" href={m.href}>{m.a.name}{m.b ? <span className="muted font-medium"> vs </span> : null}{m.b?.name}</a></div>
+        <h2 className="min-w-0 text-[16px] font-bold tracking-tight"><a className="hover:underline" href={m.href}>{m.a.name}{m.b ? <span className="muted font-medium"> vs </span> : null}{m.b?.name}</a></h2>
         <div className="flex items-center gap-2">
           {d.dirty ? <span className="badge badge-warn">UNSAVED</span> : null}
           <span className={`badge ${stateTone}`}>{finalNow ? <Lock size={10} aria-hidden /> : null}{STATE_LABEL[m.state]}</span>

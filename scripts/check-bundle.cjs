@@ -1,7 +1,8 @@
 /* Usage: npm run check:bundle   (run after `npm run build`)
  * The database layer reads supabase/migrations at runtime. A serverless host (Vercel) only ships files Next's tracing found, and that
  * path is computed, so it must be listed in next.config.mjs (outputFileTracingIncludes). Without it every request fails with
- * "ENOENT scandir '/var/task/supabase/migrations'". This fails the build if the traced bundle of a database-backed route lacks the migrations. */
+ * "ENOENT scandir '/var/task/supabase/migrations'". This fails the build if the traced bundle of a database-backed route lacks the migrations.
+ * The generated images (link preview, scorecard) read Plus Jakarta Sans .woff files at runtime (src/server/og-fonts.ts); same rule, same check. */
 const fs = require("node:fs");
 const path = require("node:path");
 
@@ -22,5 +23,19 @@ for (const r of routes) {
     console.error(`✗ ${r}: bundle ships ${have.length} of ${need.length} migrations — add them to outputFileTracingIncludes in next.config.mjs`);
     bad++;
   } else console.log(`✓ ${r}: ships all ${need.length} migrations`);
+}
+const imageRoutes = ["app/opengraph-image/route.js.nft.json", "app/l/[slug]/matchup/[id]/scorecard/route.js.nft.json"];
+for (const r of imageRoutes) {
+  const file = path.join(root, r);
+  if (!fs.existsSync(file)) {
+    console.error(`✗ ${r}: no trace file (run npm run build first)`);
+    bad++;
+    continue;
+  }
+  const fonts = JSON.parse(fs.readFileSync(file, "utf8")).files.filter((f) => /app\/fonts\/plus-jakarta-sans-latin-\d+-normal\.woff$/.test(f));
+  if (fonts.length < 2) {
+    console.error(`✗ ${r}: bundle ships ${fonts.length} of 2 font files — add ./src/app/fonts/*.woff to outputFileTracingIncludes in next.config.mjs`);
+    bad++;
+  } else console.log(`✓ ${r}: ships the image fonts`);
 }
 process.exit(bad ? 1 : 0);
