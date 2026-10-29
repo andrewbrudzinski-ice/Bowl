@@ -16,7 +16,7 @@ export function CardHead({ title, right, icon, sub }: { title: ReactNode; right?
         </h2>
         {sub ? <p className="muted mt-0.5 text-[13px]">{sub}</p> : null}
       </div>
-      {right ? <div className="flex shrink-0 items-center gap-3 text-[13px] font-semibold">{right}</div> : null}
+      {right ? <div className="flex min-w-0 max-w-full flex-wrap items-center gap-x-3 gap-y-1 text-[13px] font-semibold">{right}</div> : null}
     </header>
   );
 }
