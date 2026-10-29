@@ -28,7 +28,7 @@ export default async function Timeline({ params, searchParams }: { params: Promi
     <div>
       <PageHeader title="Season timeline" eyebrow={ctx.season.name} sub="Week by week: results, movement in the standings, records and streaks. Open any week for its full recap." />
       {weeks.length === 0 ? <Card><EmptyState title="Nothing to show yet" /></Card> : (
-        <ol className="relative grid gap-4 border-l border-line pl-5">
+        <ol className="relative grid gap-10 border-l border-line-strong pl-7">
           {weeks.map((w) => {
             const rs = m.results.filter((r) => r.weekNumber === w.number && !r.isBye);
             const done = rs.length > 0 && rs.every((r) => r.official);
@@ -43,17 +43,17 @@ export default async function Timeline({ params, searchParams }: { params: Promi
             void tl;
             return (
               <li key={w.number} className="relative">
-                <span className="absolute -left-[27px] top-1.5 h-3 w-3 rounded-full border-2 border-bg bg-[var(--accent)]" aria-hidden />
-                <div className="mb-1 flex flex-wrap items-center gap-2">
-                  <h2 className="text-[15px] font-bold"><Link className="hover:underline" href={`/l/${slug}/season/${ctx.season!.slug}/week/${w.number}`}>{w.phase === "playoff" ? `Playoffs · ${w.label.replace(/^Playoffs · /, "")}` : `Week ${w.number}`}</Link></h2>
-                  <span className="muted text-xs">{formatDate(w.date, { month: "short", day: "numeric" })}</span>
+                <span className="absolute -left-[35px] top-1 h-3.5 w-3.5 rounded-full border-[3px] border-bg bg-[var(--accent)]" aria-hidden />
+                <div className="mb-4 flex flex-wrap items-center gap-3">
+                  <h2 className="text-[18px] font-extrabold tracking-tight"><Link className="hover:underline" href={`/l/${slug}/season/${ctx.season!.slug}/week/${w.number}`}>{w.phase === "playoff" ? `Playoffs · ${w.label.replace(/^Playoffs · /, "")}` : `Week ${w.number}`}</Link></h2>
+                  <span className="muted text-[13px]">{formatDate(w.date, { month: "short", day: "numeric" })}</span>
                   {done ? <Badge tone="win">FINAL</Badge> : any ? <Badge tone="warn">PARTIAL</Badge> : <Badge>UPCOMING</Badge>}
                 </div>
                 <Card>
                   <ul className="divide-y divide-line">{rs.map((r) => { const a = participant(ctx, r.a.participantId, kind, sq); const b = participant(ctx, r.b!.participantId, kind, sq); const win = r.official ? (r.winner === "A" ? a.name : r.winner === "B" ? b.name : null) : null; return (
-                    <li key={r.matchup.id} className="flex items-baseline justify-between gap-3 px-3.5 py-2 text-[13px]"><Link href={`/l/${slug}/matchup/${r.matchup.id}`} className="min-w-0 truncate hover:underline"><span className={win === a.name ? "font-bold" : ""}>{a.name}</span> <span className="muted">vs</span> <span className={win === b.name ? "font-bold" : ""}>{b.name}</span></Link><span className="num muted shrink-0">{r.official ? `${fmtPts(r.a.points)}–${fmtPts(r.b!.points)}${win ? ` · ${win} won` : r.winner === "tie" ? " · tie" : ""}` : "not final"}</span></li>); })}</ul>
+                    <li key={r.matchup.id} className="flex items-baseline justify-between gap-4 px-5 py-3.5 text-[14px]"><Link href={`/l/${slug}/matchup/${r.matchup.id}`} className="min-w-0 truncate hover:underline"><span className={win === a.name ? "font-bold" : ""}>{a.name}</span> <span className="muted">vs</span> <span className={win === b.name ? "font-bold" : ""}>{b.name}</span></Link><span className="num muted shrink-0">{r.official ? `${fmtPts(r.a.points)}–${fmtPts(r.b!.points)}${win ? ` · ${win} won` : r.winner === "tie" ? " · tie" : ""}` : "not final"}</span></li>); })}</ul>
                   {(leaderChanged || movers.length || streaks.length || broken.length) ? (
-                    <ul className="grid gap-1 border-t border-line px-3.5 py-2 text-xs">
+                    <ul className="grid gap-2 border-t border-line bg-[color-mix(in_srgb,var(--color-raised)_55%,transparent)] px-5 py-4 text-[13px]">
                       {leaderChanged ? <li><b>New leader:</b> {rows![0].name} take over first place.</li> : null}
                       {movers.map(({ r, d }) => <li key={r.id} className="muted">{r.name} {d > 0 ? "climbed" : "fell"} {Math.abs(d)} places to #{r.rank}</li>)}
                       {streaks.map((r) => <li key={r.id} className="muted">{r.name} have won {r.streak.count} straight</li>)}
@@ -64,7 +64,7 @@ export default async function Timeline({ params, searchParams }: { params: Promi
               </li>
             );
           })}
-          {champ ? <li className="relative"><span className="absolute -left-[27px] top-1.5 h-3 w-3 rounded-full border-2 border-bg bg-warn" aria-hidden /><Card><div className="flex items-center gap-3 p-3.5"><Trophy className="text-warn" aria-hidden /><div><div className="eyebrow">Champion</div><div className="text-[16px] font-bold">{champ.name}</div><div className="muted text-xs">{champ.how}</div></div></div></Card></li> : null}
+          {champ ? <li className="relative"><span className="absolute -left-[35px] top-1 h-3.5 w-3.5 rounded-full border-[3px] border-bg bg-warn" aria-hidden /><Card><div className="flex items-center gap-3 p-5"><Trophy className="text-warn" aria-hidden /><div><div className="eyebrow">Champion</div><div className="text-[16px] font-bold">{champ.name}</div><div className="muted text-[13px]">{champ.how}</div></div></div></Card></li> : null}
         </ol>
       )}
     </div>

@@ -41,13 +41,13 @@ export default async function Bowlers({ params, searchParams }: { params: Promis
           <div className="tbl-wrap">
             <table className="tbl tbl-sticky">
               <caption className="sr-only">Bowlers</caption>
-              <thead><tr><th scope="col" className="!pl-3"><Link href={link({ sort: "name" })}>Bowler</Link></th><th scope="col" className="!text-left">Team</th><th scope="col"><Link href={link({ sort: "avg" })}>Avg</Link></th><th scope="col" title="Entering average">Ent</th>{showHdcp ? <th scope="col" title="Handicap for the next week">Hdcp</th> : null}<th scope="col"><Link href={link({ sort: "games" })}>Gms</Link></th><th scope="col">Pins</th><th scope="col"><Link href={link({ sort: "hg" })}>High G</Link></th><th scope="col">High S</th>{ctx.cfg.format !== "team" ? <th scope="col">W-L</th> : null}</tr></thead>
+              <thead><tr><th scope="col"><Link href={link({ sort: "name" })}>Bowler</Link></th><th scope="col" className="!text-left">Team</th><th scope="col"><Link href={link({ sort: "avg" })}>Avg</Link></th><th scope="col" title="Entering average">Ent</th>{showHdcp ? <th scope="col" title="Handicap for the next week">Hdcp</th> : null}<th scope="col"><Link href={link({ sort: "games" })}>Gms</Link></th><th scope="col">Pins</th><th scope="col"><Link href={link({ sort: "hg" })}>High G</Link></th><th scope="col">High S</th>{ctx.cfg.format !== "team" ? <th scope="col">W-L</th> : null}</tr></thead>
               <tbody>
                 {rows.map((s) => {
                   const b = m.bowlerById.get(s.bowlerId)!;
                   return (
                     <tr key={s.bowlerId}>
-                      <td className="!pl-3"><Link href={`/l/${slug}/bowlers/${s.bowlerId}${sq ? `?season=${sq}` : ""}`} className="flex min-w-[170px] items-center gap-2 hover:underline"><Avatar name={b.name} color={b.avatarColor} url={b.avatarUrl} size={26} /><span className="truncate font-semibold">{b.name}</span>{s.isSub ? <span className="badge">SUB</span> : null}{!b.active ? <span className="badge badge-warn">INACTIVE</span> : null}</Link></td>
+                      <td><Link href={`/l/${slug}/bowlers/${s.bowlerId}${sq ? `?season=${sq}` : ""}`} className="flex min-w-[170px] items-center gap-2 hover:underline"><Avatar name={b.name} color={b.avatarColor} url={b.avatarUrl} size={26} /><span className="truncate font-semibold">{b.name}</span>{s.isSub ? <span className="badge">SUB</span> : null}{!b.active ? <span className="badge badge-warn">INACTIVE</span> : null}</Link></td>
                       <td className="l muted">{teamName(s.teamId) ?? "—"}</td>
                       <td className="score">{fmt1(s.average)}</td>
                       <td className="num muted">{s.enteringAverage ?? "—"}</td>

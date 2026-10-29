@@ -1,4 +1,5 @@
-/** The Sweeper amber: the default league accent (used for logo chips and as the starting color in the league wizard). */
-export const BRAND_ACCENT = "#e3a032";
-/** Leagues created before the warm redesign were stored with this sky blue as their default accent; it is treated as "no custom accent". */
-export const LEGACY_ACCENT = "#38bdf8";
+/** Metallic gold: the default league accent (logo chips, and the starting color in the league wizard). */
+export const BRAND_ACCENT = "#dcb048";
+/** Earlier default accents (the original sky blue, and the short-lived warm amber) are treated as "no custom accent" and show as gold. */
+export const LEGACY_ACCENTS = ["#38bdf8", "#e3a032"];
+export const isDefaultAccent = (hex: string | null | undefined) => !hex || LEGACY_ACCENTS.includes(hex.toLowerCase()) || hex.toLowerCase() === BRAND_ACCENT;

@@ -22,7 +22,7 @@ export default async function News({ params, searchParams }: { params: Promise<{
             <div className="mb-1.5 flex flex-wrap items-center gap-1.5">{a.pinned ? <Badge tone="accent">PINNED</Badge> : null}<Badge>{ANNOUNCEMENT_CATEGORIES.find((c) => c.id === a.category)?.label}</Badge></div>
             <h2 className="text-[16px] font-bold">{a.title}</h2>
             <p className="mt-1.5 whitespace-pre-wrap text-[14px] leading-relaxed">{a.body}</p>
-            <p className="faint mt-2 text-xs">Posted {formatDateTime(a.createdAt)} by {a.createdByName}{a.updatedAt !== a.createdAt ? ` · edited ${formatDateTime(a.updatedAt)} by ${a.updatedByName}` : ""}{ctx.can("announcements.post") ? <> · <Link className="underline" href={`/l/${slug}/admin/news?edit=${a.id}`}>Edit</Link></> : null}</p>
+            <p className="faint mt-2 text-[13px]">Posted {formatDateTime(a.createdAt)} by {a.createdByName}{a.updatedAt !== a.createdAt ? ` · edited ${formatDateTime(a.updatedAt)} by ${a.updatedByName}` : ""}{ctx.can("announcements.post") ? <> · <Link className="underline" href={`/l/${slug}/admin/news?edit=${a.id}`}>Edit</Link></> : null}</p>
           </article>
         ))}</div>
       )}

@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, BookOpen, CalendarDays, ClipboardList, History, Home, LayoutGrid, Megaphone, MoreHorizontal, ScrollText, Settings2, Shield, Trophy, Users, X } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, ChevronDown, ClipboardList, History, Home, LayoutGrid, Megaphone, MoreHorizontal, ScrollText, Settings2, Shield, Trophy, Users, X } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -23,15 +23,46 @@ function isActive(pathname: string, item: NavItem, home: string) {
   return bases.some((b) => pathname === b || pathname.startsWith(b + "/"));
 }
 
+/**
+ * Desktop tabs: the first pages inline and the rest under a "More" menu, so the bar never overflows. Three tabs show on laptop widths,
+ * five on wide screens (tablets in portrait use the bottom tab bar instead); the pages that aren't inline at the current width are listed in the menu.
+ */
 export function DesktopNav({ items, home }: { items: NavItem[]; home: string }) {
   const pathname = usePathname();
+  const ALWAYS = 3;
+  const WIDE = 5;
+  const rest = items.slice(ALWAYS);
+  const moreActive = rest.some((i) => isActive(pathname, i, home));
+  const moreRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    if (moreRef.current) moreRef.current.open = false;
+  }, [pathname]);
   return (
-    <nav aria-label="League" className="pill-nav hidden md:flex md:max-w-full">
-      {items.map((i) => (
-        <Link key={i.href} href={i.href} className="tab" aria-current={isActive(pathname, i, home) ? "page" : undefined}>
+    <nav aria-label="League" className="hidden items-center gap-1 lg:flex lg:max-w-full">
+      {items.slice(0, WIDE).map((i, idx) => (
+        <Link key={i.href} href={i.href} className={`tab ${idx >= ALWAYS ? "hidden xl:inline-flex" : ""}`} aria-current={isActive(pathname, i, home) ? "page" : undefined}>
           {i.label}
         </Link>
       ))}
+      {rest.length ? (
+        <details ref={moreRef} className="relative">
+          <summary className="tab" data-active={moreActive ? "true" : undefined}>
+            More
+            <ChevronDown size={14} aria-hidden className="ml-1 text-faint" />
+          </summary>
+          <div className="card absolute left-0 top-12 z-40 w-56 p-2 !shadow-[var(--shadow-lg)]">
+            {rest.map((i, idx) => {
+              const Icon = ICONS[i.icon] ?? Home;
+              return (
+                <Link key={i.href} href={i.href} aria-current={isActive(pathname, i, home) ? "page" : undefined} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-muted transition-colors hover:bg-hover hover:text-fg aria-[current=page]:bg-raised aria-[current=page]:text-fg ${ALWAYS + idx < WIDE ? "xl:hidden" : ""}`}>
+                  <Icon size={16} aria-hidden />
+                  {i.label}
+                </Link>
+              );
+            })}
+          </div>
+        </details>
+      ) : null}
     </nav>
   );
 }
@@ -57,7 +88,7 @@ export function MobileNav({ items, home, extra }: { items: NavItem[]; home: stri
   const restActive = rest.some((i) => isActive(pathname, i, home));
   return (
     <>
-      <nav aria-label="Primary" className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/85 backdrop-blur-xl md:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
+      <nav aria-label="Primary" className="no-print fixed inset-x-0 bottom-0 z-30 border-t border-line bg-bg/85 backdrop-blur-xl lg:hidden" style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
         <ul className="mx-auto grid max-w-lg grid-cols-5 px-1">
           {primary.map((i) => {
             const Icon = ICONS[i.icon] ?? Home;
@@ -80,7 +111,7 @@ export function MobileNav({ items, home, extra }: { items: NavItem[]; home: stri
         </ul>
       </nav>
       {open ? (
-        <div className="fixed inset-0 z-40 md:hidden" role="dialog" aria-modal="true" aria-label="More">
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="More">
           <button type="button" className="absolute inset-0 bg-[var(--overlay)]" aria-label="Close menu" onClick={() => setOpen(false)} tabIndex={-1} />
           <div className="absolute inset-x-0 bottom-0 max-h-[80dvh] overflow-y-auto rounded-t-3xl border-t border-line bg-surface p-4 shadow-[var(--shadow-lg)]" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}>
             <div className="mb-3 flex items-center justify-between px-1">

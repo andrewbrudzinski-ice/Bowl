@@ -47,12 +47,12 @@ export default async function LeagueLayout({ children, params }: { children: Rea
     </div>
   );
   return (
-    <div style={style} className="min-h-dvh pb-28 md:pb-12">
+    <div style={style} className="min-h-dvh pb-28 lg:pb-12">
       <header className="no-print sticky top-0 z-30 -mt-[env(safe-area-inset-top)] border-b border-line bg-bg/80 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
         <div className="wrap flex h-16 items-center gap-3">
           <details className="relative min-w-0 shrink">
             <summary className="flex cursor-pointer items-center gap-3 rounded-xl py-1.5 pl-1 pr-3 transition-colors hover:bg-hover" aria-label="Switch league">
-              <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-[13px] font-extrabold text-[var(--accent-ink)] shadow-sm" aria-hidden>
+              <span className="metal inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent)] text-[13px] font-extrabold text-[var(--accent-ink)]" aria-hidden>
                 {ctx.league.logoText}
               </span>
               <span className="min-w-0 text-left leading-tight">
@@ -64,14 +64,14 @@ export default async function LeagueLayout({ children, params }: { children: Rea
               <div className="eyebrow px-2.5 py-1.5">Your leagues</div>
               {mine.length ? mine.map((m) => (
                 <Link key={m.league.id} href={`/l/${m.league.slug}`} className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-sm transition-colors hover:bg-hover" aria-current={m.league.id === ctx.league.id ? "true" : undefined}>
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-extrabold text-[#241707]" style={{ background: resolveAccent(m.league.accent) }}>{m.league.logoText}</span>
+                  <span className="metal inline-flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-extrabold text-[#1b1304]" style={{ background: resolveAccent(m.league.accent) }}>{m.league.logoText}</span>
                   <span className="min-w-0 flex-1 truncate">{m.league.name}</span>
                 </Link>
               )) : <div className="muted px-2 py-1.5 text-xs">You're browsing as a guest.</div>}
               {ctx.actor ? <Link href="/leagues/new" className="mt-1 block rounded-xl border-t border-line px-2.5 py-2.5 text-sm font-semibold text-[var(--accent-text)] transition-colors hover:bg-hover">+ Create a league</Link> : null}
             </div>
           </details>
-          <div className="hidden min-w-0 flex-1 md:block"><DesktopNav items={items} home={base} /></div>
+          <div className="hidden min-w-0 flex-1 lg:block"><DesktopNav items={items} home={base} /></div>
           <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
             <SeasonSwitcher seasons={ctx.seasons.map((s) => ({ slug: s.slug, name: s.name }))} current={ctx.season?.slug ?? null} slug={slug} />
             {ctx.actor ? (
@@ -80,7 +80,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
                 {unread ? <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-extrabold text-[var(--accent-ink)]">{unread > 9 ? "9+" : unread}</span> : null}
               </Link>
             ) : null}
-            <details className="relative hidden md:block">
+            <details className="relative hidden lg:block">
               <summary className="btn btn-sm" aria-label="Account">{ctx.actor ? ctx.actor.name.split(" ")[0] : "Guest"}</summary>
               <div className="card absolute right-0 top-12 z-40 w-64 p-3 !shadow-[var(--shadow-lg)]">{accountMenu}</div>
             </details>

@@ -43,7 +43,7 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
   const sq = ctx.seasons.find((s) => s.status === "active")?.slug === seasonSlug ? null : seasonSlug;
   const label = (r: (typeof results)[number]) => participant(ctx, r.a.participantId, kind).name;
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-6 md:gap-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex gap-2">
           {prev ? <Link className="btn btn-sm" href={`/l/${slug}/season/${seasonSlug}/week/${prev.number}`}><ChevronLeft size={14} />Week {prev.number}</Link> : <span className="btn btn-sm" aria-disabled style={{ opacity: .4 }}><ChevronLeft size={14} />Prev</span>}
@@ -56,7 +56,7 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
         <h1 className="h-page mt-1">Week {wk} <span className="muted font-medium">· {formatDate(week.date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</span></h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Badge tone={week.status === "completed" ? "win" : week.status === "postponed" ? "warn" : "neutral"}>{week.status === "completed" ? "WEEK COMPLETE" : week.status === "postponed" ? "POSTPONED" : week.status === "in_progress" ? "IN PROGRESS" : "UPCOMING"}</Badge>
-          {week.label ? <span className="muted text-xs">{week.label}</span> : null}
+          {week.label ? <span className="muted text-[13px]">{week.label}</span> : null}
         </div>
       </div>
 
@@ -73,11 +73,11 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
       )}
 
       {official ? (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
           <Card>
             <CardHead title="Week highlights" />
             {recap.headlines.length === 0 && awards.length === 0 ? <EmptyState title="Nothing standout" /> : (
-              <ul className="grid gap-2 p-3.5 text-[13.5px]">
+              <ul className="grid gap-2 p-5 text-[14px]">
                 {recap.headlines.map((h, i) => <li key={i} className="flex gap-2"><span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--accent)]" aria-hidden />{h.text}</li>)}
                 {records.map((x, i) => <li key={`r${i}`} className="flex gap-2"><span className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-warn" aria-hidden /><span><b>{x.kind === "new" ? "New record" : "Record tied"}:</b> {x.item.title} — {x.event.holderName}, {x.event.detail}{x.kind === "tied" ? " (matches the standing mark)" : ""}</span></li>)}
               </ul>
@@ -87,7 +87,7 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
             <CardHead title="Week awards" right={<Link className="text-[var(--accent-text)]" href={`/l/${slug}/stats?tab=awards`}>All awards →</Link>} />
             {awards.length === 0 ? <EmptyState title="No awards calculated" /> : (
               <ul className="divide-y divide-line">{awards.map((a) => (
-                <li key={a.id} className="px-3.5 py-2.5"><div className="eyebrow">{a.name}</div><div className="text-[13.5px] font-semibold">{a.winners.map((w) => w.name).join(", ")}</div><div className="muted text-xs">{a.winners[0].detail}</div></li>
+                <li key={a.id} className="px-5 py-2.5"><div className="eyebrow">{a.name}</div><div className="text-[14px] font-semibold">{a.winners.map((w) => w.name).join(", ")}</div><div className="muted text-[13px]">{a.winners[0].detail}</div></li>
               ))}</ul>
             )}
           </Card>
@@ -100,7 +100,7 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
           <StandingsTable ctx={ctx} rows={rows} compact seasonQ={sq} qualifiers={ctx.cfg.playoffs.enabled ? ctx.cfg.playoffs.qualifiers : undefined} />
         </Card>
       ) : null}
-      {recap.topSeries.length ? <p className="faint text-xs">Top series: {recap.topSeries.map((t) => `${model.bowlerById.get(t.bowlerId)?.name} ${t.scratchSeries}`).join(", ")} · High game: {recap.highGame.map((t) => `${model.bowlerById.get(t.bowlerId)?.name} ${t.score}`).join(", ")} · {results.map(label).length} matchups</p> : null}
+      {recap.topSeries.length ? <p className="faint text-[13px]">Top series: {recap.topSeries.map((t) => `${model.bowlerById.get(t.bowlerId)?.name} ${t.scratchSeries}`).join(", ")} · High game: {recap.highGame.map((t) => `${model.bowlerById.get(t.bowlerId)?.name} ${t.score}`).join(", ")} · {results.map(label).length} matchups</p> : null}
     </div>
   );
 }

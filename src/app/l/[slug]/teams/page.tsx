@@ -26,11 +26,11 @@ export default async function Teams({ params, searchParams }: { params: Promise<
             const r = row.get(t.id);
             const roster = m.data.roster.filter((x) => x.teamId === t.id && x.toWeek == null).map((x) => m.bowlerById.get(x.bowlerId)?.name).filter(Boolean);
             return (
-              <li key={t.id} className="card card-link relative p-3.5">
+              <li key={t.id} className="card card-link relative p-5">
                 <Link href={`/l/${slug}/teams/${t.id}${sq ? `?season=${sq}` : ""}`} className="after:absolute after:inset-0">
-                  <div className="flex items-center gap-3"><TeamMark name={t.name} color={t.color} logo={t.logo} size={40} /><div className="min-w-0"><div className="truncate text-[15px] font-bold">{t.name}</div><div className="muted num text-xs">{r && r.played ? `#${r.rank} · ${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ""} · ${fmtPts(r.points)} pts` : "No results yet"}</div></div></div>
-                  <div className="muted mt-2 line-clamp-2 text-xs">{roster.join(", ") || "No bowlers assigned"}</div>
-                  <div className="mt-2 flex items-center justify-between"><FormChips form={r?.form ?? []} /><span className="muted num text-xs">Avg {fmt1(r?.average)}</span></div>
+                  <div className="flex items-center gap-3"><TeamMark name={t.name} color={t.color} logo={t.logo} size={40} /><div className="min-w-0"><div className="truncate text-[15px] font-bold">{t.name}</div><div className="muted num text-[13px]">{r && r.played ? `#${r.rank} · ${r.wins}-${r.losses}${r.ties ? `-${r.ties}` : ""} · ${fmtPts(r.points)} pts` : "No results yet"}</div></div></div>
+                  <div className="muted mt-2 line-clamp-2 text-[13px]">{roster.join(", ") || "No bowlers assigned"}</div>
+                  <div className="mt-2 flex items-center justify-between"><FormChips form={r?.form ?? []} /><span className="muted num text-[13px]">Avg {fmt1(r?.average)}</span></div>
                 </Link>
               </li>
             );

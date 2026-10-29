@@ -19,7 +19,7 @@ export function ShareBar({ path, title, imageHref, note }: { path: string; title
         <button type="button" className="btn btn-sm" onClick={() => navigator.share({ title, url: url() }).catch(() => {})}><Share2 size={14} aria-hidden />Share</button>
       ) : null}
       {imageHref ? <a className="btn btn-sm" href={imageHref} download><Download size={14} aria-hidden />Scorecard image</a> : null}
-      {note ? <span className="faint text-xs">{note}</span> : null}
+      {note ? <span className="faint text-[13px]">{note}</span> : null}
     </div>
   );
 }
