@@ -221,6 +221,8 @@ export interface FinalizePreview {
   standingsBefore: StandingRow[];
   standingsAfter: StandingRow[];
   summary: { winner: string | null; a: number; b: number };
+  /** A handicap-setting week: no points are given and the standings don't change. */
+  settingWeek: boolean;
 }
 
 function storedScores(db: Readonly<DB>, matchupId: Id): ScoreInput[] {
@@ -247,6 +249,7 @@ export function previewFinalize(store: Store, actor: Actor, leagueId: Id, matchu
       canFinalize: !issues.some((i) => i.severity === "error") && !isOfficial(matchup.state),
       issues, standingsBefore: before, standingsAfter: after,
       summary: { winner: r.winner, a: r.a.points, b: r.b?.points ?? 0 },
+      settingWeek: r.settingWeek,
     };
   }, { leagueId });
 }

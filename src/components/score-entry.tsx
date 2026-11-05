@@ -430,7 +430,9 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
           </div>
           {result ? (
             <div className="border-t border-line bg-raised px-5 py-4 text-[14px]" aria-live="polite">
-              {d.forfeitBy ? <b>{d.forfeitBy === "A" ? m.b.name : m.a.name} wins by forfeit.</b> : extra && result.winner && result.complete ? (
+              {data.settingWeek ? (
+                result.complete ? <span><b>Series {result.a.basisSeries}–{result.b!.basisSeries}.</b> <span className="muted">Handicap-setting week: no points are given.</span></span> : <span className="muted">{result.missing.length ? `${result.missing.length} score${result.missing.length === 1 ? "" : "s"} missing.` : "Enter scores to see the totals."}</span>
+              ) : d.forfeitBy ? <b>{d.forfeitBy === "A" ? m.b.name : m.a.name} wins by forfeit.</b> : extra && result.winner && result.complete ? (
                 <span><b>{result.winner === "A" ? `${m.a.name} beat ${m.b.name}’s scores` : result.winner === "tie" ? `${m.a.name} tied ${m.b.name}’s scores` : `${m.b.name}’s scores were higher`}</b> <span className="num">· {m.a.name} earns {fmtPts(result.a.points)} pts · {result.basis === "handicap" ? "adjusted" : "scratch"} series {result.a.basisSeries}–{result.b!.basisSeries}</span></span>
               ) : result.winner && result.complete ? (
                 <span><b>{result.winner === "tie" ? "Matchup tied" : `${result.winner === "A" ? m.a.name : m.b.name} wins`}</b> <span className="num">{fmtPts(result.a.points)}–{fmtPts(result.b!.points)} pts · {result.basis === "handicap" ? "adjusted" : "scratch"} series {result.a.basisSeries}–{result.b!.basisSeries}{result.margin != null ? ` (margin ${result.margin})` : ""}</span> <span className="faint">(preview — not official)</span></span>
@@ -485,7 +487,9 @@ function FinalizeDialog({ modal, data, onCancel, onConfirm, pending }: { modal: 
       <button className="absolute inset-0 bg-[var(--overlay)]" onClick={onCancel} aria-label="Close" tabIndex={-1} />
       <div className="card relative max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-b-none p-6 !shadow-[var(--shadow-lg)] sm:rounded-b-[20px]">
         <h2 id="fin-title" className="text-[18px] font-extrabold tracking-tight">Finalize {m.a.name} vs {m.b?.name}?</h2>
-        <p className="muted mt-1 text-[13px]">Result: <b className="text-fg">{p.summary.winner === "tie" ? "Tie" : p.summary.winner === "A" ? m.a.name : m.b?.name} {fmtPts(p.summary.a)}–{fmtPts(p.summary.b)}</b>. Handicaps and the rule version are locked in when you finalize.</p>
+        {p.settingWeek
+          ? <p className="muted mt-1 text-[13px]">Handicap-setting week: these scores go into everyone&rsquo;s average and handicap. No points are given and the standings don&rsquo;t change.</p>
+          : <p className="muted mt-1 text-[13px]">Result: <b className="text-fg">{p.summary.winner === "tie" ? "Tie" : p.summary.winner === "A" ? m.a.name : m.b?.name} {fmtPts(p.summary.a)}–{fmtPts(p.summary.b)}</b>. Handicaps and the rule version are locked in when you finalize.</p>}
         <div className="mt-3">
           <div className="eyebrow mb-1">Impact on standings</div>
           {moves.length === 0 ? <p className="muted text-[13px]">No change in rank or points.</p> : (

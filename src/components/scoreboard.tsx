@@ -81,10 +81,12 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
                   <div className="shrink-0 text-right">
                     <div className={`score text-[28px] leading-none ${seriesWon || !status.final ? "text-fg" : "text-muted"}`} aria-label={`Series ${sideTotals(r, line) || "no score"}`}>{sideTotals(r, line) || "–"}</div>
                     {showHdcp ? <div className="faint num mt-1.5 text-[11px]">{line.scratchSeries}+{line.handicapSeries}</div> : null}
-                    <div className="mt-2 flex items-center justify-end gap-2">
-                      {outcome(side)}
-                      <span className={`num text-[13.5px] font-bold ${win ? "text-fg" : "text-muted"}`}>{r.settingWeek || (r.guest && side === "B") ? "no points" : status.final || line.points ? `${fmtPts(line.points)} pt${line.points === 1 ? "" : "s"}` : "–"}</span>
-                    </div>
+                    {r.settingWeek ? null : (
+                      <div className="mt-2 flex items-center justify-end gap-2">
+                        {outcome(side)}
+                        <span className={`num text-[13.5px] font-bold ${win ? "text-fg" : "text-muted"}`}>{r.guest && side === "B" ? "no points" : status.final || line.points ? `${fmtPts(line.points)} pt${line.points === 1 ? "" : "s"}` : "–"}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div className="mt-4 grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(r.games.length, 5)}, minmax(0, 1fr))` }}>

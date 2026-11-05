@@ -101,6 +101,7 @@ export function Breakdown({ r, nameA, nameB }: { r: MatchupResult; nameA: string
             {val(r.a.basisSeries || "–", r.seriesWinner === "A")}
             {val(r.b.basisSeries || "–", r.seriesWinner === "B")}
           </tr>
+          {r.settingWeek ? null : (
           <tr>
             <td>
               <div className="font-semibold">Points</div>
@@ -115,6 +116,7 @@ export function Breakdown({ r, nameA, nameB }: { r: MatchupResult; nameA: string
               <div className="faint num text-[12px] font-medium">{fmtPts(r.b.gamePoints)} + {fmtPts(r.b.seriesPoints)}{r.b.bonusPoints ? ` + ${fmtPts(r.b.bonusPoints)}` : ""}</div>
             </td>
           </tr>
+          )}
         </tbody>
       </table>
     </div>

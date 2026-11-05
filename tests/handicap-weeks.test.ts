@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG, normalizeConfig, settingWeeksOf, validateConfig, type RuleConfig } from "@/domain/config";
 import { describeRules } from "@/domain/describe";
+import { matchupRecap } from "@/domain/narrative";
 import { buildSeasonModel } from "@/domain/engine";
 import { previewRuleChange } from "@/domain/rulechange";
 import { computeStandings } from "@/domain/standings";
@@ -74,6 +75,15 @@ describe("handicap-setting weeks", () => {
     const fx = fixture({ teams: 2, weeks: 6, config: cfg(1) });
     play(fx, [1, 2]);
     expect(buildSeasonModel(fx.data).results.map((r) => r.settingWeek)).toEqual([true, false]);
+  });
+
+  it("announce no winner in their recaps", () => {
+    const fx = fixture({ teams: 2, weeks: 6, config: cfg(1) });
+    play(fx, [1, 2]);
+    const model = buildSeasonModel(fx.data);
+    const [w1, w2] = model.results;
+    expect(matchupRecap(model, w1).every((l) => l.kind === "high_game")).toBe(true);
+    expect(matchupRecap(model, w2).some((l) => l.kind !== "high_game")).toBe(true); // a counted week still gets its result lines
   });
 
   it("stay out of win streaks", () => {

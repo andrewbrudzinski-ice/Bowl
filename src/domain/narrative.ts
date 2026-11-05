@@ -112,6 +112,17 @@ export const NARROW_MARGIN_PINS = 15;
  */
 export function matchupRecap(model: SeasonModel, r: MatchupResult): RecapLine[] {
   if (!r.official || r.isBye || !r.b) return [];
+  if (r.settingWeek) {
+    // A handicap-setting week gives no result to announce, only what was bowled.
+    const lines: RecapLine[] = [];
+    const all = [...r.a.lineup, ...(r.guest ? [] : r.b.lineup)].flatMap((l) => l.games.filter((g) => g.kind === "bowled" && g.scratch != null).map((g) => ({ l, g })));
+    if (all.length) {
+      const best = Math.max(...all.map((x) => x.g.scratch!));
+      const holders = all.filter((x) => x.g.scratch === best);
+      if (holders.length === 1) lines.push({ kind: "high_game", text: `${model.bowlerById.get(holders[0].l.bowlerId)?.name ?? "A bowler"} had the high game of the match: ${best} (game ${holders[0].g.game}).` });
+    }
+    return lines;
+  }
   if (r.guest) {
     // An extra comparison: the extra pair against another pair's scores. Say that, and only that.
     const A = model.teamById.get(r.a.participantId)?.name ?? "The extra pair";

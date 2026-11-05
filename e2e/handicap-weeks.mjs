@@ -91,8 +91,14 @@ await page.goto(`${L}/standings`, { waitUntil: "networkidle" });
 ok((await page.locator("text=Handicap-setting weeks").count()) > 0 && (await page.locator("text=Standings start after the handicap-setting weeks").count()) > 0, "standings explain that week 1 doesn't count and haven't started");
 ok((await page.locator("table.tbl").count()) === 0, "there are no standings rows yet");
 await page.goto(`${L}/season/2026/week/1`, { waitUntil: "networkidle" });
-ok((await page.locator("text=HANDICAP WEEK").count()) > 0 && (await page.locator("text=no points").count()) > 0, "the week page labels the results and gives no points");
+ok((await page.locator("text=HANDICAP WEEK").count()) > 0 && (await page.locator("text=Handicap-setting week: these scores count toward averages").count()) > 0, "the week page labels the results as a handicap week");
+ok((await page.locator("text=/\\d+ pts?\\b/").count()) === 0 && (await page.locator("text=/^(Won|Lost|Tied)$/").count()) === 0, "no points and no Won/Lost labels appear on the week page");
 ok((await page.locator("text=Standings after week 1").count()) === 0, "no 'standings after week 1' card");
+const mu1 = await page.locator(`a[href*="/matchup/"]`).first().getAttribute("href");
+await page.goto(`${BASE}${mu1}`, { waitUntil: "networkidle" });
+ok((await page.locator("div.font-semibold", { hasText: /^Points$/ }).count()) === 0 && (await page.locator("text=/\\d+ pts?\\b/").count()) === 0, "the matchup page shows the scores but no points");
+const sc = await page.request.get(`${BASE}${mu1}/scorecard`);
+ok(sc.status() === 200 && /image\/png/.test(sc.headers()["content-type"] ?? ""), "the scorecard image still renders for a handicap-week matchup");
 await page.goto(`${L}/bowlers`, { waitUntil: "networkidle" });
 ok((await page.locator("td", { hasText: /^200\.0$/ }).count()) >= 8, "every bowler has a 200 average from week 1");
 

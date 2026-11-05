@@ -84,6 +84,7 @@ describe("handicap-setting weeks, through the services", () => {
     await saveEntry(w.store, w.owner, w.leagueId, { matchupId: mu.id, expectedRevision: mu.revision, lineupA: mu.lineupA, lineupB: mu.lineupB, scores });
     const preview = await previewFinalize(w.store, w.owner, w.leagueId, mu.id);
     expect(preview.canFinalize).toBe(true);
+    expect(preview.settingWeek).toBe(true);
     expect(JSON.stringify(preview.standingsAfter.map((r) => [r.id, r.points, r.played]))).toBe(JSON.stringify(preview.standingsBefore.map((r) => [r.id, r.points, r.played])));
   });
 
