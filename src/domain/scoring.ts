@@ -107,6 +107,11 @@ export interface MatchupResult {
   margin: number | null;
   pairs: PairResult[];
   ruleVersion: number | null;
+  /**
+   * An extra comparison (rotating partners): side A bowled for points against side B's scores from another matchup. Side B earns
+   * nothing from this result, so it must not be counted for them anywhere.
+   */
+  guest: boolean;
 }
 
 export function usesHandicap(cfg: RuleConfig): boolean {
@@ -259,6 +264,8 @@ function award(winner: Side | "tie" | null, value: number, tieFraction: number):
 }
 
 export interface EvaluateInput {
+  /** Evaluate as an extra comparison: only side A earns points. */
+  guest?: boolean;
   matchup: Matchup;
   scores: Score[];
   cfg: RuleConfig;
@@ -309,6 +316,7 @@ export function evaluateMatchup(input: EvaluateInput): MatchupResult {
     a,
     b,
     ruleVersion: matchup.ruleVersion,
+    guest: !!input.guest,
   };
 
   if (isBye) {
@@ -411,6 +419,13 @@ export function evaluateMatchup(input: EvaluateInput): MatchupResult {
   let winner: Side | "tie" | null = null;
   if (complete || (partialOk && scoredGames > 0)) {
     winner = cfg.scoring.matchupWinnerBy === "series" ? seriesWinner : cmp(a.points, bb.points);
+  }
+  if (input.guest) {
+    // The compared pair already earned its points in its own matchup.
+    bb.points = 0;
+    bb.gamePoints = 0;
+    bb.seriesPoints = 0;
+    bb.bonusPoints = 0;
   }
 
   // Pair-wise individual comparisons inside team matchups (format "both").

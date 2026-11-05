@@ -280,7 +280,8 @@ export function exportCsv(store: Store, actor: Actor, leagueId: Id, seasonId: Id
     const season = seasonIn(db, leagueId, seasonId);
     const data = seasonData(db, leagueId, seasonId);
     const model = buildSeasonModel(data);
-    const tn = (id: Id | null) => (id ? (data.teams.find((t) => t.id === id)?.name ?? data.bowlers.find((b) => b.id === id)?.name ?? "") : "");
+    // The model also knows the pairs drawn in a rotating-partners league, which have no team row.
+    const tn = (id: Id | null) => (id ? (model.teamById.get(id)?.name ?? data.bowlers.find((b) => b.id === id)?.name ?? "") : "");
     const bn = (id: Id) => data.bowlers.find((b) => b.id === id)?.name ?? "";
     if (kind === "rosters") {
       return { filename: `${base}-${season.slug}-rosters.csv`, csv: toCsv(["bowler", "team", "entering_average", "is_sub", "from_week", "to_week"], data.roster.map((r) => [bn(r.bowlerId), tn(r.teamId), r.enteringAverage ?? "", r.isSub, r.fromWeek, r.toWeek ?? ""])) };
@@ -305,7 +306,7 @@ export function exportCsv(store: Store, actor: Actor, leagueId: Id, seasonId: Id
     const rows: unknown[][] = [];
     for (const r of model.results) {
       if (!r.b) continue;
-      for (const side of [r.a, r.b]) {
+      for (const side of r.guest ? [r.a] : [r.a, r.b]) { // an extra comparison's other pair is exported with its own matchup
         for (const l of side.lineup) {
           for (const g of l.games) {
             if (g.kind === "missing") continue;

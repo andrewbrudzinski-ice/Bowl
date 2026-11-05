@@ -36,14 +36,22 @@ export default async function ScoresPage({ params, searchParams }: { params: Pro
   const data: EntryData = {
     slug, seasonId: ctx.season.id, week: wk, dateLabel: formatDate(week?.date, { weekday: "short", month: "short", day: "numeric" }), cfg,
     pool, canFinalize: ctx.can("results.finalize"), canCorrect: ctx.can("results.correct"),
-    matchups: results.filter((r) => !r.isBye).map((r) => ({
+    // An extra comparison goes last: it uses the scores entered for the pair it is compared with.
+    matchups: results.filter((r) => !r.isBye).sort((x, y) => Number(x.guest) - Number(y.guest)).map((r) => {
+      const link = m.guests.get(r.matchup.id) ?? null;
+      return {
       id: r.matchup.id, revision: r.matchup.revision, state: r.matchup.state, kind: r.matchup.kind, forfeitBy: r.matchup.forfeitBy,
+      extra: link ? { refName: (nm(r.b!.participantId) as { name: string } | undefined)?.name ?? "the other pair", refHref: `/l/${slug}/matchup/${link.ref.id}` } : null,
       a: { id: r.a.participantId, name: (nm(r.a.participantId) as { name: string } | undefined)?.name ?? "?", color: col(r.a.participantId) },
       b: r.b ? { id: r.b.participantId, name: (nm(r.b.participantId) as { name: string } | undefined)?.name ?? "?", color: col(r.b.participantId) } : null,
       lineupA: r.matchup.lineupA, lineupB: r.matchup.lineupB,
-      scores: m.data.scores.filter((s) => s.matchupId === r.matchup.id).map((s) => ({ bowlerId: s.bowlerId, side: s.side, game: s.game, scratch: s.scratch, kind: s.kind })),
+      scores: [
+        ...m.data.scores.filter((s) => s.matchupId === r.matchup.id && (!link || s.side === "A")),
+        ...(link ? m.data.scores.filter((s) => s.matchupId === link.ref.id && s.side === link.refSide).map((s) => ({ ...s, side: "B" as const })) : []),
+      ].map((s) => ({ bowlerId: s.bowlerId, side: s.side, game: s.game, scratch: s.scratch, kind: s.kind })),
       official: r.official, href: `/l/${slug}/matchup/${r.matchup.id}`, subs: subsAll, bowlersPerTeam: cfg.bowlersPerTeam,
-    })),
+      };
+    }),
   };
   return (
     <div>

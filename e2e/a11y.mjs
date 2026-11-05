@@ -14,6 +14,7 @@ const IN = ["/", "/account", "/notifications", "/leagues/new", L, `${L}/standing
 
 const browser = await chromium.launch();
 const problems = [];
+let matchupPath = null; // filled in after sign-in: a real matchup page, found from a week page
 let checked = 0;
 async function audit(ctx, urls, who, theme) {
   const page = await ctx.newPage();
@@ -45,8 +46,10 @@ for (const theme of ["dark", "light"]) {
   await p.fill("#email", EMAIL);
   await p.fill("#password", PASSWORD);
   await Promise.all([p.waitForURL(`${BASE}/`), p.click("button[type=submit]")]);
+  await p.goto(`${BASE}${L}/season/2026/week/3`, { waitUntil: "networkidle" });
+  matchupPath = (await p.locator(`a[href*="${L}/matchup/"]`).first().getAttribute("href")) ?? matchupPath;
   await p.close();
-  await audit(c, IN, "signed-in ", theme);
+  await audit(c, matchupPath ? [...IN, matchupPath] : IN, "signed-in ", theme);
 }
 await browser.close();
 if (problems.length) {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { usesPartners } from "@/domain/config";
 import { fmt1 } from "@/domain/math";
 import { bowlerSeasonStats } from "@/domain/stats";
 import { seasonParam } from "@/components/links";
@@ -21,6 +22,7 @@ export default async function Bowlers({ params, searchParams }: { params: Promis
   let rows = stats.filter((s) => inSeason.has(s.bowlerId) && (sp.all === "1" || m.bowlerById.get(s.bowlerId)?.active !== false) && (!q || s.name.toLowerCase().includes(q)));
   rows = rows.sort((a, b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "hg" ? (b.highGame?.scratch ?? 0) - (a.highGame?.scratch ?? 0) : sort === "games" ? b.games - a.games : (b.average ?? -1) - (a.average ?? -1));
   const showHdcp = ctx.cfg.handicap.enabled;
+  const partners = usesPartners(ctx.cfg); // partners change weekly, so there is no team column; the record is the pair results
   const teamName = (id: string | null) => (id ? m.teamById.get(id)?.name : null);
   const link = (extra: Record<string, string>) => {
     const p = new URLSearchParams({ ...(sq ? { season: sq } : {}), ...(sp.q ? { q: sp.q } : {}), ...(sp.all ? { all: sp.all } : {}), ...(sp.sort ? { sort: sp.sort } : {}), ...extra });
@@ -41,20 +43,20 @@ export default async function Bowlers({ params, searchParams }: { params: Promis
           <div className="tbl-wrap">
             <table className="tbl tbl-sticky">
               <caption className="sr-only">Bowlers</caption>
-              <thead><tr><th scope="col"><Link href={link({ sort: "name" })}>Bowler</Link></th><th scope="col" className="!text-left">Team</th><th scope="col"><Link href={link({ sort: "avg" })}>Avg</Link></th><th scope="col" title="Entering average">Ent</th>{showHdcp ? <th scope="col" title="Handicap for the next week">Hdcp</th> : null}<th scope="col"><Link href={link({ sort: "games" })}>Gms</Link></th><th scope="col">Pins</th><th scope="col"><Link href={link({ sort: "hg" })}>High G</Link></th><th scope="col">High S</th>{ctx.cfg.format !== "team" ? <th scope="col">W-L</th> : null}</tr></thead>
+              <thead><tr><th scope="col"><Link href={link({ sort: "name" })}>Bowler</Link></th>{!partners ? <th scope="col" className="!text-left">Team</th> : null}<th scope="col"><Link href={link({ sort: "avg" })}>Avg</Link></th><th scope="col" title="Entering average">Ent</th>{showHdcp ? <th scope="col" title="Handicap for the next week">Hdcp</th> : null}<th scope="col"><Link href={link({ sort: "games" })}>Gms</Link></th><th scope="col">Pins</th><th scope="col"><Link href={link({ sort: "hg" })}>High G</Link></th><th scope="col">High S</th>{ctx.cfg.format !== "team" || partners ? <th scope="col">W-L</th> : null}</tr></thead>
               <tbody>
                 {rows.map((s) => {
                   const b = m.bowlerById.get(s.bowlerId)!;
                   return (
                     <tr key={s.bowlerId}>
                       <td><Link href={`/l/${slug}/bowlers/${s.bowlerId}${sq ? `?season=${sq}` : ""}`} className="flex min-w-[170px] items-center gap-2 hover:underline"><Avatar name={b.name} color={b.avatarColor} url={b.avatarUrl} size={26} /><span className="truncate font-semibold">{b.name}</span>{s.isSub ? <span className="badge">SUB</span> : null}{!b.active ? <span className="badge badge-warn">INACTIVE</span> : null}</Link></td>
-                      <td className="l muted">{teamName(s.teamId) ?? "—"}</td>
+                      {!partners ? <td className="l muted">{teamName(s.teamId) ?? "—"}</td> : null}
                       <td className="score">{fmt1(s.average)}</td>
                       <td className="num muted">{s.enteringAverage ?? "—"}</td>
                       {showHdcp ? <td className="num">{s.currentHandicap ?? "—"}</td> : null}
                       <td className="num">{s.games}</td><td className="num">{s.pins ? s.pins.toLocaleString() : "—"}</td>
                       <td className="num">{s.highGame?.scratch ?? "—"}</td><td className="num">{s.highSeries?.scratch ?? "—"}</td>
-                      {ctx.cfg.format !== "team" ? <td className="num">{s.record ? `${s.record.wins}-${s.record.losses}${s.record.ties ? `-${s.record.ties}` : ""}` : "—"}</td> : null}
+                      {ctx.cfg.format !== "team" || partners ? <td className="num">{s.record ? `${s.record.wins}-${s.record.losses}${s.record.ties ? `-${s.record.ties}` : ""}` : "—"}</td> : null}
                     </tr>
                   );
                 })}

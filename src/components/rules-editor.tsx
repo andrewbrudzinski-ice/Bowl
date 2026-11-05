@@ -2,16 +2,19 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { applyRulesAction, previewRulesAction, saveTemplateAction } from "@/app/actions/admin";
-import { STARTER_TEMPLATES, type RuleConfig } from "@/domain/config";
+import { STARTER_TEMPLATES, withPartnerDefaults, type RuleConfig } from "@/domain/config";
 import { fmtPts } from "@/domain/math";
 import type { ChangeScope, RulePreview } from "@/domain/rulechange";
 import { RuleForm } from "./rule-form";
 
 type ScopeKind = "from_week" | "historical" | "new_season";
 
-export function RulesEditor({ slug, seasonId, seasonName, current, leagueDefault, hasScores, eligibleWeek, totalWeeks, names, canApplyHistorical }: {
+export function RulesEditor({ slug, seasonId, seasonName, current: currentIn, leagueDefault: leagueDefaultIn, hasScores, eligibleWeek, totalWeeks, names, canApplyHistorical }: {
   slug: string; seasonId: string; seasonName: string; current: RuleConfig; leagueDefault: RuleConfig; hasScores: boolean; eligibleWeek: number; totalWeeks: number; names: Record<string, string>; canApplyHistorical: boolean;
 }) {
+  // Rules saved before rotating partners existed have no `partners` block; the form needs every field.
+  const current = withPartnerDefaults(currentIn);
+  const leagueDefault = withPartnerDefaults(leagueDefaultIn);
   const router = useRouter();
   const [cfg, setCfg] = useState<RuleConfig>(current);
   const [scopeKind, setScopeKind] = useState<ScopeKind>("from_week");
@@ -58,7 +61,7 @@ export function RulesEditor({ slug, seasonId, seasonName, current, leagueDefault
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="label">Start from</span>
-        <select className="select !w-auto" value="" onChange={(e) => { const t = STARTER_TEMPLATES.find((x) => x.id === e.target.value); if (t) bump(() => setCfg({ ...structuredClone(t.config), format: current.format, bowlersPerTeam: current.bowlersPerTeam, scoring: { ...structuredClone(t.config.scoring), gamesPerSession: current.scoring.gamesPerSession } })); }} aria-label="Apply a starter template">
+        <select className="select !w-auto" value="" onChange={(e) => { const t = STARTER_TEMPLATES.find((x) => x.id === e.target.value); if (t) bump(() => setCfg({ ...structuredClone(t.config), format: current.format, bowlersPerTeam: current.bowlersPerTeam, partners: { ...structuredClone(t.config.partners), enabled: current.partners.enabled }, scoring: { ...structuredClone(t.config.scoring), gamesPerSession: current.scoring.gamesPerSession } })); }} aria-label="Apply a starter template">
           <option value="">Template…</option>{STARTER_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
         <button className="btn btn-sm" type="button" onClick={() => bump(() => setCfg(structuredClone(leagueDefault)))}>Use league default</button>

@@ -1,6 +1,7 @@
 import { playoffConfigFor } from "@/domain/config";
 import { buildSeasonModel, snapshotForMatchup, type SeasonData } from "@/domain/engine";
-import { computeStandings, type StandingRow } from "@/domain/standings";
+import { guestLineup } from "@/domain/partners";
+import { computeStandings, standingsScope, type StandingRow } from "@/domain/standings";
 import { validateEntry, type Issue, type ScoreInput } from "@/domain/validate";
 import type { Id, Matchup, ResultState, Score, Side } from "@/domain/types";
 import { isOfficial } from "@/domain/types";
@@ -106,19 +107,26 @@ export function applyEntry(db: DB, actor: Actor, leagueId: Id, input: EntryInput
     proposed.lineupA = [matchup.sideA];
     proposed.lineupB = matchup.sideB ? [matchup.sideB] : [];
   }
+  // An extra comparison (rotating partners) is only ever entered for its own pair: the other pair's scores belong to their matchup.
+  const extra = model.guests.get(matchup.id) ?? null;
+  if (extra) {
+    proposed.lineupB = guestLineup(extra);
+    proposed.forfeitBy = null;
+  }
+  const scores = extra ? input.scores.filter((s) => s.side === "A") : input.scores;
   const asReady = input.submit === "ready" || mode.correction != null;
   // Validate against the *other* matchups in the week, with this one replaced by the proposal.
-  const issues = validateEntry(model, proposed, input.scores, effectiveCfg, { forFinalize: asReady });
+  const issues = validateEntry(model, proposed, scores, effectiveCfg, { forFinalize: asReady });
   if (issues.some((i) => i.severity === "error")) throwIssues(issues, "Couldn't save.");
 
   const old = db.scores.filter((s) => s.matchupId === matchup.id);
-  const changes = diffScores(old, input.scores);
-  const beforeStandings = mode.correction ? standingsSummary(computeStandings(model, { scope: matchup.kind === "team" ? "team" : "bowler" }).rows) : null;
+  const changes = diffScores(old, scores);
+  const beforeStandings = mode.correction ? standingsSummary(computeStandings(model, { scope: standingsScope(effectiveCfg) }).rows) : null;
 
   // ---- mutate (no throws below this line) ----
   db.scores = db.scores.filter((s) => s.matchupId !== matchup.id);
   const stamp = now();
-  for (const s of input.scores) {
+  for (const s of scores) {
     if (s.kind === "bowled" && s.scratch == null) continue;
     db.scores.push({ id: newId("sc"), matchupId: matchup.id, bowlerId: s.bowlerId, side: s.side, game: s.game, scratch: s.kind === "bowled" ? s.scratch : null, kind: s.kind, updatedAt: stamp, updatedBy: actor.id });
   }
@@ -132,7 +140,7 @@ export function applyEntry(db: DB, actor: Actor, leagueId: Id, input: EntryInput
   matchup.updatedBy = actor.id;
   matchup.revision += 1;
 
-  const hasAny = input.scores.some((s) => s.kind !== "bowled" || s.scratch != null) || !!matchup.forfeitBy;
+  const hasAny = scores.some((s) => s.kind !== "bowled" || s.scratch != null) || !!matchup.forfeitBy;
   if (mode.correction) {
     matchup.state = "corrected";
     // A substitute who wasn't in the original snapshot gets a handicap recorded for this night.
@@ -146,7 +154,7 @@ export function applyEntry(db: DB, actor: Actor, leagueId: Id, input: EntryInput
   weekStatusSync(db, season.id, matchup.weekNumber);
 
   if (mode.correction) {
-    const after = standingsSummary(computeStandings(buildSeasonModel(seasonData(db, leagueId, season.id)), { scope: matchup.kind === "team" ? "team" : "bowler" }).rows);
+    const after = standingsSummary(computeStandings(buildSeasonModel(seasonData(db, leagueId, season.id)), { scope: standingsScope(effectiveCfg) }).rows);
     writeAudit(db, actor, {
       leagueId, seasonId: season.id, action: "result.corrected", entityType: "matchup", entityId: matchup.id,
       before: { scores: changes.map((c) => ({ bowlerId: c.bowlerId, game: c.game, ...c.before })), standings: beforeStandings, lineup: prevLineup },
@@ -228,7 +236,7 @@ export function previewFinalize(store: Store, actor: Actor, leagueId: Id, matchu
     const model = buildSeasonModel(data);
     const cfg = model.configForWeek(matchup.weekNumber);
     const issues = validateEntry(model, matchup, storedScores(db, matchupId), cfg, { forFinalize: true });
-    const scope = matchup.kind === "team" ? "team" : "bowler";
+    const scope = standingsScope(cfg);
     const before = computeStandings(model, { scope }).rows;
     const snap = snapshotForMatchup(model, matchup);
     const hypothetical = data.matchups.map((m) => (m.id === matchupId ? { ...m, state: "finalized" as ResultState, handicapSnapshot: snap, ruleVersion: model.versionForWeek(m.weekNumber).version } : m));

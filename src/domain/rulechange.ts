@@ -1,6 +1,6 @@
 import { STRUCTURAL_PATHS, validateConfig, type ConfigIssue, type RuleConfig } from "./config";
 import { buildSeasonModel, type SeasonData, type SeasonModel } from "./engine";
-import { computeStandings, type StandingRow } from "./standings";
+import { computeStandings, standingsScope, type StandingRow } from "./standings";
 import type { Id, RuleVersion } from "./types";
 import { isOfficial } from "./types";
 
@@ -42,8 +42,8 @@ export function classifyDiffs(diffs: ConfigDiff[]): ChangeClass {
   return {
     structural: diffs.filter((d) => STRUCTURAL_PATHS.some((p) => d.path === p)).map((d) => d.path),
     affectsHandicap: has("handicap"),
-    affectsScoring: has("scoring") || has("format"),
-    affectsStandings: has("standings") || has("scoring"),
+    affectsScoring: has("scoring") || has("format") || has("partners"),
+    affectsStandings: has("standings") || has("scoring") || has("partners"),
     affectsPlayoffs: has("playoffs"),
   };
 }
@@ -166,8 +166,8 @@ export function previewRuleChange(data: SeasonData, proposedRaw: unknown, scope:
   }
   const reversedCount = finalizedAffected.filter((c) => c.reversed).length;
 
-  const standingsBefore = computeStandings(before, { scope: "team" }).rows;
-  const standingsAfter = computeStandings(after, { scope: "team", config: after.configForWeek(Math.max(1, Math.min(totalWeeks, data.season.regularWeeks))) }).rows;
+  const standingsBefore = computeStandings(before, { scope: standingsScope(currentCfg) }).rows;
+  const standingsAfter = computeStandings(after, { scope: standingsScope(proposed), config: after.configForWeek(Math.max(1, Math.min(totalWeeks, data.season.regularWeeks))) }).rows;
   const q = proposed.playoffs.enabled ? proposed.playoffs.qualifiers : currentCfg.playoffs.enabled ? currentCfg.playoffs.qualifiers : 0;
   const topSet = (rows: StandingRow[]) => rows.slice(0, q).map((r) => r.id).sort().join(",");
   const playoffQualifiersChanged = q > 0 && topSet(standingsBefore) !== topSet(standingsAfter);

@@ -1,4 +1,4 @@
-import type { RuleConfig } from "./config";
+import { usesPartners, type RuleConfig } from "./config";
 import { evaluateMatchup } from "./scoring";
 import type { SeasonData, SeasonModel } from "./engine";
 import type { Id, Matchup, ScoreKind, Side } from "./types";
@@ -31,7 +31,8 @@ export interface Issue {
     | "bad_game_number"
     | "inconsistent_final"
     | "not_in_lineup"
-    | "same_side";
+    | "same_side"
+    | "extra_pending";
   message: string;
   bowlerId?: Id;
   game?: number;
@@ -51,6 +52,9 @@ export function validateEntry(
   const { scoring } = cfg;
   const add = (i: Issue) => issues.push(i);
   const bowlerName = (id: Id) => model.bowlerById.get(id)?.name ?? id;
+  // An extra comparison (rotating partners) borrows side B's scores from another matchup, so side B is checked there, not here.
+  const extra = model.guests.get(matchup.id) ?? null;
+  const sides = extra ? (["A"] as const) : (["A", "B"] as const);
 
   // Participants exist.
   const participantKnown = (id: Id | null) =>
@@ -61,9 +65,9 @@ export function validateEntry(
     add({ severity: "error", code: "same_side", message: "A participant cannot play itself." });
 
   // Duplicate matchups / double booking within the week.
-  const sameWeek = data.matchups.filter((m) => m.weekNumber === matchup.weekNumber && m.id !== matchup.id && m.seasonId === matchup.seasonId);
+  const sameWeek = data.matchups.filter((m) => m.weekNumber === matchup.weekNumber && m.id !== matchup.id && m.seasonId === matchup.seasonId && !model.guests.has(m.id));
   for (const other of sameWeek) {
-    const pair = [matchup.sideA, matchup.sideB].filter(Boolean) as Id[];
+    const pair = (extra ? [matchup.sideA] : [matchup.sideA, matchup.sideB]).filter(Boolean) as Id[];
     const otherPair = [other.sideA, other.sideB].filter(Boolean) as Id[];
     if (pair.length === 2 && pair.every((p) => otherPair.includes(p)) && otherPair.length === 2)
       add({ severity: "error", code: "duplicate_matchup", message: `This pairing is already scheduled in week ${matchup.weekNumber}. A matchup cannot count twice.` });
@@ -74,7 +78,7 @@ export function validateEntry(
   if (matchup.sideB == null) return issues; // bye
 
   // Lineup checks.
-  for (const side of ["A", "B"] as const) {
+  for (const side of sides) {
     const lineup = side === "A" ? matchup.lineupA : matchup.lineupB;
     const teamId = side === "A" ? matchup.sideA : matchup.sideB!;
     if (new Set(lineup).size !== lineup.length)
@@ -97,7 +101,7 @@ export function validateEntry(
       }
       if (entry.isSub) {
         if (!cfg.allowSubstitutes) add({ severity: "error", code: "sub_not_allowed", bowlerId: id, side, message: `${bowlerName(id)} is a substitute, but this league does not allow substitutes.` });
-      } else if (matchup.kind === "team" && entry.teamId !== teamId) {
+      } else if (matchup.kind === "team" && !usesPartners(cfg) && entry.teamId !== teamId) {
         const real = entry.teamId ? model.teamById.get(entry.teamId)?.name : "no team";
         add({ severity: "error", code: "wrong_team", bowlerId: id, side, message: `${bowlerName(id)} is rostered with ${real} in week ${matchup.weekNumber}, not ${model.teamById.get(teamId)?.name ?? "this team"}. Mark them as a substitute or fix the roster.` });
       }
@@ -110,7 +114,7 @@ export function validateEntry(
   }
 
   // Score-level checks.
-  const lineupIds = new Set([...matchup.lineupA, ...matchup.lineupB]);
+  const lineupIds = new Set(extra ? matchup.lineupA : [...matchup.lineupA, ...matchup.lineupB]);
   const seen = new Set<string>();
   for (const s of scores) {
     const key = `${s.bowlerId}|${s.game}`;
@@ -138,7 +142,7 @@ export function validateEntry(
   // Missing scores.
   if (!matchup.forfeitBy) {
     const have = new Map(scores.map((s) => [`${s.bowlerId}|${s.game}`, s]));
-    for (const side of ["A", "B"] as const) {
+    for (const side of sides) {
       for (const id of side === "A" ? matchup.lineupA : matchup.lineupB) {
         for (let g = 1; g <= scoring.gamesPerSession; g++) {
           const s = have.get(`${id}|${g}`);
@@ -150,9 +154,11 @@ export function validateEntry(
         }
       }
     }
-    if (!matchup.lineupA.length || !matchup.lineupB.length)
+    if (!matchup.lineupA.length || (!extra && !matchup.lineupB.length))
       add({ severity: opts.forFinalize ? "error" : "warning", code: "lineup_size", message: "Both sides need at least one bowler in the lineup." });
   }
+  if (extra && opts.forFinalize && !isOfficial(extra.ref.state))
+    add({ severity: "error", code: "extra_pending", message: `Finalize ${model.teamById.get(matchup.sideB!)?.name ?? "the other pair"}'s matchup first: this extra comparison uses their scores.` });
   return issues;
 }
 
@@ -163,7 +169,7 @@ export function auditConsistency(model: SeasonModel): Issue[] {
   const seenPairs = new Map<string, Id>();
   for (const m of data.matchups) {
     const cfg = model.configForWeek(m.weekNumber);
-    if (isOfficial(m.state) && m.sideB != null && !m.forfeitBy) {
+    if (isOfficial(m.state) && m.sideB != null && !m.forfeitBy && !model.guests.has(m.id)) {
       const result = evaluateMatchup({
         matchup: m,
         scores: data.scores.filter((s) => s.matchupId === m.id),

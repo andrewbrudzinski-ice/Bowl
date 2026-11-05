@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { usesPartners } from "@/domain/config";
 import { fmt1, fmtPts } from "@/domain/math";
 import { computeStandings } from "@/domain/standings";
 import { seasonParam } from "@/components/links";
@@ -12,6 +14,7 @@ export default async function Teams({ params, searchParams }: { params: Promise<
   const sp = await searchParams;
   const ctx = await getLeagueCtx(slug, sp.season);
   if (!ctx.model || !ctx.season) return <Card><EmptyState title="No season yet" /></Card>;
+  if (usesPartners(ctx.cfg)) redirect(`/l/${slug}/standings`); // partners change every week, so there are no teams
   const m = ctx.model;
   const sq = seasonParam(ctx);
   const { rows } = computeStandings(m, { scope: "team" });

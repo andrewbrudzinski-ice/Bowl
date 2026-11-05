@@ -1,4 +1,6 @@
-import { computeStandings, type StandingRow } from "@/domain/standings";
+import { usesPartners } from "@/domain/config";
+import type { DrawnShown } from "@/domain/reveal";
+import { computeStandings, standingsScope, type StandingRow } from "@/domain/standings";
 import type { MatchupResult } from "@/domain/scoring";
 import type { Id } from "@/domain/types";
 import { isOfficial } from "@/domain/types";
@@ -24,6 +26,19 @@ export function participant(ctx: LeagueCtx, id: Id, kind: "team" | "individual",
   return { id, name: b?.name ?? "Unknown bowler", color: b?.avatarColor ?? "#64748b", logo: (b?.name ?? "?").slice(0, 1), kind: "bowler", href: `/l/${ctx.league.slug}/bowlers/${id}${q}` };
 }
 
+/** A drawn week of a rotating-partners league as names, for the draw reveal: matches, then the extra comparison, then anyone sitting out. */
+export function drawnShown(ctx: LeagueCtx, week: number): DrawnShown[] {
+  const m = ctx.model!;
+  if (!usesPartners(m.configForWeek(week))) return [];
+  const name = (id: Id) => m.teamById.get(id)?.name ?? "Unknown";
+  const rs = m.results.filter((r) => r.weekNumber === week);
+  return [
+    ...rs.filter((r) => r.b && !r.guest).map((r) => ({ a: name(r.a.participantId), b: name(r.b!.participantId), extra: false })),
+    ...rs.filter((r) => r.guest).map((r) => ({ a: name(r.a.participantId), b: name(r.b!.participantId), extra: true })),
+    ...rs.filter((r) => r.isBye).map((r) => ({ a: name(r.a.participantId), b: null, extra: false })),
+  ];
+}
+
 /** The week the league is "on": the first one with unfinished matchups, else the last completed one. */
 export function currentWeek(ctx: LeagueCtx): number {
   const m = ctx.model!;
@@ -41,16 +56,14 @@ export function currentWeek(ctx: LeagueCtx): number {
 export type RecordLine = { rank: number; w: number; l: number; t: number; points: number };
 
 export function recordsEntering(ctx: LeagueCtx, week: number): Map<Id, RecordLine> {
-  const scope = ctx.cfg.format === "individual" ? "bowler" : "team";
-  const { rows } = computeStandings(ctx.model!, { scope, throughWeek: week - 1 });
+  const { rows } = computeStandings(ctx.model!, { scope: standingsScope(ctx.cfg), throughWeek: week - 1 });
   return new Map(rows.map((r) => [r.id, { rank: r.rank, w: r.wins, l: r.losses, t: r.ties, points: r.points }]));
 }
 
 export const recordText = (r: RecordLine | undefined) => (r ? `${r.w}-${r.l}${r.t ? `-${r.t}` : ""}` : "0-0");
 
 export function standingsRows(ctx: LeagueCtx, through?: number): StandingRow[] {
-  const scope = ctx.cfg.format === "individual" ? "bowler" : "team";
-  return computeStandings(ctx.model!, { scope, throughWeek: through }).rows;
+  return computeStandings(ctx.model!, { scope: standingsScope(ctx.cfg), throughWeek: through }).rows;
 }
 
 export function formatDate(iso: string | null | undefined, opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }) {

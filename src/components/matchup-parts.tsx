@@ -74,7 +74,7 @@ export function Breakdown({ r, nameA, nameB }: { r: MatchupResult; nameA: string
     </td>
   );
   return (
-    <div className="tbl-wrap">
+    <div className="tbl-wrap" tabIndex={0} role="region" aria-label="How the matchup was decided">
       <table className="tbl">
         <caption className="sr-only">How the matchup was decided</caption>
         <thead><tr><th scope="col">Contest</th><th scope="col">{nameA}</th><th scope="col">{nameB}</th></tr></thead>

@@ -1,7 +1,7 @@
 "use client";
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { TIEBREAKERS, TIEBREAKER_LABELS, validateConfig, type RuleConfig, type Tiebreaker } from "@/domain/config";
+import { TIEBREAKERS, TIEBREAKER_LABELS, validateConfig, withPartnerDefaults, type RuleConfig, type Tiebreaker } from "@/domain/config";
 import { calculateHandicap, handicapBounds } from "@/domain/handicap";
 import { maxMatchupPoints } from "@/domain/scoring";
 
@@ -146,7 +146,8 @@ function Tiebreakers({ c }: { c: Ctl }) {
  * The rules editor. Renders one or more sections of a RuleConfig with plain-language help, validates live
  * (the server validates again), and never hardcodes a league's rules — everything starts from the config passed in.
  */
-export function RuleForm({ value, onChange, sections, disabled, lockStructural }: { value: RuleConfig; onChange: (c: RuleConfig) => void; sections: RuleSectionId[]; disabled?: boolean; lockStructural?: boolean }) {
+export function RuleForm({ value: valueIn, onChange, sections, disabled, lockStructural }: { value: RuleConfig; onChange: (c: RuleConfig) => void; sections: RuleSectionId[]; disabled?: boolean; lockStructural?: boolean }) {
+  const value = withPartnerDefaults(valueIn);
   const check = useMemo(() => validateConfig(value), [value]);
   const issues = useMemo(() => {
     const m: Record<string, string> = {};
@@ -163,9 +164,18 @@ export function RuleForm({ value, onChange, sections, disabled, lockStructural }
       {show("format") ? (
         <Group title="Competition format" note="How bowlers are matched up each week.">
           <Sel c={cd} path="format" label="Format" options={[["team", "Team vs. team"], ["individual", "Bowler vs. bowler"], ["both", "Teams, plus bowler vs. bowler inside each match"]]} help={structuralNote ?? "Team: bowlers' scores are added together. Individual: one bowler against one bowler. Combined: team totals decide the team match and each bowler also faces the bowler in the same position on the other team."} />
-          {value.format !== "individual" ? <Num c={cd} path="bowlersPerTeam" label="Bowlers per team" min={1} max={8} help={structuralNote ?? "Bowlers who bowl for a team each week."} /> : null}
-          {value.format !== "individual" ? <Bool c={c} path="allowSubstitutes" label="Allow substitutes" help="Substitutes can fill in for absent team members." /> : null}
-          <Sel c={c} path="scheduleFormat" label="Schedule type" options={[["round_robin", "Round robin"], ["double_round_robin", "Double round robin"], ["manual", "I'll build it by hand"]]} help="Used as a default when generating the schedule. Odd numbers of teams get a bye each week." />
+          {value.format === "team" ? (
+            <div className="field sm:col-span-2">
+              <label className="check items-start" htmlFor="f-partners.enabled">
+                <input id="f-partners.enabled" type="checkbox" className="mt-0.5" disabled={cd.disabled} checked={value.partners.enabled}
+                  onChange={(e) => onChange(e.target.checked ? { ...setPath(value, "partners.enabled", true), bowlersPerTeam: 2, playoffs: { ...value.playoffs, enabled: false } } : setPath(value, "partners.enabled", false))} />
+                <span><span className="font-semibold text-fg">Rotating partners</span><span className="help block font-normal">{structuralNote ?? "Instead of fixed teams, everyone is paired with a different random partner each week and each bowler is ranked on their own points. You draw the pairs from the Schedule page. Points work as usual below: each partner earns what their pair earns."}</span></span>
+              </label>
+            </div>
+          ) : null}
+          {value.format !== "individual" && !value.partners.enabled ? <Num c={cd} path="bowlersPerTeam" label="Bowlers per team" min={1} max={8} help={structuralNote ?? "Bowlers who bowl for a team each week."} /> : null}
+          {value.format !== "individual" ? <Bool c={c} path="allowSubstitutes" label="Allow substitutes" help={value.partners.enabled ? "A guest can fill in for a partner who doesn't show up." : "Substitutes can fill in for absent team members."} /> : null}
+          {!value.partners.enabled ? <Sel c={c} path="scheduleFormat" label="Schedule type" options={[["round_robin", "Round robin"], ["double_round_robin", "Double round robin"], ["manual", "I'll build it by hand"]]} help="Used as a default when generating the schedule. Odd numbers of teams get a bye each week." /> : null}
         </Group>
       ) : null}
 
@@ -188,7 +198,7 @@ export function RuleForm({ value, onChange, sections, disabled, lockStructural }
             <Num c={c} path="scoring.byePoints" label="Points for a bye week" min={0} step={0.5} />
             {value.format === "both" ? <Num c={c} path="scoring.individual.pointsPerGame" label="Individual: points per game" min={0} step={0.5} /> : null}
             {value.format === "both" ? <Num c={c} path="scoring.individual.pointsPerSeries" label="Individual: points per series" min={0} step={0.5} /> : null}
-            <p className="help sm:col-span-2">With these settings a matchup is worth up to <b className="text-fg">{maxMatchupPoints(value)}</b> points.</p>
+            <p className="help sm:col-span-2">With these settings {value.partners.enabled ? "a bowler can earn up to" : "a matchup is worth up to"} <b className="text-fg">{maxMatchupPoints(value)}</b> points{value.partners.enabled ? " in a night; both partners earn what their pair earns" : ""}.</p>
           </Group>
           <Group title="Absences, forfeits & incomplete games">
             <Sel c={c} path="scoring.absentPolicy" label="When a bowler is absent" options={[["blind", "Give a blind score"], ["none", "Score nothing"]]} />
@@ -247,7 +257,7 @@ export function RuleForm({ value, onChange, sections, disabled, lockStructural }
 
       {show("playoffs") ? (
         <Group title="Playoffs" note="Playoffs are single elimination, seeded by the final regular-season standings.">
-          <Bool c={c} path="playoffs.enabled" label="This league has playoffs" />
+          {value.partners.enabled ? <p className="help sm:col-span-2">Playoffs aren't available with rotating partners yet.</p> : <Bool c={c} path="playoffs.enabled" label="This league has playoffs" />}
           {value.playoffs.enabled ? (
             <>
               <Num c={c} path="playoffs.qualifiers" label="Teams that qualify" min={2} max={32} />

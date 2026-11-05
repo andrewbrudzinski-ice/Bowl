@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { AWARD_DEFS, computeAwards } from "@/domain/awards";
+import { usesPartners } from "@/domain/config";
 import { fmt1 } from "@/domain/math";
 import { generateInsights } from "@/domain/narrative";
 import { RECORD_CATEGORY_LABELS, buildRecordBook, type RecordCategory } from "@/domain/records";
@@ -57,17 +58,19 @@ function Leaders({ ctx, stats, team, hasData, slug, sq }: { ctx: Awaited<ReturnT
   if (!hasData) return <Card><EmptyState title="No finalized scores yet">Leaders and totals appear after the first week is finalized.</EmptyState></Card>;
   return (
     <div className="grid gap-6 md:gap-8">
+      {!usesPartners(ctx.cfg) ? (
       <form className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="tab" value="leaders" />{sq ? <input type="hidden" name="season" value={sq} /> : null}
         <div className="field"><label htmlFor="team">Filter by team</label><select id="team" name="team" defaultValue={team ?? ""} className="select !w-48"><option value="">All teams</option>{m.data.teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
         <button className="btn btn-sm mb-0.5" type="submit">Apply</button>
       </form>
+      ) : null}
       <Card>
         <CardHead title="Bowler leaderboard" right={<span className="muted">Bowlers with fewer than {min} games are marked “prov.”</span>} />
         <div className="tbl-wrap"><table className="tbl tbl-sticky"><thead><tr><th scope="col">Bowler</th><th scope="col">Avg</th><th scope="col">Gms</th><th scope="col">Pins</th><th scope="col" title="Highest scratch game">HG</th><th scope="col" title="Highest scratch series">HS</th>{hd ? <th scope="col" title="Highest handicap-adjusted game">HG+H</th> : null}{hd ? <th scope="col" title="Highest handicap-adjusted series">HS+H</th> : null}<th scope="col" title="Standard deviation of game scores; lower is steadier">σ</th></tr></thead>
           <tbody>{rows.map((s, i) => { const b = m.bowlerById.get(s.bowlerId)!; return <tr key={s.bowlerId}><td><Link href={`/l/${slug}/bowlers/${s.bowlerId}${sq ? `?season=${sq}` : ""}`} className="flex min-w-[160px] items-center gap-2 hover:underline"><span className="rank">{i + 1}</span><Avatar name={b.name} color={b.avatarColor} url={b.avatarUrl} size={22} /><span className="truncate font-semibold">{b.name}</span>{s.games < min ? <span className="badge" title={`Fewer than ${min} games`}>PROV.</span> : null}</Link></td><td className="score">{fmt1(s.average)}</td><td className="num">{s.games}</td><td className="num">{s.pins.toLocaleString()}</td><td className="num">{s.highGame?.scratch ?? "—"}</td><td className="num">{s.highSeries?.scratch ?? "—"}</td>{hd ? <td className="num">{s.highGameAdj?.adjusted ?? "—"}</td> : null}{hd ? <td className="num">{s.highSeriesAdj?.adjusted ?? "—"}</td> : null}<td className="num">{s.stdDev == null ? "—" : s.stdDev.toFixed(1)}</td></tr>; })}</tbody></table></div>
       </Card>
-      {ctx.cfg.format !== "individual" ? (
+      {ctx.cfg.format !== "individual" && !usesPartners(ctx.cfg) ? (
         <Card><CardHead title="Team highs" />
           <div className="tbl-wrap"><table className="tbl"><thead><tr><th scope="col">Team</th><th scope="col">High game</th><th scope="col">High series</th>{hd ? <th scope="col">HG+H</th> : null}{hd ? <th scope="col">HS+H</th> : null}</tr></thead>
             <tbody>{[...teams].sort((a, b) => b.hs - a.hs).map(({ t, hg, hs, hga, hsa }) => <tr key={t.id}><td><Link className="font-semibold hover:underline" href={`/l/${slug}/teams/${t.id}${sq ? `?season=${sq}` : ""}`}>{t.name}</Link></td><td className="num">{hg}</td><td className="num">{hs}</td>{hd ? <td className="num">{hga}</td> : null}{hd ? <td className="num">{hsa}</td> : null}</tr>)}</tbody></table></div>

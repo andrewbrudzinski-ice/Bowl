@@ -71,6 +71,17 @@ export async function removeRosterAction(slug: string, seasonId: string, bowlerI
 export async function generateScheduleAction(slug: string, seasonId: string, _: ActionState, fd: FormData) {
   return run(async () => { const a = await requireActor(); const from = Number(str(fd, "from")) || undefined; const r = await S.generateSchedule(getStore(), a, await lid(slug), seasonId, { fromWeek: from }); return done(slug, `Schedule created: ${r.created} matchups.${r.warnings.length ? " Note: " + r.warnings.join(" ") : ""}`); });
 }
+export async function drawPartnersAction(slug: string, seasonId: string, _: ActionState, fd: FormData) {
+  return run(async () => {
+    const a = await requireActor();
+    const r = await S.drawWeekPartners(getStore(), a, await lid(slug), seasonId, { week: Number(str(fd, "week")), bowlerIds: fd.getAll("bowler").map(String) });
+    const real = r.matches.filter((m) => m.b && !m.extra).length;
+    const extra = r.matches.some((m) => m.extra);
+    const sitting = r.matches.filter((m) => !m.b).length;
+    const parts = [`${real} match${real === 1 ? "" : "es"}`, extra ? "one extra comparison" : "", sitting ? `${sitting} bowler${sitting === 1 ? "" : "s"} sitting out` : ""].filter(Boolean);
+    return { ...done(slug, `Week ${r.week} partners drawn: ${parts.join(", ")}.${r.replaced ? " The earlier draw was replaced." : ""} Players are notified.`), data: { week: r.week, matches: r.shown } };
+  });
+}
 export async function addMatchupAction(slug: string, seasonId: string, _: ActionState, fd: FormData) {
   return run(async () => { const a = await requireActor(); await S.createMatchup(getStore(), a, await lid(slug), seasonId, { week: Number(str(fd, "week")), sideA: str(fd, "a"), sideB: opt(fd, "b") }); return done(slug, "Matchup added."); });
 }

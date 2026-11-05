@@ -331,3 +331,17 @@ button { font: inherit; }
 .sw-intro:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
 @keyframes sw-reveal { to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .sw-intro { opacity: 1; animation: none; } }
+
+/* "Watch the draw": a dark stage in either theme, so the lane and its buttons look the same everywhere. */
+.draw-dialog {
+  color-scheme: dark;
+  --color-bg: #0b0b0b; --color-surface: #141414; --color-raised: #1d1d1d; --color-hover: #262626; --color-field: #101010;
+  --color-line: rgb(255 255 255 / 0.09); --color-line-strong: rgb(255 255 255 / 0.17);
+  --color-fg: #efefef; --color-muted: #a1a1a1; --color-faint: #909090;
+  --accent: #dcb048; --accent-ink: #1b1304; --accent-text: #e8c264;
+  width: min(560px, calc(100vw - 20px)); max-height: calc(100dvh - 20px); overflow-y: auto; margin: max(10px, 2dvh) auto auto; padding: 0;
+  border: 1px solid rgb(255 255 255 / 0.16); border-radius: 22px; background: #0e0e10; color: #f3efe6;
+  box-shadow: 0 30px 90px rgb(0 0 0 / 0.6);
+}
+.draw-dialog:not([open]) { display: none; }
+.draw-dialog::backdrop { background: rgb(0 0 0 / 0.78); backdrop-filter: blur(6px); }

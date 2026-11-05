@@ -48,6 +48,7 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
   const tie = status.final && r.winner === "tie";
   const outcome = (side: "A" | "B") => {
     if (!status.final || r.isBye || r.forfeitBy) return null;
+    if (r.guest && side === "B") return null; // the compared pair earns nothing from an extra comparison
     if (tie) return <Badge title="Tied">Tied</Badge>;
     return r.winner === side ? <Badge tone="win" title="Winner">Won</Badge> : <Badge tone="loss" title="Loss">Lost</Badge>;
   };
@@ -58,7 +59,10 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
     <article className="card overflow-hidden" aria-label={`${a.name}${b ? ` versus ${b.name}` : " bye"}`}>
       <header className="flex items-center justify-between gap-3 px-5 pt-4">
         <span className="eyebrow">{dateLabel ?? `Week ${r.weekNumber}`}{r.matchup.playoffRound ? ` · Playoff round ${r.matchup.playoffRound}` : ""}</span>
-        <Badge tone={status.tone}>{status.label}</Badge>
+        <span className="flex items-center gap-2">
+          {r.guest ? <Badge tone="info" title="Compared with another pair's scores; only this pair earns points">EXTRA COMPARISON</Badge> : null}
+          <Badge tone={status.tone}>{status.label}</Badge>
+        </span>
       </header>
       {r.isBye ? (
         <div className="flex items-center justify-between gap-3 px-5 py-5">
@@ -78,7 +82,7 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
                     {showHdcp ? <div className="faint num mt-1.5 text-[11px]">{line.scratchSeries}+{line.handicapSeries}</div> : null}
                     <div className="mt-2 flex items-center justify-end gap-2">
                       {outcome(side)}
-                      <span className={`num text-[13.5px] font-bold ${win ? "text-fg" : "text-muted"}`}>{status.final || line.points ? `${fmtPts(line.points)} pt${line.points === 1 ? "" : "s"}` : "–"}</span>
+                      <span className={`num text-[13.5px] font-bold ${win ? "text-fg" : "text-muted"}`}>{r.guest && side === "B" ? "no points" : status.final || line.points ? `${fmtPts(line.points)} pt${line.points === 1 ? "" : "s"}` : "–"}</span>
                     </div>
                   </div>
                 </div>
@@ -106,7 +110,9 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
       )}
       <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line bg-[color-mix(in_srgb,var(--color-raised)_55%,transparent)] px-5 py-3.5 text-[13px]">
         <span className="muted">
-          {r.isBye
+          {r.guest && status.final
+            ? `Only ${a.name} earns points here; ${b?.name} already scored in their own matchup.${r.margin != null && !tie ? ` ${r.winner === "A" ? a.name : b?.name} ahead by ${r.margin} ${r.basis === "handicap" ? "adjusted " : ""}pin${r.margin === 1 ? "" : "s"}.` : ""}`
+            : r.isBye
             ? ""
             : !status.final
               ? r.complete

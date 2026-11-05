@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { TIEBREAKER_LABELS } from "@/domain/config";
-import { computePlayoffRace, remainingPotential, standingsProgression } from "@/domain/standings";
+import { computePlayoffRace, remainingPotential, standingsProgression, standingsScope } from "@/domain/standings";
 import { Trend } from "@/components/charts";
 import { chartColor } from "@/components/chart-colors";
 import { ShareBar } from "@/components/share-bar";
@@ -21,7 +21,7 @@ export default async function Standings({ params, searchParams }: { params: Prom
   const m = ctx.model;
   const cfg = ctx.cfg;
   const both = cfg.format === "both";
-  const view = both && sp.view === "bowlers" ? "bowler" : cfg.format === "individual" ? "bowler" : "team";
+  const view = both && sp.view === "bowlers" ? "bowler" : standingsScope(cfg);
   const sq = seasonParam(ctx);
   const { rows } = computeStandings(m, { scope: view });
   const race = view === "team" && cfg.playoffs.enabled ? computePlayoffRace(rows, cfg, (id) => remainingPotential(m, id, cfg)) : view === "bowler" && cfg.format === "individual" && cfg.playoffs.enabled ? computePlayoffRace(rows, cfg, (id) => remainingPotential(m, id, cfg)) : null;
@@ -38,15 +38,15 @@ export default async function Standings({ params, searchParams }: { params: Prom
       {both ? <Tabs current={view} items={[{ key: "team", label: "Teams", href: `/l/${slug}/standings${sq ? `?season=${sq}` : ""}` }, { key: "bowler", label: "Bowlers", href: `/l/${slug}/standings?view=bowlers${sq ? `&season=${sq}` : ""}` }]} /> : null}
       <div className="grid gap-6 md:gap-8">
         <Card>
-          {rows.length === 0 || !played ? <EmptyState title="Standings start after the first finalized week">Scores only count once the commissioner finalizes them.</EmptyState> : <StandingsTable ctx={ctx} rows={rows} race={race} qualifiers={cfg.playoffs.enabled ? cfg.playoffs.qualifiers : undefined} seasonQ={sq} />}
+          {rows.length === 0 || !played ? <EmptyState title="Standings start after the first finalized week">Scores only count once the commissioner finalizes them.</EmptyState> : <StandingsTable ctx={ctx} kind={kind} rows={rows} race={race} qualifiers={cfg.playoffs.enabled ? cfg.playoffs.qualifiers : undefined} seasonQ={sq} />}
         </Card>
         {played ? (
           <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
             <Card>
-              <CardHead title="How teams are ranked" />
+              <CardHead title={view === "team" ? "How teams are ranked" : "How bowlers are ranked"} />
               <div className="grid gap-2 p-5 text-[13px]">
                 <ol className="list-decimal pl-5">{cfg.standings.tiebreakers.map((t) => <li key={t}>{TIEBREAKER_LABELS[t]}</li>)}<li>Alphabetical (final deterministic fallback)</li></ol>
-                {ties.length ? <div className="border-t border-line pt-2"><div className="eyebrow mb-1">Tie-breaks in effect</div><ul className="grid gap-1">{ties.map((r) => <li key={r.id}><b>{r.name}</b> <span className="muted">is below the team above: {r.reason?.toLowerCase()}</span></li>)}</ul></div> : <p className="muted">No ties need breaking right now.</p>}
+                {ties.length ? <div className="border-t border-line pt-2"><div className="eyebrow mb-1">Tie-breaks in effect</div><ul className="grid gap-1">{ties.map((r) => <li key={r.id}><b>{r.name}</b> <span className="muted">is below the {view === "team" ? "team" : "bowler"} above: {r.reason?.toLowerCase()}</span></li>)}</ul></div> : <p className="muted">No ties need breaking right now.</p>}
                 {cfg.playoffs.enabled ? (
                   <Alert tone="info">Top {cfg.playoffs.qualifiers} qualify. “Clinched” and “Out” appear only when no combination of remaining results could change the outcome{cfg.standings.tiebreakers[0] !== "points" && cfg.standings.tiebreakers[0] !== "wins" ? " — with this ranking rule (pins/averages) that can't be proven early, so only “In” and “Bubble” are shown" : ""}.</Alert>
                 ) : <p className="faint text-[13px]">This league has no playoffs, so only regular-season standings are shown.</p>}

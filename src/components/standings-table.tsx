@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Fragment } from "react";
 import { fmt1, fmtPts } from "@/domain/math";
-import type { PlayoffRow, StandingRow } from "@/domain/standings";
+import { standingsScope, type PlayoffRow, type StandingRow } from "@/domain/standings";
 import type { LeagueCtx } from "@/server/context";
 import { participant } from "@/server/views";
 import { Badge, FormChips, TeamMark } from "./ui";
@@ -14,7 +14,7 @@ const statusBadge = (s: PlayoffRow["status"]) =>
   : null;
 
 export function StandingsTable({
-  ctx, rows, race, compact = false, limit, qualifiers, seasonQ,
+  ctx, rows, race, compact = false, limit, qualifiers, seasonQ, kind: kindProp,
 }: {
   ctx: LeagueCtx;
   rows: StandingRow[];
@@ -23,8 +23,10 @@ export function StandingsTable({
   limit?: number;
   qualifiers?: number;
   seasonQ?: string | null;
+  /** What the rows are: teams or bowlers. Defaults to what the league ranks. */
+  kind?: "team" | "individual";
 }) {
-  const kind = ctx.cfg.format === "individual" ? "individual" : "team";
+  const kind = kindProp ?? (standingsScope(ctx.cfg) === "bowler" ? "individual" : "team");
   const shown = limit ? rows.slice(0, limit) : rows;
   const raceBy = new Map((race ?? []).map((r) => [r.id, r]));
   const showTies = rows.some((r) => r.ties > 0);

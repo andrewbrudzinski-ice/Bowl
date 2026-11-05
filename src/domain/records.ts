@@ -1,3 +1,4 @@
+import { usesPartners } from "./config";
 import type { SeasonModel } from "./engine";
 import { computeStandings } from "./standings";
 import { collectNights, collectTeamNights, winStreaks } from "./stats";
@@ -153,7 +154,7 @@ export function buildRecordBook(models: SeasonModel[], opts: RecordBookOptions =
         add("season_avg", { value: avg, order: ord(date, last), event: { ...seasonBase, holderKind: "bowler", holderId: id, holderName: name, value: avg, detail: `${avg.toFixed(1)} over ${p.games} games` } });
         add("season_pins", { value: p.pins, order: ord(date, last), event: { ...seasonBase, holderKind: "bowler", holderId: id, holderName: name, value: p.pins, detail: `${p.pins} pins in ${p.games} games` } });
       }
-      if (cfg0.format !== "individual") {
+      if (cfg0.format !== "individual" && !usesPartners(cfg0)) {
         const { rows } = computeStandings(m, { scope: "team" });
         for (const r of rows) {
           if (!r.played) continue;
@@ -165,6 +166,7 @@ export function buildRecordBook(models: SeasonModel[], opts: RecordBookOptions =
 
     // Streaks
     for (const scope of ["team", "individual"] as const) {
+      if (usesPartners(cfg0)) continue; // pairs last a single night, so there are no team or individual win streaks to record
       if ((scope === "team" && cfg0.format === "individual") || (scope === "individual" && cfg0.format !== "individual")) continue;
       for (const s of winStreaks(m.results, scope)) {
         if (s.length < 2) continue;

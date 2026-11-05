@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { usesPartners } from "@/domain/config";
 import { MODULES, MODULE_SPAN } from "@/components/home/modules";
 import { Alert, Card, EmptyState } from "@/components/ui";
 import { getLeagueCtx } from "@/server/context";
@@ -34,7 +35,8 @@ export default async function LeagueHome({ params, searchParams }: { params: Pro
   const hasTeams = m.data.teams.length > 0;
   const hasRoster = m.data.roster.length > 0;
   const hasSchedule = m.data.matchups.length > 0;
-  const setupStep = !hasTeams ? "teams" : !hasRoster ? "roster" : !hasSchedule ? "schedule" : null;
+  const partners = usesPartners(ctx.cfg);
+  const setupStep = partners ? (!hasRoster ? "roster" : !hasSchedule ? "draw" : null) : !hasTeams ? "teams" : !hasRoster ? "roster" : !hasSchedule ? "schedule" : null;
   const enabled = league.homepage.filter((x) => x.enabled && MODULES[x.id]);
 
   return (
@@ -74,7 +76,10 @@ export default async function LeagueHome({ params, searchParams }: { params: Pro
       {setupStep && ctx.can("roster.manage") ? (
         <Alert tone="info" title="Finish setting up your league">
           {setupStep === "teams" && <>Start by adding your teams and bowlers in <Link className="underline" href={`/l/${slug}/admin/roster`}>Commissioner → Teams & roster</Link>.</>}
-          {setupStep === "roster" && <>Teams exist but nobody is on this season's roster. Add bowlers to teams (with entering averages) in <Link className="underline" href={`/l/${slug}/admin/roster`}>Teams & roster</Link>.</>}
+          {setupStep === "roster" && (partners
+            ? <>Nobody is on this season's roster yet. Add your bowlers (with entering averages) in <Link className="underline" href={`/l/${slug}/admin/roster`}>Commissioner → Roster</Link>.</>
+            : <>Teams exist but nobody is on this season's roster. Add bowlers to teams (with entering averages) in <Link className="underline" href={`/l/${slug}/admin/roster`}>Teams & roster</Link>.</>)}
+          {setupStep === "draw" && <>Rosters are ready. Draw this week's partners in <Link className="underline" href={`/l/${slug}/admin/schedule`}>Commissioner → Schedule</Link>.</>}
           {setupStep === "schedule" && <>Rosters are ready. Generate the season schedule in <Link className="underline" href={`/l/${slug}/admin/schedule`}>Commissioner → Schedule</Link>.</>}
         </Alert>
       ) : null}

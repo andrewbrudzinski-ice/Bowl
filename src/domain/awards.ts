@@ -1,5 +1,6 @@
+import { usesPartners } from "./config";
 import type { SeasonModel } from "./engine";
-import { computeStandings, playoffAdvancer, type StandingRow } from "./standings";
+import { computeStandings, playoffAdvancer, standingsScope, type StandingRow } from "./standings";
 import { bowlerSeasonStats, collectNights, collectTeamNights, improvement, topWithTies, winStreaks, type BowlerSeasonStats } from "./stats";
 import type { AwardsConfig, Id } from "./types";
 import { isOfficial } from "./types";
@@ -126,9 +127,10 @@ function paramsOf(cfg: AwardsConfig, def: AwardDef): Record<string, number> {
 }
 
 export function championOf(model: SeasonModel): { kind: "team" | "bowler"; id: Id; name: string; how: string } | null {
-  const kind = model.configForWeek(1).format === "individual" ? "bowler" : "team";
-  const nameOf = (id: Id) => (kind === "team" ? model.teamById.get(id)?.name : model.bowlerById.get(id)?.name) ?? "Unknown";
   const cfg = model.configForWeek(1);
+  const scope = standingsScope(cfg);
+  const kind = scope === "team" ? "team" : "bowler";
+  const nameOf = (id: Id) => (kind === "team" ? model.teamById.get(id)?.name : model.bowlerById.get(id)?.name) ?? "Unknown";
   if (cfg.playoffs.enabled) {
     const playoff = model.results.filter((r) => model.weekByNumber.get(r.weekNumber)?.phase === "playoff" && !r.isBye && isOfficial(r.matchup.state));
     if (playoff.length) {
@@ -148,7 +150,7 @@ export function championOf(model: SeasonModel): { kind: "team" | "bowler"; id: I
     return { kind, id, name: nameOf(id), how: "Recorded by the commissioner" };
   }
   if (model.data.season.status === "completed") {
-    const { rows } = computeStandings(model, { scope: kind === "team" ? "team" : "bowler" });
+    const { rows } = computeStandings(model, { scope });
     if (rows[0]) return { kind, id: rows[0].id, name: rows[0].name, how: "First place after the regular season" };
   }
   return null;
@@ -221,7 +223,7 @@ export function computeAwards(
         break;
       }
       case "closest_matchup": {
-        const rs = model.results.filter((r) => r.official && !r.isBye && !r.forfeitBy && r.complete && r.margin != null && r.winner && r.winner !== "tie" && (periodWeek == null || r.weekNumber === periodWeek));
+        const rs = model.results.filter((r) => r.official && !r.isBye && !r.guest && !r.forfeitBy && r.complete && r.margin != null && r.winner && r.winner !== "tie" && (periodWeek == null || r.weekNumber === periodWeek));
         const top = topWithTies(rs, (r) => r.margin, "min");
         if (top) push(def, periodWeek, top.holders.map((r) => ({ kind: r.matchup.kind === "team" ? "team" : "bowler", id: r.winner === "A" ? r.a.participantId : r.b!.participantId, name: `${nameForParticipant(model, r.a.participantId, r.matchup.kind)} vs ${nameForParticipant(model, r.b!.participantId, r.matchup.kind)}`, week: r.weekNumber, matchupId: r.matchup.id, detail: `Decided by ${r.margin} pin${r.margin === 1 ? "" : "s"} (week ${r.weekNumber})` })), `${label}: ${top.value} pins`);
         break;
@@ -229,7 +231,7 @@ export function computeAwards(
       case "biggest_upset": {
         const ups: { r: (typeof model.results)[number]; gap: number }[] = [];
         for (const r of model.results) {
-          if (!r.official || r.isBye || r.forfeitBy || !r.winner || r.winner === "tie") continue;
+          if (!r.official || r.isBye || r.guest || r.forfeitBy || !r.winner || r.winner === "tie") continue;
           if (periodWeek != null && r.weekNumber !== periodWeek) continue;
           const avgSum = (side: typeof r.a) => {
             const avs = side.lineup.map((l) => l.average);
@@ -266,6 +268,7 @@ export function computeAwards(
         break;
       }
       case "longest_win_streak": {
+        if (usesPartners(model.configForWeek(1))) break; // a pair exists for one night, so there are no team streaks
         const kind = model.configForWeek(1).format === "individual" ? "individual" : "team";
         const streaks = winStreaks(model.results, kind);
         const top = topWithTies(streaks, (s) => s.length);

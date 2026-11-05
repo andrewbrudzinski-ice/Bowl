@@ -1,4 +1,4 @@
-import { TIEBREAKER_LABELS, type RuleConfig } from "./config";
+import { TIEBREAKER_LABELS, usesPartners, type RuleConfig } from "./config";
 import { handicapBounds } from "./handicap";
 import { maxMatchupPoints } from "./scoring";
 
@@ -22,10 +22,11 @@ export function describeRules(cfg: RuleConfig): RuleSection[] {
   sections.push({
     id: "format", title: "Format",
     items: [
-      { label: "Competition", value: cfg.format === "team" ? "Team vs. team" : cfg.format === "individual" ? "Bowler vs. bowler" : "Team vs. team, with an individual competition inside each team matchup" },
-      ...(cfg.format !== "individual" ? [{ label: "Team size", value: `${cfg.bowlersPerTeam} bowler${cfg.bowlersPerTeam === 1 ? "" : "s"}`, note: cfg.allowSubstitutes ? "Substitutes are allowed." : "Substitutes are not allowed." }] : []),
+      { label: "Competition", value: usesPartners(cfg) ? "Rotating partners: bowlers are paired by a random draw every week, and each pair faces another pair" : cfg.format === "team" ? "Team vs. team" : cfg.format === "individual" ? "Bowler vs. bowler" : "Team vs. team, with an individual competition inside each team matchup" },
+      ...(usesPartners(cfg) ? [{ label: "Extra pair", value: "When the pairs don't split into matches, the pair left over bowls against another pair's scores for points of its own; the other pair gets nothing extra." }] : []),
+      ...(cfg.format !== "individual" ? [{ label: usesPartners(cfg) ? "Pair size" : "Team size", value: `${cfg.bowlersPerTeam} bowler${cfg.bowlersPerTeam === 1 ? "" : "s"}`, note: cfg.allowSubstitutes ? "Substitutes are allowed." : "Substitutes are not allowed." }] : []),
       { label: "Games per night", value: String(g) },
-      { label: "Schedule", value: cfg.scheduleFormat === "round_robin" ? "Round robin" : cfg.scheduleFormat === "double_round_robin" ? "Double round robin" : "Built by hand by the commissioner" },
+      { label: "Schedule", value: usesPartners(cfg) ? "Partners and opponents are drawn each week by the commissioner" : cfg.scheduleFormat === "round_robin" ? "Round robin" : cfg.scheduleFormat === "double_round_robin" ? "Double round robin" : "Built by hand by the commissioner" },
     ],
   });
 
@@ -37,7 +38,8 @@ export function describeRules(cfg: RuleConfig): RuleSection[] {
       { label: "Series (all ${g} games)".replace("${g}", String(g)), value: `Winner of the combined ${basis} pins earns ${pts(s.pointsPerSeries, "point")}`, note: `A tied series gives each side ${n(s.pointsPerSeries * s.tieFraction)}.` },
       ...(s.bonus.highGame || s.bonus.highSeries ? [{ label: "Bonus points", value: [s.bonus.highGame ? `${pts(s.bonus.highGame, "point")} for the side with the highest single game` : "", s.bonus.highSeries ? `${pts(s.bonus.highSeries, "point")} for the highest individual series` : ""].filter(Boolean).join("; ") }] : []),
       ...(cfg.format === "both" ? [{ label: "Individual competition", value: `Each bowler faces the matching bowler on the other team: ${pts(s.individual.pointsPerGame, "point")} per game, ${pts(s.individual.pointsPerSeries, "point")} for the series.` }] : []),
-      { label: "Maximum points per matchup", value: n(maxMatchupPoints(cfg)) },
+      { label: usesPartners(cfg) ? "Most a bowler can earn in a night" : "Maximum points per matchup", value: n(maxMatchupPoints(cfg)) },
+      ...(usesPartners(cfg) ? [{ label: "Points are credited to", value: "Each bowler in the pair, so every bowler is ranked on their own points", note: "A bowler who doesn't bowl that night earns nothing." }] : []),
       { label: "Matchup win/loss is decided by", value: s.matchupWinnerBy === "points" ? "Most points earned in the matchup" : "The series total" },
       { label: "Valid game scores", value: `${s.minGameScore}–${s.maxGameScore}`, note: `Entries more than ${s.suspiciousDeviation} pins from a bowler's average are flagged for review.` },
     ],
@@ -49,7 +51,7 @@ export function describeRules(cfg: RuleConfig): RuleSection[] {
       { label: "Absent bowler", value: s.absentPolicy === "none" ? "Scores nothing" : s.blindMode === "fixed" ? `Blind score of ${s.blindFixed} per game` : `Blind score: their average minus ${s.blindOffset}` },
       { label: "Forfeit", value: s.forfeitPoints === "max_to_opponent" ? "Opponent receives the maximum points" : "No points are awarded" },
       { label: "Incomplete games", value: s.incompletePolicy === "block_finalize" ? "A matchup can't be finalized until every score is entered" : "Finalizing is allowed; only fully-scored games count" },
-      { label: "Bye week", value: `${pts(s.byePoints, "point")}` },
+      { label: usesPartners(cfg) ? "Sitting out" : "Bye week", value: `${pts(s.byePoints, "point")}` },
     ],
   });
 

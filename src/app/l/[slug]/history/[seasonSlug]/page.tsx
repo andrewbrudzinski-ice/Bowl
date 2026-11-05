@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Trophy } from "lucide-react";
 import { championOf } from "@/domain/awards";
 import { buildRecordBook } from "@/domain/records";
-import { computePlayoffRace, computeStandings, remainingPotential } from "@/domain/standings";
+import { computePlayoffRace, computeStandings, remainingPotential, standingsScope } from "@/domain/standings";
 import { bowlerSeasonStats } from "@/domain/stats";
 import { fmt1 } from "@/domain/math";
 import { StandingsTable } from "@/components/standings-table";
@@ -18,7 +18,7 @@ export default async function SeasonHistory({ params }: { params: Promise<{ slug
   if (!ctx.model || !ctx.season || ctx.season.slug !== seasonSlug) notFound();
   const m = ctx.model;
   const champ = championOf(m);
-  const scope = ctx.cfg.format === "individual" ? "bowler" : "team";
+  const scope = standingsScope(ctx.cfg);
   const { rows } = computeStandings(m, { scope });
   const race = null as ReturnType<typeof computePlayoffRace>;
   void remainingPotential;

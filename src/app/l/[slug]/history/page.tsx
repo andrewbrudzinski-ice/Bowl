@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { championOf } from "@/domain/awards";
 import { fmtPts } from "@/domain/math";
-import { computeStandings } from "@/domain/standings";
+import { computeStandings, standingsScope } from "@/domain/standings";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { getLeagueCtx } from "@/server/context";
 import { allModels } from "@/server/views";
@@ -21,7 +21,7 @@ export default async function History({ params }: { params: Promise<{ slug: stri
           {models.map((m) => {
             const s = m.data.season;
             const champ = championOf(m);
-            const { rows } = computeStandings(m, { scope: m.configForWeek(1).format === "individual" ? "bowler" : "team" });
+            const { rows } = computeStandings(m, { scope: standingsScope(m.configForWeek(1)) });
             return (
               <li key={s.id} className="card card-link p-4">
                 <Link href={`/l/${slug}/history/${s.slug}`} className="grid gap-2">

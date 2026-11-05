@@ -130,8 +130,10 @@ export default async function MatchupPage({ params }: { params: Promise<{ slug: 
           <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
             <Card>
               <CardHead title="Entering the matchup" />
+              <div className="tbl-wrap" tabIndex={0} role="region" aria-label="The two sides entering the matchup">
               <table className="tbl">
-                <thead><tr><th scope="col" /><th scope="col"><ParticipantName p={A} link={false} size={20} /></th><th scope="col"><ParticipantName p={B} link={false} size={20} /></th></tr></thead>
+                <caption className="sr-only">The two sides entering the matchup</caption>
+                <thead><tr><th scope="col"><span className="sr-only">Measure</span></th><th scope="col"><ParticipantName p={A} link={false} size={20} /></th><th scope="col"><ParticipantName p={B} link={false} size={20} /></th></tr></thead>
                 <tbody>
                   <tr><td className="muted">Standing</td><td>{rowA ? `#${rowA.rank}` : "—"}</td><td>{rowB ? `#${rowB.rank}` : "—"}</td></tr>
                   <tr><td className="muted">Record</td><td>{rowA ? `${rowA.wins}-${rowA.losses}${rowA.ties ? `-${rowA.ties}` : ""}` : "0-0"}</td><td>{rowB ? `${rowB.wins}-${rowB.losses}${rowB.ties ? `-${rowB.ties}` : ""}` : "0-0"}</td></tr>
@@ -141,6 +143,7 @@ export default async function MatchupPage({ params }: { params: Promise<{ slug: 
                   <tr><td className="muted">Last five</td><td><FormChips form={rowA?.form ?? []} /></td><td><FormChips form={rowB?.form ?? []} /></td></tr>
                 </tbody>
               </table>
+              </div>
             </Card>
             <Card>
               <CardHead title="Head-to-head" />

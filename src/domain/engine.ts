@@ -1,4 +1,4 @@
-import { playoffConfigFor, type RuleConfig } from "./config";
+import { playoffConfigFor, usesPartners, withPartnerDefaults, type RuleConfig } from "./config";
 import {
   averageCutoffWeek,
   calculateHandicap,
@@ -7,6 +7,7 @@ import {
   type HandicapBreakdown,
   type ResolvedAverage,
 } from "./handicap";
+import { guestLineup, guestLinks, pairTeamFor, type GuestLink } from "./partners";
 import { evaluateMatchup, type BowlerHandicapInfo, type MatchupResult } from "./scoring";
 import type { Bowler, Id, Matchup, RosterEntry, RuleVersion, Score, Season, Team, Week } from "./types";
 import { isOfficial } from "./types";
@@ -52,7 +53,12 @@ export interface SeasonModel {
   handicapAt: (bowlerId: Id, week: number) => WeekHandicap;
   rosterAt: (bowlerId: Id, week: number) => RosterEntry | null;
   teamOf: (bowlerId: Id, week: number) => Id | null;
+  /** Real teams, plus the drawn pairs of a rotating-partners league (see `pairTeamIds`). */
   teamById: Map<Id, Team>;
+  /** Sides that are weekly pairs rather than teams: they exist only as matchup sides, named after their lineup. */
+  pairTeamIds: Set<Id>;
+  /** Extra comparisons (rotating partners), by matchup id: the matchup whose scores they borrow. */
+  guests: Map<Id, GuestLink>;
   bowlerById: Map<Id, Bowler>;
   weekByNumber: Map<number, Week>;
   /** Latest week number with at least one official matchup. */
@@ -67,7 +73,8 @@ export function versionForWeek(versions: RuleVersion[], week: number): RuleVersi
 }
 
 export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: RuleVersion[] } = {}): SeasonModel {
-  const versions = opts.versionsOverride ?? data.season.ruleVersions;
+  // Rules saved before optional settings existed are completed here, so everything below can rely on every field.
+  const versions = (opts.versionsOverride ?? data.season.ruleVersions).map((v) => (v.config.partners ? v : { ...v, config: withPartnerDefaults(v.config) }));
   const teamById = new Map(data.teams.map((t) => [t.id, t]));
   const bowlerById = new Map(data.bowlers.map((b) => [b.id, b]));
   const weekByNumber = new Map(data.weeks.map((w) => [w.number, w]));
@@ -77,6 +84,22 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
   const verFor = (week: number) => versionForWeek(versions, week);
   const verByNumber = (n: number) => versions.find((v) => v.version === n);
   const cfgFor = (week: number) => playoffConfigFor(verFor(week).config, phaseOf(week));
+
+  // Rotating partners: a drawn pair is a side id on the matchup with no team row behind it, shown by its lineup's names.
+  const pairTeamIds = new Set<Id>();
+  const links = guestLinks(data.matchups);
+  // Real matches name a pair first; an extra comparison only borrows the name of the pair it is compared with.
+  for (const m of [...data.matchups].sort((a, b) => Number(links.has(a.id)) - Number(links.has(b.id)))) {
+    if (m.kind !== "team" || !usesPartners(verFor(m.weekNumber).config)) continue;
+    for (const [side, lineup] of [[m.sideA, m.lineupA], [m.sideB, m.lineupB]] as const) {
+      if (!side || teamById.has(side)) continue;
+      const pair = pairTeamFor(side, data.season.leagueId, lineup, bowlerById);
+      if (pair) {
+        teamById.set(side, pair);
+        pairTeamIds.add(side);
+      }
+    }
+  }
 
   const rosterAt = (bowlerId: Id, week: number): RosterEntry | null => {
     const entries = data.roster.filter((r) => r.bowlerId === bowlerId);
@@ -142,13 +165,23 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
     return out;
   };
 
+  // An extra comparison has no scores of its own for side B: it uses the other pair's scores from their matchup.
+  const guests = new Map<Id, GuestLink>();
+  for (const [id, link] of links) {
+    const m = matchById.get(id);
+    if (m && usesPartners(verFor(m.weekNumber).config)) guests.set(id, link);
+  }
+
   const results: MatchupResult[] = [];
   const ordered = [...data.matchups].sort((a, b) => a.weekNumber - b.weekNumber || a.id.localeCompare(b.id));
   for (const m of ordered) {
     const official = isOfficial(m.state);
     const ver = official && m.ruleVersion != null ? (verByNumber(m.ruleVersion) ?? verFor(m.weekNumber)) : verFor(m.weekNumber);
     const cfg = playoffConfigFor(ver.config, phaseOf(m.weekNumber));
-    const lineupIds = new Set<Id>([...m.lineupA, ...m.lineupB]);
+    const link = guests.get(m.id);
+    // For an extra comparison, side B is whoever is on the compared pair now, and their scores are borrowed from that matchup.
+    const played: Matchup = link ? { ...m, lineupB: guestLineup(link) } : m;
+    const lineupIds = new Set<Id>([...played.lineupA, ...played.lineupB]);
     if (!lineupIds.size) for (const s of data.scores) if (s.matchupId === m.id) lineupIds.add(s.bowlerId);
     if (m.kind === "individual") {
       lineupIds.add(m.sideA);
@@ -169,10 +202,17 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
         };
       }
     }
+    const scores = link
+      ? [
+          ...data.scores.filter((s) => s.matchupId === m.id && s.side === "A"),
+          ...data.scores.filter((s) => s.matchupId === link.ref.id && s.side === link.refSide).map((s) => ({ ...s, matchupId: m.id, side: "B" as const })),
+        ]
+      : data.scores.filter((s) => s.matchupId === m.id);
     results.push(
       evaluateMatchup({
-        matchup: m,
-        scores: data.scores.filter((s) => s.matchupId === m.id),
+        matchup: played,
+        guest: !!link,
+        scores,
         cfg,
         handicaps,
         includeProvisional: cfg.standings.includeProvisional,
@@ -193,6 +233,8 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
     rosterAt,
     teamOf,
     teamById,
+    pairTeamIds,
+    guests,
     bowlerById,
     weekByNumber,
     lastOfficialWeek,
