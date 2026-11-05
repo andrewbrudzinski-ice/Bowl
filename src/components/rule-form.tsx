@@ -217,6 +217,7 @@ export function RuleForm({ value: valueIn, onChange, sections, disabled, lockStr
             <Bool c={c} path="handicap.enabled" label="Use handicaps" help="Turn off for a scratch league." />
             {value.handicap.enabled ? (
               <>
+                <Num c={c} path="handicapSetting.weeks" label="Handicap-setting weeks at the start" min={0} max={12} suffix="week(s)" help="Bowled scratch with no handicap. Scores count toward everyone's average and handicap, but not toward points, wins or the standings. 0 for none." />
                 <Num c={c} path="handicap.percentage" label="Handicap percentage" min={0} max={200} suffix="%" help="Commonly 80, 90 or 100. Higher gives weaker bowlers more help." />
                 <Sel c={c} path="handicap.baseMode" label="Base average" options={[["fixed", "A fixed number"], ["league_average", "League average each week"], ["highest_average", "Highest bowler average each week"]]} help="The score everyone is handicapped up toward." />
                 <Num c={c} path="handicap.baseValue" label={value.handicap.baseMode === "fixed" ? "Base average" : "Base average until averages exist"} min={0} max={300} help="Commonly 200–220." />

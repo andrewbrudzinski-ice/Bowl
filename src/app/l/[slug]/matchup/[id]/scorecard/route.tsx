@@ -57,10 +57,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
           <div style={{ flex: 1 }}>{hdcp ? "Handicap-adjusted" : "Scratch"}</div>
           {r.games.map((g) => <div key={g.game} style={{ width: 120, justifyContent: "flex-end", display: "flex" }}>{`G${g.game}`}</div>)}
           <div style={{ width: 140, justifyContent: "flex-end", display: "flex" }}>SERIES</div>
-          <div style={{ width: 90, justifyContent: "flex-end", display: "flex" }}>PTS</div>
+          <div style={{ width: 90, justifyContent: "flex-end", display: "flex" }}>{r.settingWeek ? "" : "PTS"}</div>
         </div>
         {sides.map((s, i) => {
-          const win = status.final && r.winner === s.side;
+          const win = status.final && !r.settingWeek && r.winner === s.side;
           return (
             <div key={i} style={{ display: "flex", alignItems: "center", height: rowH, borderTop: "1px solid #2a2a2a" }}>
               <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
@@ -76,12 +76,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ slu
                 <div style={{ fontSize: 40, fontWeight: 900 }}>{String(s.basisSeries || "–")}</div>
                 {hdcp ? <div style={{ fontSize: 16, color: "#909090" }}>{`${s.scratchSeries}+${s.handicapSeries}`}</div> : null}
               </div>
-              <div style={{ width: 90, display: "flex", justifyContent: "flex-end", fontSize: 40, fontWeight: 900 }}>{String(fmtPts(s.points))}</div>
+              <div style={{ width: 90, display: "flex", justifyContent: "flex-end", fontSize: 40, fontWeight: 900 }}>{r.settingWeek ? "" : String(fmtPts(s.points))}</div>
             </div>
           );
         })}
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: "auto", fontSize: 18, color: "#909090" }}>
-          <div>{status.final && r.margin != null ? `Margin: ${r.margin} ${hdcp ? "adjusted " : ""}pins` : "Not final — provisional scores"}</div>
+          <div>{r.settingWeek ? "Handicap-setting week — no points" : status.final && r.margin != null ? `Margin: ${r.margin} ${hdcp ? "adjusted " : ""}pins` : "Not final — provisional scores"}</div>
           <div style={{ display: "flex", color: "#e8c264", fontWeight: 800 }}>Sweeper</div>
         </div>
       </div>

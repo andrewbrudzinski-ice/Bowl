@@ -58,6 +58,7 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
         <h1 className="h-page mt-1">Week {wk} <span className="muted font-medium">· {formatDate(week.date, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</span></h1>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Badge tone={week.status === "completed" ? "win" : week.status === "postponed" ? "warn" : "neutral"}>{week.status === "completed" ? "WEEK COMPLETE" : week.status === "postponed" ? "POSTPONED" : week.status === "in_progress" ? "IN PROGRESS" : "UPCOMING"}</Badge>
+          {ctx.model!.isSettingWeek(wk) ? <Badge tone="info" title="Bowled scratch. Counts toward averages and handicaps, not the standings.">HANDICAP WEEK</Badge> : null}
           {week.label ? <span className="muted text-[13px]">{week.label}</span> : null}
           {shown.length ? <WatchDrawButton matches={shown} week={wk} /> : null}
         </div>
@@ -97,7 +98,7 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
         </div>
       ) : null}
 
-      {official ? (
+      {official && !ctx.model!.isSettingWeek(wk) ? (
         <Card>
           <CardHead title={`Standings after week ${wk}`} right={allDone ? null : <Badge tone="warn">PARTIAL WEEK</Badge>} />
           <StandingsTable ctx={ctx} rows={rows} compact seasonQ={sq} qualifiers={ctx.cfg.playoffs.enabled ? ctx.cfg.playoffs.qualifiers : undefined} />

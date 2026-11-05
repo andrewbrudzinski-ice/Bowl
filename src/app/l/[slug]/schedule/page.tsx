@@ -36,6 +36,7 @@ export default async function Schedule({ params, searchParams }: { params: Promi
                   {w.number === cur && ctx.season!.status === "active" ? <Badge tone="accent">THIS WEEK</Badge> : null}
                   {done ? <Badge tone="win">COMPLETE</Badge> : null}
                   {w.status === "postponed" ? <Badge tone="warn">POSTPONED</Badge> : null}
+                  {m.isSettingWeek(w.number) ? <Badge tone="info" title="Bowled scratch. Counts toward averages and handicaps, not the standings.">HANDICAP WEEK</Badge> : null}
                 </div>
                 {rs.length === 0 ? <p className="muted text-[13px]">No matchups scheduled{w.phase === "playoff" ? " yet — the bracket is set when the previous round finishes." : "."}</p> : (
                   <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">

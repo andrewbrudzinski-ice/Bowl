@@ -41,9 +41,9 @@ export function classifyDiffs(diffs: ConfigDiff[]): ChangeClass {
   const has = (prefix: string) => diffs.some((d) => d.path === prefix || d.path.startsWith(prefix + "."));
   return {
     structural: diffs.filter((d) => STRUCTURAL_PATHS.some((p) => d.path === p)).map((d) => d.path),
-    affectsHandicap: has("handicap"),
-    affectsScoring: has("scoring") || has("format") || has("partners"),
-    affectsStandings: has("standings") || has("scoring") || has("partners"),
+    affectsHandicap: has("handicap") || has("handicapSetting"),
+    affectsScoring: has("scoring") || has("format") || has("partners") || has("handicapSetting"),
+    affectsStandings: has("standings") || has("scoring") || has("partners") || has("handicapSetting"),
     affectsPlayoffs: has("playoffs"),
   };
 }

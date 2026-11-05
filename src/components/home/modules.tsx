@@ -36,7 +36,7 @@ export function StandingsModule({ ctx }: { ctx: LeagueCtx }) {
       {rows.length === 0 ? (
         <EmptyState title={ctx.cfg.partners?.enabled ? "No bowlers yet" : "No teams yet"}>{ctx.cfg.partners?.enabled ? "Add your bowlers, then draw each week's partners from the Commissioner area." : "Add teams and bowlers, then generate a schedule from the Commissioner area."}</EmptyState>
       ) : !played ? (
-        <EmptyState title="Standings begin after the first finalized week">Official standings only count finalized results.</EmptyState>
+        <EmptyState title={m.data.weeks.some((w) => m.isSettingWeek(w.number)) ? "Standings begin after the handicap-setting weeks" : "Standings begin after the first finalized week"}>{m.data.weeks.some((w) => m.isSettingWeek(w.number)) ? "The first weeks are bowled scratch to set handicaps and don't count here." : "Official standings only count finalized results."}</EmptyState>
       ) : (
         <>
           <StandingsTable ctx={ctx} rows={rows} race={race} compact limit={8} qualifiers={ctx.cfg.playoffs.enabled ? ctx.cfg.playoffs.qualifiers : undefined} />

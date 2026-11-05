@@ -34,7 +34,7 @@ export default async function ScoresPage({ params, searchParams }: { params: Pro
   const nm = (id: string) => (kind === "team" ? m.teamById.get(id) : m.bowlerById.get(id));
   const col = (id: string) => { const x = nm(id) as { color?: string; avatarColor?: string } | undefined; return x?.color ?? x?.avatarColor ?? "#64748b"; };
   const data: EntryData = {
-    slug, seasonId: ctx.season.id, week: wk, dateLabel: formatDate(week?.date, { weekday: "short", month: "short", day: "numeric" }), cfg,
+    slug, seasonId: ctx.season.id, week: wk, settingWeek: m.isSettingWeek(wk), dateLabel: formatDate(week?.date, { weekday: "short", month: "short", day: "numeric" }), cfg,
     pool, canFinalize: ctx.can("results.finalize"), canCorrect: ctx.can("results.correct"),
     // An extra comparison goes last: it uses the scores entered for the pair it is compared with.
     matchups: results.filter((r) => !r.isBye).sort((x, y) => Number(x.guest) - Number(y.guest)).map((r) => {

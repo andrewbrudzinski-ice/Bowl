@@ -112,7 +112,7 @@ export function bowlerSeasonStats(model: SeasonModel, nights: NightLine[] = coll
       // Rotating partners: a bowler's record is the result of each of their pair's matches.
       record = { wins: 0, losses: 0, ties: 0 };
       for (const r of model.results) {
-        if (!r.official || r.isBye || !r.winner) continue;
+        if (!r.official || r.isBye || r.settingWeek || !r.winner) continue;
         const side = r.a.lineup.some((l) => l.bowlerId === id && !l.absent) ? "A" : r.b?.lineup.some((l) => l.bowlerId === id && !l.absent) ? "B" : null;
         if (!side) continue;
         if (r.winner === "tie") record.ties++;
@@ -122,7 +122,7 @@ export function bowlerSeasonStats(model: SeasonModel, nights: NightLine[] = coll
     } else if (cfg0.format !== "team") {
       record = { wins: 0, losses: 0, ties: 0 };
       for (const r of model.results) {
-        if (!r.official || r.isBye) continue;
+        if (!r.official || r.isBye || r.settingWeek) continue;
         if (r.matchup.kind === "individual") {
           const side = r.matchup.sideA === id ? "A" : r.matchup.sideB === id ? "B" : null;
           if (!side || !r.winner) continue;
@@ -278,7 +278,7 @@ export function winStreaks(results: MatchupResult[], scope: "team" | "individual
   const seq = new Map<Id, { week: number; o: "W" | "L" | "T" }[]>();
   const push = (id: Id, week: number, o: "W" | "L" | "T") => seq.set(id, [...(seq.get(id) ?? []), { week, o }]);
   for (const r of results) {
-    if (!r.official || r.isBye || r.guest || !r.winner || r.matchup.kind !== scope) continue;
+    if (!r.official || r.isBye || r.guest || r.settingWeek || !r.winner || r.matchup.kind !== scope) continue;
     push(r.a.participantId, r.weekNumber, r.winner === "tie" ? "T" : r.winner === "A" ? "W" : "L");
     push(r.b!.participantId, r.weekNumber, r.winner === "tie" ? "T" : r.winner === "B" ? "W" : "L");
   }

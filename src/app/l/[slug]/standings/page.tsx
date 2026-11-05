@@ -32,13 +32,15 @@ export default async function Standings({ params, searchParams }: { params: Prom
   const share = shareHref(ctx, `/l/${slug}/standings${sq ? `?season=${sq}` : ""}`);
   const ties = rows.filter((r) => r.reason && !r.reason.startsWith("Fewer"));
   const played = rows.some((r) => r.played > 0);
+  const settingWeeks = m.data.weeks.filter((w) => m.isSettingWeek(w.number)).map((w) => w.number).sort((a, b) => a - b);
   return (
     <div>
       <PageHeader title="Standings" eyebrow={ctx.season.name} sub={cfg.standings.includeProvisional ? "Provisional results are included in these standings." : "Only finalized results count toward official standings."} actions={<ShareBar path={share.path} title={`${ctx.league.name} standings`} note={share.note} />} />
+      {settingWeeks.length ? <div className="mb-4"><Alert tone="info" title="Handicap-setting weeks">{settingWeeks.length === 1 ? `Week ${settingWeeks[0]} was` : `Weeks ${settingWeeks[0]}–${settingWeeks[settingWeeks.length - 1]} were`} bowled scratch to set handicaps. Those scores count toward averages and handicaps, but not toward points, wins or these standings.</Alert></div> : null}
       {both ? <Tabs current={view} items={[{ key: "team", label: "Teams", href: `/l/${slug}/standings${sq ? `?season=${sq}` : ""}` }, { key: "bowler", label: "Bowlers", href: `/l/${slug}/standings?view=bowlers${sq ? `&season=${sq}` : ""}` }]} /> : null}
       <div className="grid gap-6 md:gap-8">
         <Card>
-          {rows.length === 0 || !played ? <EmptyState title="Standings start after the first finalized week">Scores only count once the commissioner finalizes them.</EmptyState> : <StandingsTable ctx={ctx} kind={kind} rows={rows} race={race} qualifiers={cfg.playoffs.enabled ? cfg.playoffs.qualifiers : undefined} seasonQ={sq} />}
+          {rows.length === 0 || !played ? <EmptyState title={settingWeeks.length ? "Standings start after the handicap-setting weeks" : "Standings start after the first finalized week"}>{settingWeeks.length ? "The first weeks are bowled scratch to set everyone's handicap, so they don't count here. The first counted week starts the standings." : "Scores only count once the commissioner finalizes them."}</EmptyState> : <StandingsTable ctx={ctx} kind={kind} rows={rows} race={race} qualifiers={cfg.playoffs.enabled ? cfg.playoffs.qualifiers : undefined} seasonQ={sq} />}
         </Card>
         {played ? (
           <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
