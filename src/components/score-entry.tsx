@@ -20,6 +20,8 @@ export interface EntryMatchup {
   lineupA: string[];
   lineupB: string[];
   scores: { bowlerId: string; side: Side; game: number; scratch: number | null; kind: ScoreKind }[];
+  /** Rotating partners: an extra comparison. Side B is the pair whose scores (shown here, read-only) come from their own matchup. */
+  extra: { refName: string; refHref: string } | null;
   official: boolean;
   href: string;
   /** Roster bowlers who could be added as a substitute (not bowling elsewhere this week). */
@@ -61,9 +63,10 @@ function initDraft(m: EntryMatchup): Draft {
   return { lineupA: [...m.lineupA], lineupB: [...m.lineupB], forfeitBy: m.forfeitBy, cells, absent, revision: m.revision, dirty: false };
 }
 
-function toScores(d: Draft, G: number) {
+function toScores(d: Draft, G: number, extra = false) {
   const out: { bowlerId: string; side: Side; game: number; scratch: number | null; kind: ScoreKind }[] = [];
   for (const [side, lineup] of [["A", d.lineupA], ["B", d.lineupB]] as const) {
+    if (extra && side === "B") continue; // the other pair's scores are theirs, entered in their own matchup
     for (const b of lineup) {
       for (let g = 1; g <= G; g++) {
         if (d.absent[b]) out.push({ bowlerId: b, side, game: g, scratch: null, kind: "absent" });
@@ -156,7 +159,7 @@ export function ScoreEntry({ data }: { data: EntryData }) {
 
   const entryFor = (m: EntryMatchup, submit: "draft" | "ready" = "draft") => {
     const d = drafts[m.id];
-    return { matchupId: m.id, expectedRevision: d.revision, lineupA: d.lineupA, lineupB: d.lineupB, scores: toScores(d, G), forfeitBy: d.forfeitBy, submit, idempotencyKey: crypto.randomUUID() };
+    return { matchupId: m.id, expectedRevision: d.revision, lineupA: d.lineupA, lineupB: d.lineupB, scores: toScores(d, G, !!m.extra), forfeitBy: m.extra ? null : d.forfeitBy, submit, idempotencyKey: crypto.randomUUID() };
   };
 
   const applyResults = (results: NonNullable<Awaited<ReturnType<typeof saveEntriesAction>>["results"]>) => {
@@ -288,6 +291,8 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
   const locked = m.official && !correcting;
   const hdcp = cfg.handicap.enabled;
   const showAdj = usesHandicap(cfg) || hdcp;
+  const extra = m.extra;
+  // For an extra comparison the other pair's scores are in the draft too (read-only), so the preview can compare them.
   const scores = useMemo(() => toScores(d, G), [d, G]);
 
   const result = useMemo(() => {
@@ -298,7 +303,7 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
       finalizedAt: null, finalizedBy: null, updatedAt: "", updatedBy: "", isDemo: false,
     };
     const sc: Score[] = scores.map((s, i) => ({ id: String(i), matchupId: m.id, bowlerId: s.bowlerId, side: s.side, game: s.game, scratch: s.scratch, kind: s.kind, updatedAt: "", updatedBy: "" }));
-    return evaluateMatchup({ matchup: mu, scores: sc, cfg, handicaps: data.pool });
+    return evaluateMatchup({ matchup: mu, scores: sc, cfg, handicaps: data.pool, guest: !!extra });
   }, [m, d, scores, cfg, data.pool, data.seasonId, data.week]);
 
   const flagFor = (b: string, g: number): { flag?: "error" | "warn" | "missing"; why?: string } => {
@@ -331,6 +336,7 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
   const renderSide = (side: Side) => {
     const info = side === "A" ? m.a : m.b!;
     const sl = result ? (side === "A" ? result.a : result.b) : null;
+    const readOnly = !!extra && side === "B"; // the compared pair: their scores come from their own matchup
     return (
       <div className="min-w-0">
         <div className="mb-3 flex items-center gap-2.5 px-1"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: info.color }} aria-hidden /><h3 className="truncate text-[15px] font-bold tracking-tight">{info.name}</h3>{d.forfeitBy === side ? <span className="badge badge-loss">FORFEIT</span> : null}</div>
@@ -346,7 +352,7 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
                   <div className="min-w-0">
                     <div className="truncate text-[15px] font-semibold tracking-tight">{p?.name ?? b}{p?.isSub ? <span className="badge ml-2">SUB</span> : null}</div>
                     <div className="faint num mt-0.5 text-[12.5px]">avg {p?.average ?? "—"}{hdcp || showAdj ? <> · hdcp <b className="font-semibold text-muted">{line?.handicap ?? p?.handicap ?? 0}</b></> : null}</div>
-                    {!locked ? (
+                    {!locked && !readOnly ? (
                       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[13px]">
                         <label className="check !gap-2"><input type="checkbox" checked={isAbs} onChange={(e) => patch(m.id, (x) => ({ ...x, absent: { ...x.absent, [b]: e.target.checked } }))} />Absent</label>
                         {m.kind === "team" && p?.isSub ? <button type="button" className="text-muted underline" onClick={() => removeFromLineup(side, b)}>remove</button> : null}
@@ -368,7 +374,7 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
                       <div key={g} className="grid gap-1">
                         <span className="faint text-center text-[11px] font-semibold">G{g}</span>
                         {isAbs ? <div className="num muted flex h-11 items-center justify-center rounded-xl border border-dashed border-line-strong text-[14px]" title="Blind score">{gl?.scratch ?? "—"}<sup>b</sup></div> : (
-                          <input className="score-input" inputMode="numeric" pattern="[0-9]*" autoComplete="off" disabled={locked || d.forfeitBy != null} value={d.cells[key(b, g)] ?? ""} data-cell={`${mi}:${row}:${g}`} data-flag={f.flag} title={f.why}
+                          <input className="score-input" inputMode="numeric" pattern="[0-9]*" autoComplete="off" disabled={locked || readOnly || d.forfeitBy != null} value={d.cells[key(b, g)] ?? ""} data-cell={`${mi}:${row}:${g}`} data-flag={f.flag} title={f.why}
                             aria-label={`${p?.name ?? b}, game ${g}${f.why ? `, ${f.why}` : ""}`} aria-invalid={f.flag === "error"}
                             onChange={(e) => setCell(b, g, e.target.value, row)} onFocus={(e) => e.currentTarget.select()} onKeyDown={(e) => onKey(e, mi, row, g)} />
                         )}
@@ -390,7 +396,7 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
             </li>
           ) : null}
         </ul>
-        {!locked && m.kind === "team" && sideRows(side).length < m.bowlersPerTeam + 2 ? (
+        {!locked && !readOnly && m.kind === "team" && sideRows(side).length < m.bowlersPerTeam + 2 ? (
           <label className="mt-3 flex items-center gap-3 px-1 text-[13px]"><span className="muted">Add a bowler</span>
             <select className="select !h-9 !w-auto !rounded-[10px] text-[13px]" value="" onChange={(e) => e.target.value && addSub(side, e.target.value)} aria-label={`Add a bowler to ${info.name}`}>
               <option value="">Choose…</option>
@@ -415,12 +421,15 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
       </header>
       {!m.b ? <p className="muted px-5 py-5 text-[14px]">Bye week — nothing to enter.</p> : (
         <>
+          {extra ? <p className="border-b border-line bg-raised px-5 py-3 text-[13px]"><b>Extra comparison.</b> {m.a.name} is compared with <a className="font-semibold underline" href={extra.refHref}>{extra.refName}</a>&rsquo;s scores. Enter only {m.a.name}&rsquo;s scores; {extra.refName}&rsquo;s appear here as they&rsquo;re entered in their own matchup, and only {m.a.name} can earn points from this.</p> : null}
           <div className="grid gap-7 p-5 lg:grid-cols-2">
             {renderSide("A")}{renderSide("B")}
           </div>
           {result ? (
             <div className="border-t border-line bg-raised px-5 py-4 text-[14px]" aria-live="polite">
-              {d.forfeitBy ? <b>{d.forfeitBy === "A" ? m.b.name : m.a.name} wins by forfeit.</b> : result.winner && result.complete ? (
+              {d.forfeitBy ? <b>{d.forfeitBy === "A" ? m.b.name : m.a.name} wins by forfeit.</b> : extra && result.winner && result.complete ? (
+                <span><b>{result.winner === "A" ? `${m.a.name} beat ${m.b.name}’s scores` : result.winner === "tie" ? `${m.a.name} tied ${m.b.name}’s scores` : `${m.b.name}’s scores were higher`}</b> <span className="num">· {m.a.name} earns {fmtPts(result.a.points)} pts · {result.basis === "handicap" ? "adjusted" : "scratch"} series {result.a.basisSeries}–{result.b!.basisSeries}</span></span>
+              ) : result.winner && result.complete ? (
                 <span><b>{result.winner === "tie" ? "Matchup tied" : `${result.winner === "A" ? m.a.name : m.b.name} wins`}</b> <span className="num">{fmtPts(result.a.points)}–{fmtPts(result.b!.points)} pts · {result.basis === "handicap" ? "adjusted" : "scratch"} series {result.a.basisSeries}–{result.b!.basisSeries}{result.margin != null ? ` (margin ${result.margin})` : ""}</span> <span className="faint">(preview — not official)</span></span>
               ) : <span className="muted">{result.missing.length ? `${result.missing.length} score${result.missing.length === 1 ? "" : "s"} missing — no result yet.` : "Enter scores to see the result."}</span>}
             </div>
@@ -429,7 +438,7 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
           <footer className="flex flex-wrap items-center gap-3 border-t border-line px-5 py-4">
             {!finalNow || correcting ? (
               <>
-                <label className="field !flex-row items-center gap-2"><span className="label">Forfeit</span><select className="select !h-9 !w-auto !rounded-[10px] text-[13px]" disabled={locked} value={d.forfeitBy ?? ""} onChange={(e) => patch(m.id, (x) => ({ ...x, forfeitBy: (e.target.value || null) as Side | null }))}><option value="">None</option><option value="A">{m.a.name} forfeits</option><option value="B">{m.b.name} forfeits</option></select></label>
+                {!extra ? (<label className="field !flex-row items-center gap-2"><span className="label">Forfeit</span><select className="select !h-9 !w-auto !rounded-[10px] text-[13px]" disabled={locked} value={d.forfeitBy ?? ""} onChange={(e) => patch(m.id, (x) => ({ ...x, forfeitBy: (e.target.value || null) as Side | null }))}><option value="">None</option><option value="A">{m.a.name} forfeits</option><option value="B">{m.b.name} forfeits</option></select></label>) : null}
                 {!correcting ? (
                   <>
                     <button className="btn btn-sm" disabled={pending || !d.dirty || hasError} onClick={onSave}><Save size={13} aria-hidden />Save draft</button>

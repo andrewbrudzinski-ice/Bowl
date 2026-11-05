@@ -10,7 +10,8 @@ import { StandingsTable } from "@/components/standings-table";
 import { Avatar, Badge, Card, CardHead, EmptyState, Stat } from "@/components/ui";
 import type { LeagueCtx } from "@/server/context";
 import { getStore } from "@/server/db";
-import { activityFeed, currentWeek, formatDate, formatDateTime, participant, recordsEntering, standingsRows } from "@/server/views";
+import { activityFeed, currentWeek, drawnShown, formatDate, formatDateTime, participant, recordsEntering, standingsRows } from "@/server/views";
+import { WatchDrawButton } from "@/components/draw-reveal";
 import { ANNOUNCEMENT_CATEGORIES } from "@/server/services/content";
 
 export const MODULE_SPAN: Record<string, "wide" | "half"> = {
@@ -53,9 +54,10 @@ export function MatchupsModule({ ctx }: { ctx: LeagueCtx }) {
   const results = m.results.filter((r) => r.weekNumber === wk && !r.official && !r.isBye);
   const rec = recordsEntering(ctx, wk);
   const kind = ctx.cfg.format === "individual" ? "individual" : "team";
+  const shown = drawnShown(ctx, wk);
   return (
     <Card>
-      <CardHead title="Up next" sub={week ? `Week ${wk}${week.date ? ` · ${formatDate(week.date, { weekday: "short", month: "short", day: "numeric" })}` : ""}` : undefined} icon={<CalendarClock size={16} className="text-faint" />} right={<Link className="text-[var(--accent-text)]" href={`/l/${ctx.league.slug}/schedule`}>Schedule →</Link>} />
+      <CardHead title="Up next" sub={week ? `Week ${wk}${week.date ? ` · ${formatDate(week.date, { weekday: "short", month: "short", day: "numeric" })}` : ""}` : undefined} icon={<CalendarClock size={16} className="text-faint" />} right={<>{shown.length ? <WatchDrawButton matches={shown} week={wk} label="Watch the draw" /> : null}<Link className="text-[var(--accent-text)]" href={`/l/${ctx.league.slug}/schedule`}>Schedule →</Link></>} />
       {results.length === 0 ? (
         <EmptyState title="No upcoming matchups">{m.results.length ? (ctx.cfg.partners?.enabled ? "This week's matches are final. Next week's partners will be drawn before bowling." : "Every scheduled matchup has been finalized.") : ctx.can("schedule.manage") ? (ctx.cfg.partners?.enabled ? "Draw this week's partners in Commissioner → Schedule." : "Generate a schedule in Commissioner → Schedule.") : (ctx.cfg.partners?.enabled ? "This week's partners haven't been drawn yet." : "The commissioner hasn't published a schedule yet.")}</EmptyState>
       ) : (

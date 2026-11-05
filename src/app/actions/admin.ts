@@ -75,9 +75,11 @@ export async function drawPartnersAction(slug: string, seasonId: string, _: Acti
   return run(async () => {
     const a = await requireActor();
     const r = await S.drawWeekPartners(getStore(), a, await lid(slug), seasonId, { week: Number(str(fd, "week")), bowlerIds: fd.getAll("bowler").map(String) });
-    const matches = r.matches.filter((m) => m.b).length;
-    const sitting = r.matches.length - matches;
-    return done(slug, `Week ${r.week} partners drawn: ${matches} match${matches === 1 ? "" : "es"}${sitting ? `, ${sitting} bowler${sitting === 1 ? "" : "s"} sitting out` : ""}.${r.replaced ? " The earlier draw was replaced." : ""} Players are notified.`);
+    const real = r.matches.filter((m) => m.b && !m.extra).length;
+    const extra = r.matches.some((m) => m.extra);
+    const sitting = r.matches.filter((m) => !m.b).length;
+    const parts = [`${real} match${real === 1 ? "" : "es"}`, extra ? "one extra comparison" : "", sitting ? `${sitting} bowler${sitting === 1 ? "" : "s"} sitting out` : ""].filter(Boolean);
+    return { ...done(slug, `Week ${r.week} partners drawn: ${parts.join(", ")}.${r.replaced ? " The earlier draw was replaced." : ""} Players are notified.`), data: { week: r.week, matches: r.shown } };
   });
 }
 export async function addMatchupAction(slug: string, seasonId: string, _: ActionState, fd: FormData) {

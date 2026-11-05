@@ -2,12 +2,13 @@ import Link from "next/link";
 import { addMatchupAction, deleteMatchupAction, drawPartnersAction, generateScheduleAction, moveMatchupAction, playoffBracketAction, updateWeekAction } from "@/app/actions/admin";
 import { ActionForm } from "@/components/action-form";
 import { ConfirmAction } from "@/components/confirm-action";
+import { WatchDrawButton } from "@/components/draw-reveal";
 import { PartnerDrawForm, type DrawWeek } from "@/components/partner-draw-form";
 import { Alert, Badge, Card, CardHead, EmptyState, PageHeader } from "@/components/ui";
 import { getLeagueCtx } from "@/server/context";
 import { getStore } from "@/server/db";
 import { participantsForSchedule, previewSchedule } from "@/server/services/season";
-import { formatDate, participant } from "@/server/views";
+import { drawnShown, formatDate, participant } from "@/server/views";
 import { usesPartners } from "@/domain/config";
 import { firstEligibleWeek } from "@/domain/rulechange";
 import { isOfficial } from "@/domain/types";
@@ -52,7 +53,7 @@ export default async function ScheduleAdmin({ params }: { params: Promise<{ slug
           <div className="grid gap-3 p-5">
             {drawBowlers.length < 4 ? <Alert tone="warn">Add at least four bowlers to this season's roster first.</Alert> : (
               <>
-                <p className="muted text-[13px]">Partners are random, but nobody repeats a partner until they have bowled with everyone, and sitting out is shared evenly. Each pair earns {ctx.cfg.partners.winPoints} point{ctx.cfg.partners.winPoints === 1 ? "" : "s"} per partner for winning its match.</p>
+                <p className="muted text-[13px]">Partners are random, but nobody repeats a partner until they have bowled with everyone. Each partner earns what their pair earns ({ctx.cfg.scoring.pointsPerGame} per game won, {ctx.cfg.scoring.pointsPerSeries} for the higher total). When the pairs don't split into matches, the extra pair bowls against another pair's scores and only the extra pair can earn points from it.</p>
                 <PartnerDrawForm action={drawPartnersAction.bind(null, slug, season.id)} weeks={drawWeeks} bowlers={drawBowlers} defaultWeek={defaultWeek} />
               </>
             )}
@@ -104,17 +105,17 @@ export default async function ScheduleAdmin({ params }: { params: Promise<{ slug
           const rs = m.results.filter((r) => r.weekNumber === w.number);
           return (
             <Card key={w.id}>
-              <CardHead title={`${w.phase === "playoff" ? "Playoffs" : "Week"} ${w.number} · ${formatDate(w.date, { weekday: "short", month: "short", day: "numeric" })}`} right={<><Badge tone={w.status === "completed" ? "win" : w.status === "postponed" ? "warn" : "neutral"}>{w.status.replace("_", " ").toUpperCase()}</Badge><Link className="text-[var(--accent-text)]" href={`/l/${slug}/admin/scores?week=${w.number}`}>Scores →</Link></>} />
+              <CardHead title={`${w.phase === "playoff" ? "Playoffs" : "Week"} ${w.number} · ${formatDate(w.date, { weekday: "short", month: "short", day: "numeric" })}`} right={<>{partners && rs.length ? <WatchDrawButton matches={drawnShown(ctx, w.number)} week={w.number} label="Watch the draw" /> : null}<Badge tone={w.status === "completed" ? "win" : w.status === "postponed" ? "warn" : "neutral"}>{w.status.replace("_", " ").toUpperCase()}</Badge><Link className="text-[var(--accent-text)]" href={`/l/${slug}/admin/scores?week=${w.number}`}>Scores →</Link></>} />
               <details className="border-b border-line"><summary className="muted cursor-pointer px-5 py-2 text-[13px] hover:text-fg">Reschedule or change status</summary>
                 <div className="px-5 pb-3"><ActionForm action={updateWeekAction.bind(null, slug, season.id, w.number)} submit="Save week" className="flex flex-wrap items-end gap-2"><div className="field"><label htmlFor={`d${w.number}`}>Date</label><input id={`d${w.number}`} name="date" type="date" defaultValue={w.date} className="input !w-40" /></div><div className="field"><label htmlFor={`s${w.number}`}>Status</label><select id={`s${w.number}`} name="status" defaultValue={w.status} className="select !w-40"><option value="scheduled">Scheduled</option><option value="in_progress">In progress</option><option value="completed">Completed</option><option value="postponed">Postponed</option></select></div></ActionForm></div>
               </details>
               {rs.length === 0 ? <p className="muted px-5 py-3 text-[13px]">No matchups.</p> : (
                 <ul className="divide-y divide-line">{rs.map((r) => (
                   <li key={r.matchup.id} className="flex flex-wrap items-center justify-between gap-2 px-5 py-2 text-[13px]">
-                    <span><Link className="font-semibold hover:underline" href={`/l/${slug}/matchup/${r.matchup.id}`}>{participant(ctx, r.a.participantId, kind).name}{r.b ? ` vs ${participant(ctx, r.b.participantId, kind).name}` : partners ? " sits out" : " — bye"}</Link> {r.official && !r.isBye ? <Badge tone="win">FINAL</Badge> : r.matchup.state !== "scheduled" ? <Badge tone="warn">{r.matchup.state.replace("_", " ").toUpperCase()}</Badge> : null}</span>
+                    <span><Link className="font-semibold hover:underline" href={`/l/${slug}/matchup/${r.matchup.id}`}>{participant(ctx, r.a.participantId, kind).name}{r.b ? ` vs ${participant(ctx, r.b.participantId, kind).name}${r.guest ? "’s scores" : ""}` : partners ? " sits out" : " — bye"}</Link> {r.guest ? <Badge tone="info">EXTRA COMPARISON</Badge> : null} {r.official && !r.isBye ? <Badge tone="win">FINAL</Badge> : r.matchup.state !== "scheduled" ? <Badge tone="warn">{r.matchup.state.replace("_", " ").toUpperCase()}</Badge> : null}</span>
                     {!isOfficial(r.matchup.state) || r.isBye ? (
                       <span className="flex items-center gap-2">
-                        {!r.isBye ? <ActionForm action={moveMatchupAction.bind(null, slug, r.matchup.id)} submit="Move" submitClass="btn btn-sm" className="flex items-center gap-1.5"><label className="sr-only" htmlFor={`mv${r.matchup.id}`}>Move to week</label><select id={`mv${r.matchup.id}`} name="week" className="select !h-8 !w-20 text-[13px]" defaultValue={w.number}>{weeks.map((x) => <option key={x.number} value={x.number}>{x.number}</option>)}</select></ActionForm> : null}
+                        {!r.isBye && !partners ? <ActionForm action={moveMatchupAction.bind(null, slug, r.matchup.id)} submit="Move" submitClass="btn btn-sm" className="flex items-center gap-1.5"><label className="sr-only" htmlFor={`mv${r.matchup.id}`}>Move to week</label><select id={`mv${r.matchup.id}`} name="week" className="select !h-8 !w-20 text-[13px]" defaultValue={w.number}>{weeks.map((x) => <option key={x.number} value={x.number}>{x.number}</option>)}</select></ActionForm> : null}
                         <ConfirmAction className="btn btn-danger btn-sm" action={deleteMatchupAction.bind(null, slug, r.matchup.id)} confirm="Remove this matchup from the schedule?">Remove</ConfirmAction>
                       </span>
                     ) : <span className="faint text-[13px]">Finalized — reopen to change</span>}

@@ -112,6 +112,14 @@ export const NARROW_MARGIN_PINS = 15;
  */
 export function matchupRecap(model: SeasonModel, r: MatchupResult): RecapLine[] {
   if (!r.official || r.isBye || !r.b) return [];
+  if (r.guest) {
+    // An extra comparison: the extra pair against another pair's scores. Say that, and only that.
+    const A = model.teamById.get(r.a.participantId)?.name ?? "The extra pair";
+    const B = model.teamById.get(r.b.participantId)?.name ?? "the other pair";
+    const by = r.margin != null ? ` by ${r.margin} ${r.basis === "handicap" ? "adjusted " : ""}pin${r.margin === 1 ? "" : "s"}` : "";
+    const text = r.winner === "A" ? `${A} bowled the extra comparison and beat ${B}'s scores${by}.` : r.winner === "tie" ? `${A} bowled the extra comparison and tied ${B}'s scores.` : `${A} bowled the extra comparison; ${B}'s scores were higher${by}.`;
+    return [{ kind: "extra_comparison", text }];
+  }
   const lines: RecapLine[] = [];
   const kind = r.matchup.kind;
   const nm = (id: Id) => (kind === "team" ? model.teamById.get(id)?.name : model.bowlerById.get(id)?.name) ?? "Unknown";

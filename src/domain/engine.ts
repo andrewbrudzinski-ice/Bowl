@@ -7,7 +7,7 @@ import {
   type HandicapBreakdown,
   type ResolvedAverage,
 } from "./handicap";
-import { pairTeamFor } from "./partners";
+import { guestLineup, guestLinks, pairTeamFor, type GuestLink } from "./partners";
 import { evaluateMatchup, type BowlerHandicapInfo, type MatchupResult } from "./scoring";
 import type { Bowler, Id, Matchup, RosterEntry, RuleVersion, Score, Season, Team, Week } from "./types";
 import { isOfficial } from "./types";
@@ -57,6 +57,8 @@ export interface SeasonModel {
   teamById: Map<Id, Team>;
   /** Sides that are weekly pairs rather than teams: they exist only as matchup sides, named after their lineup. */
   pairTeamIds: Set<Id>;
+  /** Extra comparisons (rotating partners), by matchup id: the matchup whose scores they borrow. */
+  guests: Map<Id, GuestLink>;
   bowlerById: Map<Id, Bowler>;
   weekByNumber: Map<number, Week>;
   /** Latest week number with at least one official matchup. */
@@ -85,7 +87,9 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
 
   // Rotating partners: a drawn pair is a side id on the matchup with no team row behind it, shown by its lineup's names.
   const pairTeamIds = new Set<Id>();
-  for (const m of data.matchups) {
+  const links = guestLinks(data.matchups);
+  // Real matches name a pair first; an extra comparison only borrows the name of the pair it is compared with.
+  for (const m of [...data.matchups].sort((a, b) => Number(links.has(a.id)) - Number(links.has(b.id)))) {
     if (m.kind !== "team" || !usesPartners(verFor(m.weekNumber).config)) continue;
     for (const [side, lineup] of [[m.sideA, m.lineupA], [m.sideB, m.lineupB]] as const) {
       if (!side || teamById.has(side)) continue;
@@ -161,13 +165,23 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
     return out;
   };
 
+  // An extra comparison has no scores of its own for side B: it uses the other pair's scores from their matchup.
+  const guests = new Map<Id, GuestLink>();
+  for (const [id, link] of links) {
+    const m = matchById.get(id);
+    if (m && usesPartners(verFor(m.weekNumber).config)) guests.set(id, link);
+  }
+
   const results: MatchupResult[] = [];
   const ordered = [...data.matchups].sort((a, b) => a.weekNumber - b.weekNumber || a.id.localeCompare(b.id));
   for (const m of ordered) {
     const official = isOfficial(m.state);
     const ver = official && m.ruleVersion != null ? (verByNumber(m.ruleVersion) ?? verFor(m.weekNumber)) : verFor(m.weekNumber);
     const cfg = playoffConfigFor(ver.config, phaseOf(m.weekNumber));
-    const lineupIds = new Set<Id>([...m.lineupA, ...m.lineupB]);
+    const link = guests.get(m.id);
+    // For an extra comparison, side B is whoever is on the compared pair now, and their scores are borrowed from that matchup.
+    const played: Matchup = link ? { ...m, lineupB: guestLineup(link) } : m;
+    const lineupIds = new Set<Id>([...played.lineupA, ...played.lineupB]);
     if (!lineupIds.size) for (const s of data.scores) if (s.matchupId === m.id) lineupIds.add(s.bowlerId);
     if (m.kind === "individual") {
       lineupIds.add(m.sideA);
@@ -188,10 +202,17 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
         };
       }
     }
+    const scores = link
+      ? [
+          ...data.scores.filter((s) => s.matchupId === m.id && s.side === "A"),
+          ...data.scores.filter((s) => s.matchupId === link.ref.id && s.side === link.refSide).map((s) => ({ ...s, matchupId: m.id, side: "B" as const })),
+        ]
+      : data.scores.filter((s) => s.matchupId === m.id);
     results.push(
       evaluateMatchup({
-        matchup: m,
-        scores: data.scores.filter((s) => s.matchupId === m.id),
+        matchup: played,
+        guest: !!link,
+        scores,
         cfg,
         handicaps,
         includeProvisional: cfg.standings.includeProvisional,
@@ -213,6 +234,7 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
     teamOf,
     teamById,
     pairTeamIds,
+    guests,
     bowlerById,
     weekByNumber,
     lastOfficialWeek,

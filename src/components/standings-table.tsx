@@ -30,9 +30,8 @@ export function StandingsTable({
   const shown = limit ? rows.slice(0, limit) : rows;
   const raceBy = new Map((race ?? []).map((r) => [r.id, r]));
   const showTies = rows.some((r) => r.ties > 0);
-  const showBonus = !compact && rows.some((r) => r.bonus > 0);
   const phoneHide = compact ? "hidden sm:table-cell" : undefined;
-  const cols = 3 + (compact ? 1 : 7) + (race ? 1 : 0) + (showBonus ? 1 : 0);
+  const cols = 3 + (compact ? 1 : 7) + (race ? 1 : 0);
   return (
     <div className="tbl-wrap">
       <table className={`tbl tbl-sticky`}>
@@ -42,7 +41,6 @@ export function StandingsTable({
             <th scope="col">{kind === "team" ? "Team" : "Bowler"}</th>
             <th scope="col" title="Wins–losses">{showTies ? "W-L-T" : "W-L"}</th>
             <th scope="col" title="League points">Pts</th>
-            {showBonus ? <th scope="col" title="Points from the highest-pin-count bonus, included in Pts">Bonus</th> : null}
             {!compact ? <th scope="col" title="Win percentage">Win%</th> : null}
             {!compact ? <th scope="col" title="Average game score on the standings basis">Avg</th> : null}
             {!compact ? <th scope="col" title="Total pins on the standings basis">Pins</th> : null}
@@ -70,7 +68,6 @@ export function StandingsTable({
                   </td>
                   <td className="num text-muted">{r.wins}-{r.losses}{showTies ? `-${r.ties}` : ""}</td>
                   <td className="score text-[16px]">{fmtPts(r.points)}</td>
-                  {showBonus ? <td className="num muted">{r.bonus ? fmtPts(r.bonus) : "—"}</td> : null}
                   {!compact ? <td className="num">{r.played ? (r.winPct * 100).toFixed(0) + "%" : "—"}</td> : null}
                   {!compact ? <td className="num">{fmt1(r.average)}</td> : null}
                   {!compact ? <td className="num">{r.totalPins ? r.totalPins.toLocaleString() : "—"}</td> : null}

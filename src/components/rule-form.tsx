@@ -169,7 +169,7 @@ export function RuleForm({ value: valueIn, onChange, sections, disabled, lockStr
               <label className="check items-start" htmlFor="f-partners.enabled">
                 <input id="f-partners.enabled" type="checkbox" className="mt-0.5" disabled={cd.disabled} checked={value.partners.enabled}
                   onChange={(e) => onChange(e.target.checked ? { ...setPath(value, "partners.enabled", true), bowlersPerTeam: 2, playoffs: { ...value.playoffs, enabled: false } } : setPath(value, "partners.enabled", false))} />
-                <span><span className="font-semibold text-fg">Rotating partners</span><span className="help block font-normal">{structuralNote ?? "Instead of fixed teams, everyone is paired with a different random partner each week, and each bowler is ranked on their own points. You draw the pairs from the Schedule page."}</span></span>
+                <span><span className="font-semibold text-fg">Rotating partners</span><span className="help block font-normal">{structuralNote ?? "Instead of fixed teams, everyone is paired with a different random partner each week and each bowler is ranked on their own points. You draw the pairs from the Schedule page. Points work as usual below: each partner earns what their pair earns."}</span></span>
               </label>
             </div>
           ) : null}
@@ -184,22 +184,11 @@ export function RuleForm({ value: valueIn, onChange, sections, disabled, lockStr
           <Group title="Games & results">
             <Num c={cd} path="scoring.gamesPerSession" label="Games per night" min={1} max={10} help={structuralNote ?? "Most leagues bowl three."} />
             <Sel c={c} path="scoring.basis" label="Winners are decided on" options={[["handicap", "Handicap-adjusted pins"], ["scratch", "Scratch pins"]]} help="Scratch is the pins actually knocked down. Handicap adds pins to level the field." />
-            {!value.partners.enabled ? <Sel c={c} path="scoring.matchupWinnerBy" label="Overall matchup winner is" options={[["points", "Whoever earns more points"], ["series", "Whoever has the higher series total"]]} help="Controls the win/loss record in the standings." /> : null}
+            <Sel c={c} path="scoring.matchupWinnerBy" label="Overall matchup winner is" options={[["points", "Whoever earns more points"], ["series", "Whoever has the higher series total"]]} help="Controls the win/loss record in the standings." />
             <Num c={c} path="scoring.minGameScore" label="Lowest allowed game score" min={0} max={300} />
             <Num c={c} path="scoring.maxGameScore" label="Highest allowed game score" min={1} max={450} help="Standard games max out at 300." />
             <Num c={c} path="scoring.suspiciousDeviation" label="Flag scores this far from average" min={10} max={300} suffix="pins" help="Flagged scores can still be saved after you confirm them." />
           </Group>
-          {value.partners.enabled ? (
-            <Group title="Partner points" note="The pair with the higher combined total wins the match. Every bowler is ranked on their own points.">
-              <Num c={c} path="partners.winPoints" label="Points each partner earns for a win" min={0} step={0.5} help="Both partners in the winning pair earn this." />
-              <Num c={c} path="partners.tiePoints" label="Points each partner earns for a tie" min={0} step={0.5} />
-              <Num c={c} path="partners.bonusPoints" label="Bonus: highest pin count of the night" min={0} step={0.5} help="Set to 0 for no bonus. Ties share the point. It is awarded once every match of the night is final." />
-              <Sel c={c} path="partners.bonusFor" label="The bonus goes to" options={[["bowler", "The bowler with the highest series"], ["pair", "Both partners of the pair with the highest total"]]} />
-              <Sel c={c} path="partners.bonusPins" label="Pins counted for the bonus" options={[["scratch", "Raw pins (scratch)"], ["scoring", "Whatever decides matches (handicap-adjusted when handicap is on)"]]} />
-              <Num c={c} path="partners.byePoints" label="Points for a bowler who sits out" min={0} step={0.5} help="With a number of bowlers that doesn't split into matches of four, a few sit out each week." />
-              <p className="help sm:col-span-2">A bowler can earn up to <b className="text-fg">{value.partners.winPoints + value.partners.bonusPoints}</b> point{value.partners.winPoints + value.partners.bonusPoints === 1 ? "" : "s"} in a week.</p>
-            </Group>
-          ) : (
           <Group title="Points">
             <Num c={c} path="scoring.pointsPerGame" label="Points for each game won" min={0} step={0.5} />
             <Num c={c} path="scoring.pointsPerSeries" label="Points for winning the series" min={0} step={0.5} help="The series is the total of all games." />
@@ -209,9 +198,8 @@ export function RuleForm({ value: valueIn, onChange, sections, disabled, lockStr
             <Num c={c} path="scoring.byePoints" label="Points for a bye week" min={0} step={0.5} />
             {value.format === "both" ? <Num c={c} path="scoring.individual.pointsPerGame" label="Individual: points per game" min={0} step={0.5} /> : null}
             {value.format === "both" ? <Num c={c} path="scoring.individual.pointsPerSeries" label="Individual: points per series" min={0} step={0.5} /> : null}
-            <p className="help sm:col-span-2">With these settings a matchup is worth up to <b className="text-fg">{maxMatchupPoints(value)}</b> points.</p>
+            <p className="help sm:col-span-2">With these settings {value.partners.enabled ? "a bowler can earn up to" : "a matchup is worth up to"} <b className="text-fg">{maxMatchupPoints(value)}</b> points{value.partners.enabled ? " in a night; both partners earn what their pair earns" : ""}.</p>
           </Group>
-          )}
           <Group title="Absences, forfeits & incomplete games">
             <Sel c={c} path="scoring.absentPolicy" label="When a bowler is absent" options={[["blind", "Give a blind score"], ["none", "Score nothing"]]} />
             {s.absentPolicy === "blind" ? <Sel c={c} path="scoring.blindMode" label="Blind score is" options={[["average_minus_offset", "Their average minus a few pins"], ["fixed", "A fixed number"]]} /> : null}

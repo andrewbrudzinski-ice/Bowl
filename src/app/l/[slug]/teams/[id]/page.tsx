@@ -24,7 +24,7 @@ export default async function TeamPage({ params, searchParams }: { params: Promi
   if (!team) notFound();
   if (m.pairTeamIds.has(id)) {
     // A drawn pair exists for one night; its page is the matchup.
-    const mu = m.data.matchups.find((x) => x.sideA === id || x.sideB === id);
+    const mu = m.data.matchups.find((x) => (x.sideA === id || x.sideB === id) && !m.guests.has(x.id)) ?? m.data.matchups.find((x) => x.sideA === id || x.sideB === id);
     if (mu) redirect(`/l/${slug}/matchup/${mu.id}`);
     notFound();
   }

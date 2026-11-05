@@ -1,4 +1,4 @@
-import { partnersOf, TIEBREAKER_LABELS, usesPartners, type RuleConfig, type Tiebreaker } from "./config";
+import { TIEBREAKER_LABELS, usesPartners, type RuleConfig, type Tiebreaker } from "./config";
 import type { SeasonModel } from "./engine";
 import { maxMatchupPoints, type MatchupResult } from "./scoring";
 import type { Id, Side } from "./types";
@@ -22,8 +22,6 @@ export interface StandingRow {
   losses: number;
   ties: number;
   points: number;
-  /** Part of `points` that came from the weekly highest-pin-count bonus (rotating partners only). */
-  bonus: number;
   winPct: number;
   gameWins: number;
   gameLosses: number;
@@ -60,7 +58,6 @@ interface Acc {
   losses: number;
   ties: number;
   points: number;
-  bonus: number;
   gameWins: number;
   gameLosses: number;
   totalPins: number;
@@ -104,7 +101,6 @@ export function computeStandings(model: SeasonModel, opts: StandingsOptions = {}
         losses: 0,
         ties: 0,
         points: 0,
-        bonus: 0,
         gameWins: 0,
         gameLosses: 0,
         totalPins: 0,
@@ -129,9 +125,8 @@ export function computeStandings(model: SeasonModel, opts: StandingsOptions = {}
 
   const regularWeek = (n: number) => (model.weekByNumber.get(n)?.phase ?? "regular") === "regular";
 
-  // Rotating partners: every bowler is credited with their pair's result, and the night's highest pin count earns a bonus.
+  // Rotating partners: every bowler is credited with the points their pair earned. (An extra comparison only credits its A side.)
   const partnersMode = scope === "bowler" && usesPartners(cfg);
-  const partnerNights = new Map<number, { total: number; counted: MatchupResult[] }>();
 
   for (const r of model.results) {
     if (!regularWeek(r.weekNumber)) continue;
@@ -140,9 +135,6 @@ export function computeStandings(model: SeasonModel, opts: StandingsOptions = {}
     const credited = partnersMode && r.matchup.kind === "team";
     if (!kindMatches && !hasPairs && !credited) continue;
 
-    const night = credited && !r.isBye && r.weekNumber <= through ? (partnerNights.get(r.weekNumber) ?? partnerNights.set(r.weekNumber, { total: 0, counted: [] }).get(r.weekNumber)!) : null;
-    if (night) night.total++;
-
     // remaining matchups (not official, within the regular season, and not yet played)
     if (!r.counts && !r.official) {
       if (kindMatches && !r.isBye) {
@@ -150,7 +142,7 @@ export function computeStandings(model: SeasonModel, opts: StandingsOptions = {}
         if (r.b) get(r.b.participantId).remaining++;
       }
       if (hasPairs) for (const p of r.pairs) { get(p.a).remaining++; get(p.b).remaining++; }
-      if (credited && !r.isBye) for (const line of [r.a, r.b!]) for (const bl of line.lineup) get(bl.bowlerId).remaining++;
+      if (credited && !r.isBye) for (const line of r.guest ? [r.a] : [r.a, r.b!]) for (const bl of line.lineup) get(bl.bowlerId).remaining++;
       continue;
     }
     if (r.weekNumber > through || !r.counts) continue;
@@ -160,9 +152,8 @@ export function computeStandings(model: SeasonModel, opts: StandingsOptions = {}
         for (const bl of r.a.lineup) get(bl.bowlerId).points += r.a.points;
         continue;
       }
-      night!.counted.push(r);
       const b = r.b!;
-      for (const [side, opp] of [[r.a, b], [b, r.a]] as const) {
+      for (const [side, opp] of r.guest ? ([[r.a, b]] as const) : ([[r.a, b], [b, r.a]] as const)) {
         const outcome: Outcome | null = r.winner == null ? null : r.winner === "tie" ? "T" : r.winner === side.side ? "W" : "L";
         for (const bl of side.lineup) {
           if (bl.absent) continue; // someone who didn't bowl earns nothing, though their blind score still counts for the pair
@@ -191,7 +182,7 @@ export function computeStandings(model: SeasonModel, opts: StandingsOptions = {}
         }
       }
       if (r.winner) {
-        for (const x of r.a.lineup) for (const y of b.lineup) if (!x.absent && !y.absent) encounters.push({ week: r.weekNumber, matchupId: r.matchup.id, a: x.bowlerId, b: y.bowlerId, winner: r.winner });
+        for (const x of r.a.lineup) for (const y of b.lineup) if (!r.guest && !x.absent && !y.absent) encounters.push({ week: r.weekNumber, matchupId: r.matchup.id, a: x.bowlerId, b: y.bowlerId, winner: r.winner });
       }
       continue;
     }
@@ -261,36 +252,6 @@ export function computeStandings(model: SeasonModel, opts: StandingsOptions = {}
           win.seq.push({ week: r.weekNumber, o: "W" }); lose.seq.push({ week: r.weekNumber, o: "L" });
         }
         encounters.push({ week: r.weekNumber, matchupId: r.matchup.id, a: p.a, b: p.b, winner: w });
-      }
-    }
-  }
-
-  if (partnersMode) {
-    const P = partnersOf(cfg);
-    const credit = (id: Id) => {
-      const x = get(id);
-      x.points += P.bonusPoints;
-      x.bonus += P.bonusPoints;
-    };
-    for (const night of P.bonusPoints > 0 ? partnerNights.values() : []) {
-      // The bonus is only decided once every match of the night is in, so it never moves from one bowler to another.
-      if (!night.counted.length || night.counted.length < night.total) continue;
-      const pinsOf = (r: MatchupResult, scratch: number | null, adjusted: number | null) => (P.bonusPins === "scratch" || r.basis === "scratch" ? scratch : adjusted) ?? 0;
-      if (P.bonusFor === "bowler") {
-        const series: { id: Id; pins: number }[] = [];
-        for (const r of night.counted)
-          for (const line of [r.a, r.b!])
-            for (const bl of line.lineup) {
-              const games = bl.games.filter((g) => g.kind === "bowled" && g.scratch != null);
-              if (games.length !== r.gamesPerSession) continue; // a full series by this bowler
-              series.push({ id: bl.bowlerId, pins: games.reduce((t, g) => t + pinsOf(r, g.scratch, g.adjusted), 0) });
-            }
-        const top = Math.max(...series.map((x) => x.pins));
-        if (series.length) for (const x of series) if (x.pins === top) credit(x.id);
-      } else {
-        const pairs = night.counted.flatMap((r) => [r.a, r.b!].map((side) => ({ side, pins: pinsOf(r, side.scratchSeries, side.adjustedSeries) })));
-        const top = Math.max(...pairs.map((x) => x.pins));
-        for (const x of pairs) if (x.pins === top) for (const bl of x.side.lineup) if (!bl.absent) credit(bl.bowlerId);
       }
     }
   }
@@ -390,7 +351,6 @@ export function computeStandings(model: SeasonModel, opts: StandingsOptions = {}
       losses: a.losses,
       ties: a.ties,
       points: a.points,
-      bonus: a.bonus,
       winPct: a.played ? (a.wins + a.ties / 2) / a.played : 0,
       gameWins: a.gameWins,
       gameLosses: a.gameLosses,

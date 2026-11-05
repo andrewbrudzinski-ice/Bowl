@@ -223,7 +223,7 @@ export function computeAwards(
         break;
       }
       case "closest_matchup": {
-        const rs = model.results.filter((r) => r.official && !r.isBye && !r.forfeitBy && r.complete && r.margin != null && r.winner && r.winner !== "tie" && (periodWeek == null || r.weekNumber === periodWeek));
+        const rs = model.results.filter((r) => r.official && !r.isBye && !r.guest && !r.forfeitBy && r.complete && r.margin != null && r.winner && r.winner !== "tie" && (periodWeek == null || r.weekNumber === periodWeek));
         const top = topWithTies(rs, (r) => r.margin, "min");
         if (top) push(def, periodWeek, top.holders.map((r) => ({ kind: r.matchup.kind === "team" ? "team" : "bowler", id: r.winner === "A" ? r.a.participantId : r.b!.participantId, name: `${nameForParticipant(model, r.a.participantId, r.matchup.kind)} vs ${nameForParticipant(model, r.b!.participantId, r.matchup.kind)}`, week: r.weekNumber, matchupId: r.matchup.id, detail: `Decided by ${r.margin} pin${r.margin === 1 ? "" : "s"} (week ${r.weekNumber})` })), `${label}: ${top.value} pins`);
         break;
@@ -231,7 +231,7 @@ export function computeAwards(
       case "biggest_upset": {
         const ups: { r: (typeof model.results)[number]; gap: number }[] = [];
         for (const r of model.results) {
-          if (!r.official || r.isBye || r.forfeitBy || !r.winner || r.winner === "tie") continue;
+          if (!r.official || r.isBye || r.guest || r.forfeitBy || !r.winner || r.winner === "tie") continue;
           if (periodWeek != null && r.weekNumber !== periodWeek) continue;
           const avgSum = (side: typeof r.a) => {
             const avs = side.lineup.map((l) => l.average);

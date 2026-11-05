@@ -1,4 +1,4 @@
-import { partnersOf, usesPartners, type RuleConfig } from "./config";
+import type { RuleConfig } from "./config";
 import { roundWith, sum } from "./math";
 import type { Id, Matchup, Score, ScoreKind, Side } from "./types";
 import { isOfficial } from "./types";
@@ -107,6 +107,11 @@ export interface MatchupResult {
   margin: number | null;
   pairs: PairResult[];
   ruleVersion: number | null;
+  /**
+   * An extra comparison (rotating partners): side A bowled for points against side B's scores from another matchup. Side B earns
+   * nothing from this result, so it must not be counted for them anywhere.
+   */
+  guest: boolean;
 }
 
 export function usesHandicap(cfg: RuleConfig): boolean {
@@ -114,7 +119,6 @@ export function usesHandicap(cfg: RuleConfig): boolean {
 }
 
 export function maxMatchupPoints(cfg: RuleConfig): number {
-  if (usesPartners(cfg)) return partnersOf(cfg).winPoints;
   const s = cfg.scoring;
   return s.gamesPerSession * s.pointsPerGame + s.pointsPerSeries + s.bonus.highGame + s.bonus.highSeries;
 }
@@ -260,6 +264,8 @@ function award(winner: Side | "tie" | null, value: number, tieFraction: number):
 }
 
 export interface EvaluateInput {
+  /** Evaluate as an extra comparison: only side A earns points. */
+  guest?: boolean;
   matchup: Matchup;
   scores: Score[];
   cfg: RuleConfig;
@@ -272,13 +278,7 @@ export interface EvaluateInput {
  * it derives game/series winners, points and the overall result. Nothing here reads a database.
  */
 export function evaluateMatchup(input: EvaluateInput): MatchupResult {
-  const { matchup, handicaps } = input;
-  // Rotating partners: the pair with the higher total wins, and each partner is credited with the match result.
-  // Per-game, series and bonus points don't apply, so they are switched off for the whole evaluation.
-  const partners = usesPartners(input.cfg) && matchup.kind === "team" ? partnersOf(input.cfg) : null;
-  const cfg: RuleConfig = partners
-    ? { ...input.cfg, scoring: { ...input.cfg.scoring, pointsPerGame: 0, pointsPerSeries: 0, bonus: { highGame: 0, highSeries: 0 } } }
-    : input.cfg;
+  const { matchup, cfg, handicaps } = input;
   const G = cfg.scoring.gamesPerSession;
   const useHdcp = usesHandicap(cfg);
   const official = isOfficial(matchup.state);
@@ -316,10 +316,11 @@ export function evaluateMatchup(input: EvaluateInput): MatchupResult {
     a,
     b,
     ruleVersion: matchup.ruleVersion,
+    guest: !!input.guest,
   };
 
   if (isBye) {
-    a.points = partners ? partners.byePoints : cfg.scoring.byePoints;
+    a.points = cfg.scoring.byePoints;
     return { ...base, games: [], winner: null, seriesWinner: null, margin: null, complete: true, missing: [], pairs: [] };
   }
   const bb = b!;
@@ -330,7 +331,7 @@ export function evaluateMatchup(input: EvaluateInput): MatchupResult {
     if (cfg.scoring.forfeitPoints === "max_to_opponent") {
       winner.gamePoints = G * cfg.scoring.pointsPerGame;
       winner.seriesPoints = cfg.scoring.pointsPerSeries;
-      winner.points = partners ? partners.winPoints : winner.gamePoints + winner.seriesPoints;
+      winner.points = winner.gamePoints + winner.seriesPoints;
       winner.gameWins = G;
     }
     return {
@@ -417,12 +418,14 @@ export function evaluateMatchup(input: EvaluateInput): MatchupResult {
 
   let winner: Side | "tie" | null = null;
   if (complete || (partialOk && scoredGames > 0)) {
-    winner = partners || cfg.scoring.matchupWinnerBy === "series" ? seriesWinner : cmp(a.points, bb.points);
+    winner = cfg.scoring.matchupWinnerBy === "series" ? seriesWinner : cmp(a.points, bb.points);
   }
-  if (partners && winner) {
-    const earned = (side: Side) => (winner === "tie" ? partners.tiePoints : winner === side ? partners.winPoints : 0);
-    a.points = earned("A");
-    bb.points = earned("B");
+  if (input.guest) {
+    // The compared pair already earned its points in its own matchup.
+    bb.points = 0;
+    bb.gamePoints = 0;
+    bb.seriesPoints = 0;
+    bb.bonusPoints = 0;
   }
 
   // Pair-wise individual comparisons inside team matchups (format "both").

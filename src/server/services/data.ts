@@ -306,7 +306,7 @@ export function exportCsv(store: Store, actor: Actor, leagueId: Id, seasonId: Id
     const rows: unknown[][] = [];
     for (const r of model.results) {
       if (!r.b) continue;
-      for (const side of [r.a, r.b]) {
+      for (const side of r.guest ? [r.a] : [r.a, r.b]) { // an extra comparison's other pair is exported with its own matchup
         for (const l of side.lineup) {
           for (const g of l.games) {
             if (g.kind === "missing") continue;

@@ -1,3 +1,5 @@
+import { usesPartners } from "@/domain/config";
+import type { DrawnShown } from "@/domain/reveal";
 import { computeStandings, standingsScope, type StandingRow } from "@/domain/standings";
 import type { MatchupResult } from "@/domain/scoring";
 import type { Id } from "@/domain/types";
@@ -22,6 +24,19 @@ export function participant(ctx: LeagueCtx, id: Id, kind: "team" | "individual",
   }
   const b = ctx.model!.bowlerById.get(id);
   return { id, name: b?.name ?? "Unknown bowler", color: b?.avatarColor ?? "#64748b", logo: (b?.name ?? "?").slice(0, 1), kind: "bowler", href: `/l/${ctx.league.slug}/bowlers/${id}${q}` };
+}
+
+/** A drawn week of a rotating-partners league as names, for the draw reveal: matches, then the extra comparison, then anyone sitting out. */
+export function drawnShown(ctx: LeagueCtx, week: number): DrawnShown[] {
+  const m = ctx.model!;
+  if (!usesPartners(m.configForWeek(week))) return [];
+  const name = (id: Id) => m.teamById.get(id)?.name ?? "Unknown";
+  const rs = m.results.filter((r) => r.weekNumber === week);
+  return [
+    ...rs.filter((r) => r.b && !r.guest).map((r) => ({ a: name(r.a.participantId), b: name(r.b!.participantId), extra: false })),
+    ...rs.filter((r) => r.guest).map((r) => ({ a: name(r.a.participantId), b: name(r.b!.participantId), extra: true })),
+    ...rs.filter((r) => r.isBye).map((r) => ({ a: name(r.a.participantId), b: null, extra: false })),
+  ];
 }
 
 /** The week the league is "on": the first one with unfinished matchups, else the last completed one. */

@@ -1,21 +1,30 @@
 import type { SeasonData } from "./engine";
-import type { Id, Team } from "./types";
+import type { Id, Matchup, Side, Team } from "./types";
 
 /**
- * Rotating partners: the weekly draw and the pair "teams" it produces.
+ * Rotating partners: the weekly draw and the pairs it produces.
  *
  * A pair has no row of its own. Each drawn match gets a fresh id per side (the matchup's sideA / sideB), and the name, colour and
  * mark shown for that side are built from the bowlers in its lineup (see `pairTeamFor`). Renaming a bowler or swapping a
  * substitute into the lineup therefore changes how the pair is shown everywhere, with nothing to keep in sync.
+ *
+ * When the bowlers make an odd number of pairs, one pair has nobody to play. It bowls an "extra comparison": its scores are
+ * compared with another pair's scores from the same night, and only the extra pair can earn points from it (see `guestLinks`).
  */
 
 export interface PartnerHistory {
   /** Times two bowlers have been partners, keyed by `pairKey`. */
   partnered: Map<string, number>;
-  /** Times two bowlers have been on opposite sides of a match. */
+  /** Times two bowlers have been on opposite sides of a match (or an extra comparison). */
   faced: Map<string, number>;
-  /** Weeks a bowler was drawn but sat out (a bye matchup with only them in it). */
+  /** Weeks a bowler was drawn but sat out (a one-bowler bye matchup). */
   rests: Map<Id, number>;
+  /** Weeks a bowler was on the extra pair. */
+  floats: Map<Id, number>;
+}
+
+export function emptyHistory(): PartnerHistory {
+  return { partnered: new Map(), faced: new Map(), rests: new Map(), floats: new Map() };
 }
 
 export function pairKey(a: Id, b: Id): string {
@@ -27,10 +36,15 @@ export interface DrawnMatch {
   a: Id[];
   /** The opposing pair, or null when a lone bowler sits out. */
   b: Id[] | null;
+  /**
+   * An extra comparison: `a` is the extra pair and `b` is the pair whose scores it is compared with. That pair is also the `a` side
+   * of a real match in the same draw, and earns nothing from this one.
+   */
+  extra?: boolean;
 }
 
 export interface PartnerDraw {
-  /** Head-to-head matches first, then one entry per bowler sitting out. */
+  /** Head-to-head matches first, then the extra comparison, then each bowler sitting out (`b` null). */
   matches: DrawnMatch[];
   /** The bowlers who don't bowl this week. */
   resting: Id[];
@@ -48,7 +62,7 @@ export function seededRandom(seed: number): () => number {
   };
 }
 
-function shuffled<T>(items: T[], rand: () => number): T[] {
+function shuffled<T>(items: readonly T[], rand: () => number): T[] {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
@@ -59,55 +73,69 @@ function shuffled<T>(items: T[], rand: () => number): T[] {
 
 const count = (m: Map<string, number>, a: Id, b: Id) => m.get(pairKey(a, b)) ?? 0;
 
-/** What a set of pairs costs: repeated partnerships hurt, and the second repeat hurts far more than the first. */
-function partnerCost(pairs: [Id, Id][], h: PartnerHistory): number {
-  let c = 0;
-  for (const [x, y] of pairs) c += count(h.partnered, x, y) ** 2;
-  return c;
+/** A random perfect matching of `ids` in which no two partners have been together more than `cap` times, or null if none turns up. */
+function pairingWithin(ids: Id[], partnered: Map<string, number>, cap: number, rand: () => number, budget: number): [Id, Id][] | null {
+  let nodes = 0;
+  const order = shuffled(ids, rand);
+  const used = new Set<Id>();
+  const out: [Id, Id][] = [];
+  const go = (): boolean => {
+    const x = order.find((id) => !used.has(id));
+    if (x === undefined) return true;
+    if (++nodes > budget) return false;
+    used.add(x);
+    const options = order
+      .filter((y) => y !== x && !used.has(y) && count(partnered, x, y) <= cap)
+      .sort((p, q) => count(partnered, x, p) - count(partnered, x, q));
+    for (const y of options) {
+      used.add(y);
+      out.push([x, y]);
+      if (go()) return true;
+      out.pop();
+      used.delete(y);
+    }
+    used.delete(x);
+    return false;
+  };
+  return go() ? out : null;
 }
 
-/** Random perfect matching of `ids` into pairs with as few repeat partners as possible. */
+/**
+ * Random perfect matching of `ids` into pairs. Finds the matching whose most-repeated partnership is repeated as little as
+ * possible: first one where nobody has been partners before, then one where nobody has been partners more than once, and so on.
+ * Among matchings with no repeats it prefers one that leaves a clean matching for the following week, because a careless choice
+ * can strand the last few weeks with nobody new to pair. Depth-first with a budget, so it stays fast however many bowlers there are.
+ */
 function bestPairing(ids: Id[], h: PartnerHistory, rand: () => number): [Id, Id][] {
-  let best: [Id, Id][] = [];
-  let bestCost = Infinity;
-  const tries = Math.min(300, 40 + ids.length * 10);
-  for (let t = 0; t < tries && bestCost > 0; t++) {
-    const order = shuffled(ids, rand);
-    const pairs: [Id, Id][] = [];
-    for (let i = 0; i < order.length; i += 2) pairs.push([order[i], order[i + 1]]);
-    // Hill-climb: re-split two pairs whenever that lowers the cost.
-    for (let improved = true; improved; ) {
-      improved = false;
-      for (let i = 0; i < pairs.length; i++) {
-        for (let j = i + 1; j < pairs.length; j++) {
-          const [a, b] = pairs[i];
-          const [c, d] = pairs[j];
-          const now = count(h.partnered, a, b) ** 2 + count(h.partnered, c, d) ** 2;
-          const opts: [[Id, Id], [Id, Id]][] = [[[a, c], [b, d]], [[a, d], [b, c]]];
-          for (const [p, q] of opts) {
-            const alt = count(h.partnered, p[0], p[1]) ** 2 + count(h.partnered, q[0], q[1]) ** 2;
-            if (alt < now) {
-              pairs[i] = p;
-              pairs[j] = q;
-              improved = true;
-              break;
-            }
-          }
-        }
-      }
-    }
-    const cost = partnerCost(pairs, h);
-    if (cost < bestCost) {
-      best = pairs;
-      bestCost = cost;
-    }
+  const budget = 30000;
+  let highest = 0;
+  for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) highest = Math.max(highest, count(h.partnered, ids[i], ids[j]));
+
+  let first: [Id, Id][] | null = null;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const candidate = pairingWithin(ids, h.partnered, 0, rand, budget);
+    if (!candidate) break;
+    first ??= candidate;
+    const after = new Map(h.partnered);
+    for (const [x, y] of candidate) after.set(pairKey(x, y), count(after, x, y) + 1);
+    let anyNew = false;
+    for (let i = 0; i < ids.length && !anyNew; i++) for (let j = i + 1; j < ids.length; j++) if (count(after, ids[i], ids[j]) === 0) { anyNew = true; break; }
+    if (!anyNew || pairingWithin(ids, after, 0, rand, budget)) return candidate;
   }
-  return best;
+  if (first) return first;
+  for (let cap = 1; cap <= highest; cap++) {
+    const found = pairingWithin(ids, h.partnered, cap, rand, budget);
+    if (found) return found;
+  }
+  // Unreachable for an even count (the last cap always works); keep a valid answer regardless.
+  const order = shuffled(ids, rand);
+  return Array.from({ length: order.length / 2 }, (_, i) => [order[2 * i], order[2 * i + 1]] as [Id, Id]);
 }
 
 /** Random matching of pairs into head-to-head matches, avoiding opponents the bowlers have already faced. */
 function bestMatching(pairs: [Id, Id][], h: PartnerHistory, rand: () => number): [[Id, Id], [Id, Id]][] {
-  const faced = (p: [Id, Id], q: [Id, Id]) => count(h.faced, p[0], q[0]) + count(h.faced, p[0], q[1]) + count(h.faced, p[1], q[0]) + count(h.faced, p[1], q[1]);
+  if (!pairs.length) return [];
+  const faced = (p: readonly Id[], q: readonly Id[]) => p.reduce((t, x) => t + q.reduce((u, y) => u + count(h.faced, x, y), 0), 0);
   let best: [[Id, Id], [Id, Id]][] = [];
   let bestCost = Infinity;
   const tries = Math.min(200, 30 + pairs.length * 10);
@@ -145,33 +173,97 @@ function bestMatching(pairs: [Id, Id][], h: PartnerHistory, rand: () => number):
 
 /**
  * Draws this week's partners and opponents from the bowlers who are bowling.
- *  - Matches are two pairs against each other, so the number of bowlers who bowl is a multiple of four; whoever is left over
- *    (up to three bowlers) sits out. They are the bowlers who have rested least so far, so sitting out is shared evenly.
- *  - Partners are random but avoid repeating a partnership until the bowlers have run out of new partners.
- *  - Opponents are random but avoid bowlers a pair has already faced.
+ *  - Bowlers are paired at random, but nobody repeats a partner until they have run out of new partners.
+ *  - Pairs are matched against each other at random, avoiding bowlers a pair has already faced.
+ *  - With an odd number of pairs, the pair that has been the extra pair least often is the extra pair: it is compared with a
+ *    random pair from a real match, preferring one it hasn't faced.
+ *  - With an odd number of bowlers, one bowler is left without a partner and sits out: the one who has sat out least so far.
  * Needs at least four bowlers. The result depends only on the inputs and `rand`.
  */
 export function drawPartners(bowlerIds: Id[], history: PartnerHistory, rand: () => number): PartnerDraw {
   const ids = [...new Set(bowlerIds)];
   if (ids.length < 4) throw new Error("A partner draw needs at least four bowlers.");
-  const resting = shuffled(ids, rand)
-    .sort((x, y) => (history.rests.get(x) ?? 0) - (history.rests.get(y) ?? 0))
-    .slice(0, ids.length % 4);
-  const bowling = ids.filter((id) => !resting.includes(id));
-  const matches: DrawnMatch[] = bestMatching(bestPairing(bowling, history, rand), history, rand).map(([p, q]) => ({ a: [...p], b: [...q] }));
+  const resting: Id[] = [];
+  let bowling = ids;
+  if (ids.length % 2 === 1) {
+    const rested = (id: Id) => history.rests.get(id) ?? 0;
+    const lone = shuffled(ids, rand).sort((x, y) => rested(x) - rested(y))[0];
+    resting.push(lone);
+    bowling = ids.filter((id) => id !== lone);
+  }
+
+  let pairs = bestPairing(bowling, history, rand);
+  let extra: [Id, Id] | null = null;
+  if (pairs.length % 2 === 1) {
+    const floats = (p: [Id, Id]) => (history.floats.get(p[0]) ?? 0) + (history.floats.get(p[1]) ?? 0);
+    const least = Math.min(...pairs.map(floats));
+    const candidates = pairs.filter((p) => floats(p) === least);
+    extra = candidates[Math.floor(rand() * candidates.length)];
+    pairs = pairs.filter((p) => p !== extra);
+  }
+
+  // Each match is two pairs; which one is "A" is a coin toss. The extra pair is compared with some match's A side.
+  const matches: DrawnMatch[] = bestMatching(pairs, history, rand).map(([p, q]) => (rand() < 0.5 ? { a: [...p], b: [...q] } : { a: [...q], b: [...p] }));
+  if (extra) {
+    const faced = (p: readonly Id[], q: readonly Id[]) => p.reduce((t, x) => t + q.reduce((u, y) => u + count(history.faced, x, y), 0), 0);
+    const ex = extra;
+    const options = shuffled(matches, rand);
+    const target = options.reduce((best, m) => (faced(ex, m.a) + faced(ex, m.b!) < faced(ex, best.a) + faced(ex, best.b!) ? m : best), options[0]);
+    // Compare against whichever of the two pairs it has faced less, and make that pair the match's A side.
+    if (faced(ex, target.b!) < faced(ex, target.a)) [target.a, target.b] = [target.b!, target.a];
+    matches.push({ a: [...ex], b: [...target.a], extra: true });
+  }
   for (const id of resting) matches.push({ a: [id], b: null });
   return { matches, resting };
 }
 
-/** What the season so far says about partners, opponents and rests, ignoring `exceptWeek` (the week being drawn). */
+// ---------------------------------------------------------------------------------------------------------------------
+
+export interface GuestLink {
+  /** The real matchup whose scores the extra comparison borrows. */
+  ref: Matchup;
+  /** Which side of `ref` is the compared pair. */
+  refSide: Side;
+}
+
+/**
+ * Finds the extra comparisons among a set of matchups. An extra comparison is a matchup whose B side is a pair that already plays
+ * in another matchup of the same week: it has no scores of its own for that side, so they are read from the other matchup.
+ * Returns matchup id → link for each extra comparison.
+ */
+export function guestLinks(matchups: readonly Matchup[]): Map<Id, GuestLink> {
+  const out = new Map<Id, GuestLink>();
+  const weeks = new Map<string, Matchup[]>();
+  for (const m of matchups) if (m.kind === "team") weeks.set(`${m.seasonId}|${m.weekNumber}`, [...(weeks.get(`${m.seasonId}|${m.weekNumber}`) ?? []), m]);
+  for (const ms of weeks.values()) {
+    for (const m of ms) {
+      if (!m.sideB) continue;
+      const ref = ms.find((o) => o.id !== m.id && (o.sideA === m.sideB || o.sideB === m.sideB));
+      if (ref) out.set(m.id, { ref, refSide: ref.sideA === m.sideB ? "A" : "B" });
+    }
+  }
+  return out;
+}
+
+/** The bowlers on the pair an extra comparison borrows its scores from. */
+export function guestLineup(link: GuestLink): Id[] {
+  return link.refSide === "A" ? link.ref.lineupA : link.ref.lineupB;
+}
+
+/** What the season so far says about partners, opponents, rests and extra pairs, ignoring `exceptWeek` (the week being drawn). */
 export function partnerHistory(data: Pick<SeasonData, "matchups">, exceptWeek?: number): PartnerHistory {
-  const h: PartnerHistory = { partnered: new Map(), faced: new Map(), rests: new Map() };
+  const h = emptyHistory();
   const bump = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1);
+  const guests = guestLinks(data.matchups);
   for (const m of data.matchups) {
     if (m.kind !== "team" || m.weekNumber === exceptWeek) continue;
-    for (const lineup of [m.lineupA, m.lineupB]) if (lineup.length === 2) bump(h.partnered, pairKey(lineup[0], lineup[1]));
+    const link = guests.get(m.id);
+    for (const lineup of link ? [m.lineupA] : [m.lineupA, m.lineupB]) if (lineup.length === 2) bump(h.partnered, pairKey(lineup[0], lineup[1]));
     if (m.sideB == null) for (const id of m.lineupA) h.rests.set(id, (h.rests.get(id) ?? 0) + 1); // sat the week out
-    else for (const x of m.lineupA) for (const y of m.lineupB) bump(h.faced, pairKey(x, y));
+    else {
+      for (const x of m.lineupA) for (const y of link ? guestLineup(link) : m.lineupB) bump(h.faced, pairKey(x, y));
+      if (link) for (const id of m.lineupA) h.floats.set(id, (h.floats.get(id) ?? 0) + 1);
+    }
   }
   return h;
 }

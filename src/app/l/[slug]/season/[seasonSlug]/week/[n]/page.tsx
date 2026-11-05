@@ -9,7 +9,8 @@ import { ShareBar } from "@/components/share-bar";
 import { StandingsTable } from "@/components/standings-table";
 import { Badge, Card, CardHead, EmptyState } from "@/components/ui";
 import { getLeagueCtx } from "@/server/context";
-import { formatDate, participant, recordsEntering, shareHref, standingsRows } from "@/server/views";
+import { drawnShown, formatDate, participant, recordsEntering, shareHref, standingsRows } from "@/server/views";
+import { WatchDrawButton } from "@/components/draw-reveal";
 import { getStore } from "@/server/db";
 import { buildSeasonModel } from "@/domain/engine";
 import { seasonData } from "@/server/access";
@@ -42,6 +43,7 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
   const share = shareHref(ctx, `/l/${slug}/season/${seasonSlug}/week/${wk}`);
   const sq = ctx.seasons.find((s) => s.status === "active")?.slug === seasonSlug ? null : seasonSlug;
   const label = (r: (typeof results)[number]) => participant(ctx, r.a.participantId, kind).name;
+  const shown = drawnShown(ctx, wk);
   return (
     <div className="grid gap-6 md:gap-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -57,6 +59,7 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Badge tone={week.status === "completed" ? "win" : week.status === "postponed" ? "warn" : "neutral"}>{week.status === "completed" ? "WEEK COMPLETE" : week.status === "postponed" ? "POSTPONED" : week.status === "in_progress" ? "IN PROGRESS" : "UPCOMING"}</Badge>
           {week.label ? <span className="muted text-[13px]">{week.label}</span> : null}
+          {shown.length ? <WatchDrawButton matches={shown} week={wk} /> : null}
         </div>
       </div>
 

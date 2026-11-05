@@ -3,7 +3,7 @@ import { z } from "zod";
 import { championOf } from "@/domain/awards";
 import { usesPartners, validateConfig } from "@/domain/config";
 import { buildSeasonModel, defaultLineup, versionForWeek } from "@/domain/engine";
-import { drawPartners, partnerHistory, seededRandom } from "@/domain/partners";
+import { drawPartners, guestLinks, pairName, partnerHistory, seededRandom } from "@/domain/partners";
 import { firstEligibleWeek } from "@/domain/rulechange";
 import { firstRoundBracket, generateRoundRobin, nextRoundPairs } from "@/domain/schedule";
 import { bowlerSeasonStats } from "@/domain/stats";
@@ -337,6 +337,8 @@ export async function deleteMatchup(store: Store, actor: Actor, leagueId: Id, ma
     const { matchup } = matchupIn(db, leagueId, matchupId);
     if (isOfficial(matchup.state) && matchup.sideB) throw conflict("This matchup is finalized. Reopen it before removing it.");
     if (db.scores.some((s) => s.matchupId === matchupId)) throw conflict("This matchup has scores. Clear them or reopen the result first.");
+    const week = db.matchups.filter((m) => m.seasonId === matchup.seasonId && m.weekNumber === matchup.weekNumber);
+    if ([...guestLinks(week).values()].some((l) => l.ref.id === matchupId)) throw conflict("An extra comparison uses this matchup's scores. Remove the extra comparison first, or draw the week again.");
     db.matchups = db.matchups.filter((m) => m.id !== matchupId);
     writeAudit(db, actor, { leagueId, seasonId: matchup.seasonId, action: "matchup.deleted", entityType: "matchup", entityId: matchupId, before: { week: matchup.weekNumber, sideA: matchup.sideA, sideB: matchup.sideB } });
   }, { leagueId });
@@ -348,6 +350,7 @@ export async function moveMatchup(store: Store, actor: Actor, leagueId: Id, matc
     requirePerm(db, actor, leagueId, "schedule.manage");
     const { matchup, season } = matchupIn(db, leagueId, matchupId);
     if (isOfficial(matchup.state) && matchup.sideB) throw conflict("This matchup is finalized. Reopen it before moving it.");
+    if (usesPartners(versionForWeek(season.ruleVersions, matchup.weekNumber).config)) throw invalid("Moving a drawn matchup would break the week's draw. Draw the week again instead.");
     if (!db.weeks.some((w) => w.seasonId === season.id && w.number === toWeek)) throw invalid(`Week ${toWeek} doesn't exist in this season.`);
     const clash = db.matchups.find((m) => m.id !== matchupId && m.seasonId === season.id && m.weekNumber === toWeek && [m.sideA, m.sideB].some((s) => s && [matchup.sideA, matchup.sideB].includes(s)));
     if (clash) throw conflict(`A participant already has a matchup in week ${toWeek}.`);
@@ -438,8 +441,10 @@ export interface PartnerDrawSummary {
   week: number;
   /** Recorded in the audit log: the same seed and bowlers give the same draw again. */
   seed: number;
-  /** Head-to-head matches first, then each bowler sitting out (`b` null). Bowler ids. */
-  matches: { a: Id[]; b: Id[] | null }[];
+  /** Head-to-head matches first, then the extra comparison, then each bowler sitting out (`b` null). Bowler ids. */
+  matches: { a: Id[]; b: Id[] | null; extra?: boolean }[];
+  /** The same, with each side as the names shown on screen ("Alex & Sam"), for the draw reveal. */
+  shown: { a: string; b: string | null; extra: boolean }[];
   /** Unplayed matchups of the week that this draw replaced. */
   replaced: number;
 }
@@ -467,7 +472,8 @@ export function drawWeekPartners(store: Store, actor: Actor, leagueId: Id, seaso
 
     const ids = [...new Set(input.bowlerIds)];
     if (ids.length < 4) throw invalid("Pick at least four bowlers: partners are drawn in pairs, and two pairs make a match.");
-    const nameOf = (id: Id) => db.bowlers.find((b) => b.id === id)?.name ?? "Unknown";
+    const league = db.bowlers.filter((b) => b.leagueId === leagueId);
+    const nameOf = (id: Id) => league.find((b) => b.id === id)?.name ?? "Unknown";
     for (const id of ids) {
       const b = bowlerIn(db, leagueId, id);
       if (!b.active) throw invalid(`${b.name} is inactive. Reactivate them or leave them out of the draw.`);
@@ -477,21 +483,33 @@ export function drawWeekPartners(store: Store, actor: Actor, leagueId: Id, seaso
 
     const draw = drawPartners(ids, partnerHistory(data, week), seededRandom(seed));
     db.matchups = db.matchups.filter((m) => !existing.includes(m));
-    for (const m of draw.matches) {
-      // A pair is only a side id on its matchup; its name comes from the lineup.
+    // A pair is only a side id on its matchup; its name comes from the lineup. An extra comparison reuses the id of the pair it
+    // is compared with (always the A side of a real match), which is how the scores are found.
+    const sideOf = new Map<string, Id>();
+    const key = (lineup: Id[]) => lineup.join("|");
+    for (const m of draw.matches.filter((x) => !x.extra)) {
       const mu = blankMatchup(seasonId, week, "team", newId("tm"), m.b ? newId("tm") : null, actor);
       mu.lineupA = m.a;
       mu.lineupB = m.b ?? [];
+      sideOf.set(key(m.a), mu.sideA);
       db.matchups.push(mu);
     }
-    const label = (m: { a: Id[]; b: Id[] | null }) => (m.b ? `${m.a.map(nameOf).join(" & ")} vs ${m.b.map(nameOf).join(" & ")}` : `${m.a.map(nameOf).join(" & ")} sit out`);
+    for (const m of draw.matches.filter((x) => x.extra)) {
+      const mu = blankMatchup(seasonId, week, "team", newId("tm"), sideOf.get(key(m.b!))!, actor);
+      mu.lineupA = m.a;
+      mu.lineupB = m.b!;
+      db.matchups.push(mu);
+    }
+    const show = (lineup: Id[]) => lineup.map((id) => pairName(nameOf(id), league)).join(" & ");
+    const shown = draw.matches.map((m) => ({ a: show(m.a), b: m.b ? show(m.b) : null, extra: !!m.extra }));
+    const label = (m: { a: string; b: string | null; extra: boolean }) => (m.extra ? `${m.a} vs ${m.b}'s scores (extra comparison)` : m.b ? `${m.a} vs ${m.b}` : `${m.a} sits out`);
     writeAudit(db, actor, {
       leagueId, seasonId, action: "partners.drawn", entityType: "week", entityId: wk.id,
-      before: { replacedUnplayed: existing.length }, after: { week, seed, bowlers: ids.length, matches: draw.matches.map(label) },
+      before: { replacedUnplayed: existing.length }, after: { week, seed, bowlers: ids.length, matches: shown.map(label) },
     });
-    const league = leagueById(db, leagueId);
-    notifyMembers(db, { leagueId, type: "schedule", title: `Week ${week} partners are drawn`, body: "See who you're bowling with and against.", href: `/l/${league.slug}/season/${season.slug}/week/${week}`, dedupeKey: `partners:${seasonId}:${week}`, exceptUserId: actor.id });
-    return { week, seed, matches: draw.matches, replaced: existing.length };
+    const lg = leagueById(db, leagueId);
+    notifyMembers(db, { leagueId, type: "schedule", title: `Week ${week} partners are drawn`, body: "See who you're bowling with and against.", href: `/l/${lg.slug}/season/${season.slug}/week/${week}`, dedupeKey: `partners:${seasonId}:${week}`, exceptUserId: actor.id });
+    return { week, seed, matches: draw.matches, shown, replaced: existing.length };
   }, { leagueId });
 }
 

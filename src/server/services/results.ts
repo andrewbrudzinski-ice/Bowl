@@ -1,5 +1,6 @@
 import { playoffConfigFor } from "@/domain/config";
 import { buildSeasonModel, snapshotForMatchup, type SeasonData } from "@/domain/engine";
+import { guestLineup } from "@/domain/partners";
 import { computeStandings, standingsScope, type StandingRow } from "@/domain/standings";
 import { validateEntry, type Issue, type ScoreInput } from "@/domain/validate";
 import type { Id, Matchup, ResultState, Score, Side } from "@/domain/types";
@@ -106,19 +107,26 @@ export function applyEntry(db: DB, actor: Actor, leagueId: Id, input: EntryInput
     proposed.lineupA = [matchup.sideA];
     proposed.lineupB = matchup.sideB ? [matchup.sideB] : [];
   }
+  // An extra comparison (rotating partners) is only ever entered for its own pair: the other pair's scores belong to their matchup.
+  const extra = model.guests.get(matchup.id) ?? null;
+  if (extra) {
+    proposed.lineupB = guestLineup(extra);
+    proposed.forfeitBy = null;
+  }
+  const scores = extra ? input.scores.filter((s) => s.side === "A") : input.scores;
   const asReady = input.submit === "ready" || mode.correction != null;
   // Validate against the *other* matchups in the week, with this one replaced by the proposal.
-  const issues = validateEntry(model, proposed, input.scores, effectiveCfg, { forFinalize: asReady });
+  const issues = validateEntry(model, proposed, scores, effectiveCfg, { forFinalize: asReady });
   if (issues.some((i) => i.severity === "error")) throwIssues(issues, "Couldn't save.");
 
   const old = db.scores.filter((s) => s.matchupId === matchup.id);
-  const changes = diffScores(old, input.scores);
+  const changes = diffScores(old, scores);
   const beforeStandings = mode.correction ? standingsSummary(computeStandings(model, { scope: standingsScope(effectiveCfg) }).rows) : null;
 
   // ---- mutate (no throws below this line) ----
   db.scores = db.scores.filter((s) => s.matchupId !== matchup.id);
   const stamp = now();
-  for (const s of input.scores) {
+  for (const s of scores) {
     if (s.kind === "bowled" && s.scratch == null) continue;
     db.scores.push({ id: newId("sc"), matchupId: matchup.id, bowlerId: s.bowlerId, side: s.side, game: s.game, scratch: s.kind === "bowled" ? s.scratch : null, kind: s.kind, updatedAt: stamp, updatedBy: actor.id });
   }
@@ -132,7 +140,7 @@ export function applyEntry(db: DB, actor: Actor, leagueId: Id, input: EntryInput
   matchup.updatedBy = actor.id;
   matchup.revision += 1;
 
-  const hasAny = input.scores.some((s) => s.kind !== "bowled" || s.scratch != null) || !!matchup.forfeitBy;
+  const hasAny = scores.some((s) => s.kind !== "bowled" || s.scratch != null) || !!matchup.forfeitBy;
   if (mode.correction) {
     matchup.state = "corrected";
     // A substitute who wasn't in the original snapshot gets a handicap recorded for this night.

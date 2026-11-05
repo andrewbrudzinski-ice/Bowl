@@ -25,7 +25,8 @@ export function collectNights(model: SeasonModel): NightLine[] {
   const out: NightLine[] = [];
   for (const r of model.results) {
     if (!r.official || r.isBye || r.forfeitBy) continue;
-    for (const side of [r.a, r.b!]) {
+    // An extra comparison borrows the other pair's scores; those bowlers' nights are counted in their own matchup.
+    for (const side of r.guest ? [r.a] : [r.a, r.b!]) {
       const opp = side.side === "A" ? r.b! : r.a;
       for (const line of side.lineup) {
         const games = line.games
@@ -189,7 +190,7 @@ export function collectTeamNights(model: SeasonModel): TeamNight[] {
   const out: TeamNight[] = [];
   for (const r of model.results) {
     if (!r.official || r.isBye || r.forfeitBy || r.matchup.kind !== "team" || !r.complete) continue;
-    for (const side of [r.a, r.b!]) {
+    for (const side of r.guest ? [r.a] : [r.a, r.b!]) {
       out.push({
         teamId: side.participantId,
         week: r.weekNumber,
@@ -277,7 +278,7 @@ export function winStreaks(results: MatchupResult[], scope: "team" | "individual
   const seq = new Map<Id, { week: number; o: "W" | "L" | "T" }[]>();
   const push = (id: Id, week: number, o: "W" | "L" | "T") => seq.set(id, [...(seq.get(id) ?? []), { week, o }]);
   for (const r of results) {
-    if (!r.official || r.isBye || !r.winner || r.matchup.kind !== scope) continue;
+    if (!r.official || r.isBye || r.guest || !r.winner || r.matchup.kind !== scope) continue;
     push(r.a.participantId, r.weekNumber, r.winner === "tie" ? "T" : r.winner === "A" ? "W" : "L");
     push(r.b!.participantId, r.weekNumber, r.winner === "tie" ? "T" : r.winner === "B" ? "W" : "L");
   }

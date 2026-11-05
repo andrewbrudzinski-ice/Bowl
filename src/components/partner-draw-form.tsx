@@ -1,7 +1,9 @@
 "use client";
 import { useId, useState } from "react";
 import type { ActionState } from "@/app/actions/util";
+import type { DrawnShown } from "@/domain/reveal";
 import { ActionForm } from "./action-form";
+import { DrawReveal } from "./draw-reveal";
 
 export interface DrawWeek {
   number: number;
@@ -22,10 +24,21 @@ export function PartnerDrawForm({ action, weeks, bowlers, defaultWeek }: { actio
   const uid = useId();
   const [week, setWeek] = useState(defaultWeek);
   const [bowling, setBowling] = useState<Set<string>>(() => new Set(bowlers.map((b) => b.id)));
+  const [reveal, setReveal] = useState<{ week: number; matches: DrawnShown[] } | null>(null);
+  // The server answers with the draw as names; show it straight away as the reveal.
+  const drawAndReveal = async (prev: ActionState, fd: FormData) => {
+    const r = await action(prev, fd);
+    const data = r?.ok ? (r.data as { week: number; matches: DrawnShown[] } | undefined) : undefined;
+    if (data) setReveal(data);
+    return r;
+  };
   const picked = weeks.find((w) => w.number === week);
   const n = bowling.size;
-  const matches = Math.floor(n / 4);
-  const sitting = n % 4;
+  // Two bowlers make a pair, two pairs make a match; an odd pair is the extra pair, and an odd bowler sits out.
+  const pairs = Math.floor(n / 2);
+  const matches = Math.floor(pairs / 2);
+  const extra = pairs % 2 === 1;
+  const sitting = n % 2;
   const toggle = (id: string, on: boolean) =>
     setBowling((prev) => {
       const next = new Set(prev);
@@ -35,7 +48,9 @@ export function PartnerDrawForm({ action, weeks, bowlers, defaultWeek }: { actio
     });
 
   return (
-    <ActionForm action={action} submit={picked?.drawn ? `Draw week ${week} again` : `Draw week ${week} partners`} className="grid gap-4">
+    <>
+    <DrawReveal matches={reveal?.matches ?? []} week={reveal?.week ?? week} open={!!reveal} onClose={() => setReveal(null)} />
+    <ActionForm action={drawAndReveal} submit={picked?.drawn ? `Draw week ${week} again` : `Draw week ${week} partners`} className="grid gap-4">
       <div className="field">
         <label htmlFor={`${uid}-week`}>Week</label>
         <select id={`${uid}-week`} name="week" className="select !w-auto min-w-48" value={week} onChange={(e) => setWeek(Number(e.target.value))}>
@@ -67,8 +82,9 @@ export function PartnerDrawForm({ action, weeks, bowlers, defaultWeek }: { actio
       <p className={`text-[13px] ${n < 4 ? "text-loss" : "muted"}`} aria-live="polite">
         {n < 4
           ? `${n} selected. Pick at least four: partners are drawn in pairs, and two pairs make a match.`
-          : `${n} bowling: ${matches} match${matches === 1 ? "" : "es"}${sitting ? `, and ${sitting} sit${sitting === 1 ? "s" : ""} out (whoever has sat out least so far)` : ", and everyone bowls"}.`}
+          : `${n} bowling: ${pairs} pairs, making ${matches} match${matches === 1 ? "" : "es"}${extra ? " plus one extra pair that is compared with another pair’s scores" : ""}${sitting ? `; 1 bowler sits out (whoever has sat out least so far)` : "; everyone bowls"}.`}
       </p>
     </ActionForm>
+    </>
   );
 }
