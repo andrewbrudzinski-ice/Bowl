@@ -125,6 +125,37 @@ export const eligibilitySchema = z.object({
   subsCountForRecords: z.boolean(),
 });
 
+/**
+ * Rotating partners: instead of fixed teams, bowlers are re-paired by a random draw every week. A pair is a team of two for
+ * that night only; the pair that bowls more pins wins the match and every bowler is ranked on their own points.
+ */
+export const partnersSchema = z.object({
+  enabled: z.boolean(),
+  /** Points each partner earns when their pair wins the match. */
+  winPoints: nonNeg,
+  /** Points each partner earns when the match is tied. */
+  tiePoints: nonNeg,
+  /** Points each partner earns when their pair has no opponent that night. */
+  byePoints: nonNeg,
+  /** Points for the highest pin count of the night. Ties share it. */
+  bonusPoints: nonNeg,
+  /** Whether the highest pin count is one bowler's series, or a pair's combined total (both partners earn the point). */
+  bonusFor: z.enum(["bowler", "pair"]),
+  /** Pins that count for the bonus: raw pins, or whatever decides matches (handicap-adjusted when handicap is on). */
+  bonusPins: z.enum(["scratch", "scoring"]),
+});
+export type PartnersConfig = z.infer<typeof partnersSchema>;
+
+export const DEFAULT_PARTNERS: PartnersConfig = {
+  enabled: false,
+  winPoints: 2,
+  tiePoints: 1,
+  byePoints: 0,
+  bonusPoints: 1,
+  bonusFor: "bowler",
+  bonusPins: "scratch",
+};
+
 export const ruleConfigSchema = z.object({
   format: z.enum(["team", "individual", "both"]),
   bowlersPerTeam: z.number().int().min(1).max(8),
@@ -136,6 +167,8 @@ export const ruleConfigSchema = z.object({
   eligibility: eligibilitySchema,
   scheduleFormat: z.enum(["round_robin", "double_round_robin", "manual"]),
   recordsCarryOver: z.boolean(),
+  /** Absent from rules saved before rotating partners existed; the default keeps those leagues unchanged. */
+  partners: partnersSchema.default(DEFAULT_PARTNERS),
 });
 
 export type RuleConfig = z.infer<typeof ruleConfigSchema>;
@@ -208,7 +241,23 @@ export const DEFAULT_CONFIG: RuleConfig = {
   eligibility: { minGamesForAwards: 6, subsCountForRecords: false },
   scheduleFormat: "round_robin",
   recordsCarryOver: true,
+  partners: { ...DEFAULT_PARTNERS },
 };
+
+/** Rotating-partner settings with defaults filled in, for rules saved before the option existed. */
+export function partnersOf(cfg: { partners?: Partial<PartnersConfig> | null }): PartnersConfig {
+  return { ...DEFAULT_PARTNERS, ...(cfg.partners ?? {}) };
+}
+
+/** Rules saved before rotating partners existed have no `partners` block; fill it in without touching anything else. */
+export function withPartnerDefaults(cfg: RuleConfig): RuleConfig {
+  return cfg.partners ? cfg : { ...cfg, partners: { ...DEFAULT_PARTNERS } };
+}
+
+/** True when bowlers are re-paired every week (see partnersSchema). */
+export function usesPartners(cfg: { partners?: Partial<PartnersConfig> | null }): boolean {
+  return !!cfg.partners?.enabled;
+}
 
 export interface ConfigTemplate {
   id: string;
@@ -252,6 +301,18 @@ export const STARTER_TEMPLATES: ConfigTemplate[] = [
     }),
   },
   {
+    id: "rotating-partners",
+    name: "Rotating partners league",
+    description:
+      "Everyone bowls every week with a new random partner. Each partner earns 2 points when their pair wins, plus a point for the highest pin count of the night; every bowler is ranked on their own.",
+    config: derive((c) => {
+      c.bowlersPerTeam = 2;
+      c.scheduleFormat = "manual";
+      c.standings.tiebreakers = ["points", "wins", "totalPins", "average"];
+      c.partners.enabled = true;
+    }),
+  },
+  {
     id: "team-and-individual",
     name: "Team and individual combined",
     description:
@@ -264,7 +325,7 @@ export const STARTER_TEMPLATES: ConfigTemplate[] = [
 ];
 
 /** Where settings may safely change mid-season. Used by the rule-change workflow. */
-export const STRUCTURAL_PATHS = ["format", "scoring.gamesPerSession", "bowlersPerTeam"] as const;
+export const STRUCTURAL_PATHS = ["format", "scoring.gamesPerSession", "bowlersPerTeam", "partners.enabled"] as const;
 
 export interface ConfigIssue {
   path: string;
@@ -300,7 +361,15 @@ export function validateConfig(input: unknown): { ok: boolean; config?: RuleConf
     warn("scoring.basis", "Handicap is enabled but matchups are decided on scratch pins; handicaps are shown but not used for results.");
   if (!c.handicap.enabled && c.scoring.basis === "handicap")
     warn("scoring.basis", "Handicap is disabled, so results are decided on scratch pins.");
-  if (c.scoring.pointsPerGame === 0 && c.scoring.pointsPerSeries === 0 && c.scoring.matchupWinnerBy === "points")
+  if (c.partners.enabled) {
+    if (c.format !== "team") err("format", "Rotating partners use the team format: each pair bowls as a team of two.");
+    if (c.bowlersPerTeam !== 2) err("bowlersPerTeam", "Rotating partners are pairs, so there must be two bowlers per team.");
+    if (c.playoffs.enabled) err("playoffs.enabled", "Playoffs aren't available with rotating partners yet.");
+    if (c.partners.winPoints === 0 && c.partners.tiePoints === 0 && c.partners.bonusPoints === 0)
+      warn("partners.winPoints", "No points are awarded, so the standings will show every bowler with zero points.");
+    if (c.partners.tiePoints > c.partners.winPoints) warn("partners.tiePoints", "A tie is worth more than a win.");
+  }
+  if (c.scoring.pointsPerGame === 0 && c.scoring.pointsPerSeries === 0 && c.scoring.matchupWinnerBy === "points" && !c.partners.enabled)
     err("scoring.matchupWinnerBy", "No points are awarded, so matchups cannot be decided by points. Award points or decide by series total.");
   if (c.standings.tiebreakers.length !== new Set(c.standings.tiebreakers).size)
     err("standings.tiebreakers", "Tie-breakers must not repeat.");

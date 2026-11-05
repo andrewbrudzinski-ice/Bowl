@@ -10,6 +10,10 @@ await p.goto(BASE+"/login"); await p.fill("#email",EMAIL); await p.fill("#passwo
 await Promise.all([p.waitForURL(BASE+"/"),p.click("button[type=submit]")]);
 const paths=["","/schedule","/standings","/bowlers","/teams","/stats","/stats?tab=records","/stats?tab=awards&week=3","/stats?tab=insights","/stats?tab=trends","/results","/timeline","/news","/history","/rules","/admin","/admin/scores?week=7","/admin/roster","/admin/schedule","/admin/settings","/admin/settings?section=rules","/admin/settings?section=appearance","/admin/settings?section=awards","/admin/settings?section=visibility","/admin/members","/admin/news","/admin/seasons","/admin/data","/admin/audit","/standings?season=2025","/season/2026/week/3","/history/2025"];
 const bad=[];
+// A real matchup page too: it has the widest tables (every game, both sides), so it is the first to overflow.
+await p.goto(`${BASE}/l/${SLUG}/season/2026/week/3`,{waitUntil:"networkidle"});
+const matchup=await p.locator(`a[href*="/l/${SLUG}/matchup/"]`).first().getAttribute("href");
+if (matchup) paths.push(matchup.replace(`/l/${SLUG}`,""));
 for (const x of paths) { await p.goto(`${BASE}/l/${SLUG}${x}`,{waitUntil:"networkidle"}); await p.addStyleTag({content:`body *{letter-spacing:${LS} !important}`}); await p.waitForTimeout(150);
   const o=await p.evaluate(()=>{ const W=window.innerWidth; const clipped=(e)=>{ for(let a=e.parentElement;a&&a!==document.body;a=a.parentElement){ const v=getComputedStyle(a).overflowX; if(v==="auto"||v==="scroll"||v==="hidden") return true; } return false; }; let who=""; for(const e of document.querySelectorAll("body *")){ const r=e.getBoundingClientRect(); if(r.width&&r.right>W+0.5&&!clipped(e)){ who=e.tagName.toLowerCase()+"."+String(e.className).slice(0,40)+" «"+(e.textContent||"").trim().slice(0,40)+"»"; break; } } return {o:document.documentElement.scrollWidth-W,who}; });
   if (o.o>1) bad.push(`${x||"/"}: +${o.o}px ${o.who}`); }

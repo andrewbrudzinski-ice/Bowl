@@ -1,6 +1,6 @@
 import { playoffConfigFor } from "@/domain/config";
 import { buildSeasonModel, snapshotForMatchup, type SeasonData } from "@/domain/engine";
-import { computeStandings, type StandingRow } from "@/domain/standings";
+import { computeStandings, standingsScope, type StandingRow } from "@/domain/standings";
 import { validateEntry, type Issue, type ScoreInput } from "@/domain/validate";
 import type { Id, Matchup, ResultState, Score, Side } from "@/domain/types";
 import { isOfficial } from "@/domain/types";
@@ -113,7 +113,7 @@ export function applyEntry(db: DB, actor: Actor, leagueId: Id, input: EntryInput
 
   const old = db.scores.filter((s) => s.matchupId === matchup.id);
   const changes = diffScores(old, input.scores);
-  const beforeStandings = mode.correction ? standingsSummary(computeStandings(model, { scope: matchup.kind === "team" ? "team" : "bowler" }).rows) : null;
+  const beforeStandings = mode.correction ? standingsSummary(computeStandings(model, { scope: standingsScope(effectiveCfg) }).rows) : null;
 
   // ---- mutate (no throws below this line) ----
   db.scores = db.scores.filter((s) => s.matchupId !== matchup.id);
@@ -146,7 +146,7 @@ export function applyEntry(db: DB, actor: Actor, leagueId: Id, input: EntryInput
   weekStatusSync(db, season.id, matchup.weekNumber);
 
   if (mode.correction) {
-    const after = standingsSummary(computeStandings(buildSeasonModel(seasonData(db, leagueId, season.id)), { scope: matchup.kind === "team" ? "team" : "bowler" }).rows);
+    const after = standingsSummary(computeStandings(buildSeasonModel(seasonData(db, leagueId, season.id)), { scope: standingsScope(effectiveCfg) }).rows);
     writeAudit(db, actor, {
       leagueId, seasonId: season.id, action: "result.corrected", entityType: "matchup", entityId: matchup.id,
       before: { scores: changes.map((c) => ({ bowlerId: c.bowlerId, game: c.game, ...c.before })), standings: beforeStandings, lineup: prevLineup },
@@ -228,7 +228,7 @@ export function previewFinalize(store: Store, actor: Actor, leagueId: Id, matchu
     const model = buildSeasonModel(data);
     const cfg = model.configForWeek(matchup.weekNumber);
     const issues = validateEntry(model, matchup, storedScores(db, matchupId), cfg, { forFinalize: true });
-    const scope = matchup.kind === "team" ? "team" : "bowler";
+    const scope = standingsScope(cfg);
     const before = computeStandings(model, { scope }).rows;
     const snap = snapshotForMatchup(model, matchup);
     const hypothetical = data.matchups.map((m) => (m.id === matchupId ? { ...m, state: "finalized" as ResultState, handicapSnapshot: snap, ruleVersion: model.versionForWeek(m.weekNumber).version } : m));

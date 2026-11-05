@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { usesPartners } from "@/domain/config";
 import { firstEligibleWeek } from "@/domain/rulechange";
 import { fmt1 } from "@/domain/math";
 import { bowlerSeasonStats } from "@/domain/stats";
@@ -21,11 +22,13 @@ export default async function RosterAdmin({ params }: { params: Promise<{ slug: 
   const teams = m.data.teams.filter((t) => t.active);
   const onRoster = new Set(m.data.roster.map((r) => r.bowlerId));
   const free = m.data.bowlers.filter((b) => !onRoster.has(b.id) && b.active);
-  const individual = ctx.cfg.format === "individual";
+  // Individual leagues and rotating-partner leagues have no fixed teams, so the team controls are left out.
+  const partners = usesPartners(ctx.cfg);
+  const individual = ctx.cfg.format === "individual" || partners;
   const entries = m.data.roster.filter((r) => r.toWeek == null);
   return (
     <div className="grid gap-6 md:gap-8">
-      <PageHeader title="Teams & roster" eyebrow={season.name} sub="Bowlers are people; the roster is who bowls for whom this season. Moving a bowler never changes past results." />
+      <PageHeader title={individual ? "Roster" : "Teams & roster"} eyebrow={season.name} sub={partners ? "Everyone on the roster can be included in the weekly partner draw. Partners change every week, so there are no teams to manage." : "Bowlers are people; the roster is who bowls for whom this season. Moving a bowler never changes past results."} />
       <div className="grid gap-4 lg:grid-cols-2">
         {!individual ? (
           <Card>

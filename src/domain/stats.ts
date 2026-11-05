@@ -1,3 +1,4 @@
+import { usesPartners } from "./config";
 import type { SeasonModel } from "./engine";
 import { mean, stdDev, sum } from "./math";
 import type { BowlerLine, MatchupResult } from "./scoring";
@@ -106,7 +107,18 @@ export function bowlerSeasonStats(model: SeasonModel, nights: NightLine[] = coll
     // Individual record (individual matchups, or pairings in "both" format)
     let record: BowlerSeasonStats["record"] = null;
     const cfg0 = model.configForWeek(1);
-    if (cfg0.format !== "team") {
+    if (usesPartners(cfg0)) {
+      // Rotating partners: a bowler's record is the result of each of their pair's matches.
+      record = { wins: 0, losses: 0, ties: 0 };
+      for (const r of model.results) {
+        if (!r.official || r.isBye || !r.winner) continue;
+        const side = r.a.lineup.some((l) => l.bowlerId === id && !l.absent) ? "A" : r.b?.lineup.some((l) => l.bowlerId === id && !l.absent) ? "B" : null;
+        if (!side) continue;
+        if (r.winner === "tie") record.ties++;
+        else if (r.winner === side) record.wins++;
+        else record.losses++;
+      }
+    } else if (cfg0.format !== "team") {
       record = { wins: 0, losses: 0, ties: 0 };
       for (const r of model.results) {
         if (!r.official || r.isBye) continue;

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { fmt1, fmtPts } from "@/domain/math";
 import { computeRivalries } from "@/domain/rivalry";
 import { computeStandings, standingsProgression } from "@/domain/standings";
@@ -22,6 +22,12 @@ export default async function TeamPage({ params, searchParams }: { params: Promi
   const m = ctx.model;
   const team = m.teamById.get(id);
   if (!team) notFound();
+  if (m.pairTeamIds.has(id)) {
+    // A drawn pair exists for one night; its page is the matchup.
+    const mu = m.data.matchups.find((x) => x.sideA === id || x.sideB === id);
+    if (mu) redirect(`/l/${slug}/matchup/${mu.id}`);
+    notFound();
+  }
   const sq = seasonParam(ctx);
   const { rows } = computeStandings(m, { scope: "team" });
   const row = rows.find((r) => r.id === id);

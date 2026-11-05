@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, CheckCircle2 } from "lucide-react";
+import { usesPartners } from "@/domain/config";
 import { auditConsistency } from "@/domain/validate";
 import { Alert, Badge, Card, CardHead, EmptyState, PageHeader, Stat } from "@/components/ui";
 import { getLeagueCtx } from "@/server/context";
@@ -17,6 +18,7 @@ export default async function AdminHome({ params, searchParams }: { params: Prom
   const base = `/l/${slug}/admin`;
   const kind = ctx.cfg.format === "individual" ? "individual" : "team";
   const wk = currentWeek(ctx);
+  const partners = usesPartners(ctx.cfg);
   const nm = (r: (typeof m.results)[number]) => `${participant(ctx, r.a.participantId, kind).name} vs ${participant(ctx, r.b!.participantId, kind).name}`;
   const real = m.results.filter((r) => !r.isBye);
   const thisWeek = real.filter((r) => r.weekNumber === wk);
@@ -28,7 +30,10 @@ export default async function AdminHome({ params, searchParams }: { params: Prom
   const sched: string[] = [];
   const regularWeeks = [...m.data.weeks].filter((w) => w.phase === "regular");
   const emptyWeeks = regularWeeks.filter((w) => !m.results.some((r) => r.weekNumber === w.number) && w.status !== "postponed");
-  if (m.data.matchups.length === 0) sched.push("No schedule has been created yet.");
+  const undrawn = partners && !m.results.some((r) => r.weekNumber === wk);
+  if (partners) {
+    if (undrawn) sched.push(`Week ${wk} partners haven't been drawn yet.`);
+  } else if (m.data.matchups.length === 0) sched.push("No schedule has been created yet.");
   else if (emptyWeeks.length) sched.push(`No matchups in week${emptyWeeks.length === 1 ? "" : "s"} ${emptyWeeks.map((w) => w.number).join(", ")}.`);
   const parts = kind === "team" ? m.data.teams.filter((t) => t.active && m.data.roster.some((r) => r.teamId === t.id)) : [];
   for (const w of regularWeeks.filter((x) => m.results.some((r) => r.weekNumber === x.number))) {
@@ -38,7 +43,7 @@ export default async function AdminHome({ params, searchParams }: { params: Prom
   }
   for (const w of m.data.weeks.filter((x) => x.status === "postponed")) sched.push(`Week ${w.number} is postponed — set a new date.`);
   for (const i of issues.filter((x) => x.code === "duplicate_matchup")) sched.push(i.message);
-  const unassigned = m.data.roster.filter((r) => r.toWeek == null && !r.isSub && !r.teamId && kind === "team");
+  const unassigned = m.data.roster.filter((r) => r.toWeek == null && !r.isSub && !r.teamId && kind === "team" && !partners);
   if (unassigned.length) sched.push(`${unassigned.length} bowler${unassigned.length === 1 ? " has" : "s have"} no team.`);
   const { corrections, rosterChanges, importProblems } = await getStore().read((db) => ({
     corrections: db.audit.filter((a) => a.leagueId === ctx.league.id && (a.action === "result.corrected" || a.action === "result.reopened" || a.action === "rules.changed")).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 5),
@@ -47,9 +52,10 @@ export default async function AdminHome({ params, searchParams }: { params: Prom
   }), { leagueId: ctx.league.id });
 
   let next: { title: string; body: string; href: string; cta: string } | null = null;
-  if (!m.data.teams.length) next = { title: "Add your teams and bowlers", body: "Everything else builds on the roster.", href: `${base}/roster`, cta: "Open roster" };
+  if (!partners && !m.data.teams.length) next = { title: "Add your teams and bowlers", body: "Everything else builds on the roster.", href: `${base}/roster`, cta: "Open roster" };
   else if (!m.data.roster.length) next = { title: "Put bowlers on this season's roster", body: "Add each bowler with an entering average so handicaps work from week one.", href: `${base}/roster`, cta: "Add to roster" };
-  else if (!m.data.matchups.length) next = { title: "Build the schedule", body: "Generate a round robin or add matchups by hand.", href: `${base}/schedule`, cta: "Open schedule" };
+  else if (partners && undrawn) next = { title: `Draw week ${wk} partners`, body: "Pick who is bowling and the site draws the pairs and the matches.", href: `${base}/schedule`, cta: "Draw partners" };
+  else if (!partners && !m.data.matchups.length) next = { title: "Build the schedule", body: "Generate a round robin or add matchups by hand.", href: `${base}/schedule`, cta: "Open schedule" };
   else if (awaiting.length) next = { title: `${awaiting.length} result${awaiting.length === 1 ? " is" : "s are"} waiting to be finalized`, body: "Review the totals, preview the standings impact, then finalize.", href: `${base}/scores?week=${awaiting[0].weekNumber}`, cta: "Review & finalize" };
   else if (missing.length) next = { title: `Enter scores for week ${missing[0].weekNumber}`, body: `${missing.length} matchup${missing.length === 1 ? "" : "s"} still need scores.`, href: `${base}/scores?week=${missing[0].weekNumber}`, cta: "Enter scores" };
   else if (ctx.season.status === "active" && real.length && real.every((r) => r.official)) next = { title: "Every scheduled matchup is final", body: ctx.cfg.playoffs.enabled ? "Generate the playoff bracket, or complete the season." : "Complete the season to archive it and start the next one.", href: `${base}/seasons`, cta: "Season options" };
@@ -57,7 +63,7 @@ export default async function AdminHome({ params, searchParams }: { params: Prom
   return (
     <div className="grid gap-6 md:gap-8">
       <PageHeader title="Commissioner overview" eyebrow={ctx.season.name} />
-      {sp.welcome ? <Alert tone="ok" title="League created">Next: add teams and bowlers, then build the schedule. You can change any rule later in Settings — changes are previewed before they apply.</Alert> : null}
+      {sp.welcome ? <Alert tone="ok" title="League created">{partners ? "Next: add your bowlers, then draw each week's partners." : "Next: add teams and bowlers, then build the schedule."} You can change any rule later in Settings — changes are previewed before they apply.</Alert> : null}
       {next ? (
         <div className="card flex flex-wrap items-center justify-between gap-3 border-[var(--accent)] p-4">
           <div><div className="eyebrow text-[var(--accent-text)]">Next step</div><div className="text-[16px] font-bold">{next.title}</div><div className="muted text-[13px]">{next.body}</div></div>

@@ -71,6 +71,15 @@ export async function removeRosterAction(slug: string, seasonId: string, bowlerI
 export async function generateScheduleAction(slug: string, seasonId: string, _: ActionState, fd: FormData) {
   return run(async () => { const a = await requireActor(); const from = Number(str(fd, "from")) || undefined; const r = await S.generateSchedule(getStore(), a, await lid(slug), seasonId, { fromWeek: from }); return done(slug, `Schedule created: ${r.created} matchups.${r.warnings.length ? " Note: " + r.warnings.join(" ") : ""}`); });
 }
+export async function drawPartnersAction(slug: string, seasonId: string, _: ActionState, fd: FormData) {
+  return run(async () => {
+    const a = await requireActor();
+    const r = await S.drawWeekPartners(getStore(), a, await lid(slug), seasonId, { week: Number(str(fd, "week")), bowlerIds: fd.getAll("bowler").map(String) });
+    const matches = r.matches.filter((m) => m.b).length;
+    const sitting = r.matches.length - matches;
+    return done(slug, `Week ${r.week} partners drawn: ${matches} match${matches === 1 ? "" : "es"}${sitting ? `, ${sitting} bowler${sitting === 1 ? "" : "s"} sitting out` : ""}.${r.replaced ? " The earlier draw was replaced." : ""} Players are notified.`);
+  });
+}
 export async function addMatchupAction(slug: string, seasonId: string, _: ActionState, fd: FormData) {
   return run(async () => { const a = await requireActor(); await S.createMatchup(getStore(), a, await lid(slug), seasonId, { week: Number(str(fd, "week")), sideA: str(fd, "a"), sideB: opt(fd, "b") }); return done(slug, "Matchup added."); });
 }

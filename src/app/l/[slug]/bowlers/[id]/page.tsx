@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { usesPartners } from "@/domain/config";
 import { calculateHandicap } from "@/domain/handicap";
 import { fmt1, fmtPts, stdDev } from "@/domain/math";
 import { generateInsights } from "@/domain/narrative";
@@ -59,7 +60,7 @@ export default async function BowlerProfile({ params, searchParams }: { params: 
             <div className="eyebrow">{career ? "Career" : ctx.season.name}</div>
             <h1 className="h-page">{bowler.name}{bowler.nickname ? <span className="muted font-medium"> “{bowler.nickname}”</span> : null}</h1>
             <div className="muted mt-0.5 flex flex-wrap items-center gap-2 text-[13px]">
-              {team ? <Link className="hover:underline" href={participant(ctx, team.id, "team", sq).href}>{team.name}</Link> : <span>{stats?.isSub ? "Substitute" : "No team"}</span>}
+              {usesPartners(ctx.cfg) ? null : team ? <Link className="hover:underline" href={participant(ctx, team.id, "team", sq).href}>{team.name}</Link> : <span>{stats?.isSub ? "Substitute" : "No team"}</span>}
               {stats?.isSub ? <Badge>SUB</Badge> : null}
               {!bowler.active ? <Badge tone="warn">INACTIVE</Badge> : null}
               {ctx.can("roster.manage") ? <Link className="text-[var(--accent-text)]" href={`/l/${slug}/admin/roster`}>Manage</Link> : null}
@@ -151,7 +152,7 @@ export default async function BowlerProfile({ params, searchParams }: { params: 
                 {ctx.cfg.handicap.enabled ? <KV k="High series (handicap)">{stats.highSeriesAdj ? `${stats.highSeriesAdj.adjusted} · wk ${stats.highSeriesAdj.week}` : "—"}</KV> : null}
                 <KV k="Consistency (std. dev.)">{sd == null ? "—" : `${sd.toFixed(1)} pins`}</KV>
                 <KV k="Nights bowled">{stats.nights}</KV>
-                {stats.record ? <KV k="Head-to-head record">{`${stats.record.wins}-${stats.record.losses}${stats.record.ties ? `-${stats.record.ties}` : ""}`}</KV> : <KV k="Team record">See <Link className="underline" href={team ? participant(ctx, team.id, "team", sq).href : "#"}>{team?.name ?? "team"}</Link></KV>}
+                {stats.record ? <KV k={usesPartners(ctx.cfg) ? "Match record (with partners)" : "Head-to-head record"}>{`${stats.record.wins}-${stats.record.losses}${stats.record.ties ? `-${stats.record.ties}` : ""}`}</KV> : <KV k="Team record">See <Link className="underline" href={team ? participant(ctx, team.id, "team", sq).href : "#"}>{team?.name ?? "team"}</Link></KV>}
                 <KV k="Records held">{myRecords.length ? myRecords.map((r) => r.title).join(", ") : "None"}</KV>
               </dl>
             </Card>

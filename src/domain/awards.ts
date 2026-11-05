@@ -1,5 +1,6 @@
+import { usesPartners } from "./config";
 import type { SeasonModel } from "./engine";
-import { computeStandings, playoffAdvancer, type StandingRow } from "./standings";
+import { computeStandings, playoffAdvancer, standingsScope, type StandingRow } from "./standings";
 import { bowlerSeasonStats, collectNights, collectTeamNights, improvement, topWithTies, winStreaks, type BowlerSeasonStats } from "./stats";
 import type { AwardsConfig, Id } from "./types";
 import { isOfficial } from "./types";
@@ -126,9 +127,10 @@ function paramsOf(cfg: AwardsConfig, def: AwardDef): Record<string, number> {
 }
 
 export function championOf(model: SeasonModel): { kind: "team" | "bowler"; id: Id; name: string; how: string } | null {
-  const kind = model.configForWeek(1).format === "individual" ? "bowler" : "team";
-  const nameOf = (id: Id) => (kind === "team" ? model.teamById.get(id)?.name : model.bowlerById.get(id)?.name) ?? "Unknown";
   const cfg = model.configForWeek(1);
+  const scope = standingsScope(cfg);
+  const kind = scope === "team" ? "team" : "bowler";
+  const nameOf = (id: Id) => (kind === "team" ? model.teamById.get(id)?.name : model.bowlerById.get(id)?.name) ?? "Unknown";
   if (cfg.playoffs.enabled) {
     const playoff = model.results.filter((r) => model.weekByNumber.get(r.weekNumber)?.phase === "playoff" && !r.isBye && isOfficial(r.matchup.state));
     if (playoff.length) {
@@ -148,7 +150,7 @@ export function championOf(model: SeasonModel): { kind: "team" | "bowler"; id: I
     return { kind, id, name: nameOf(id), how: "Recorded by the commissioner" };
   }
   if (model.data.season.status === "completed") {
-    const { rows } = computeStandings(model, { scope: kind === "team" ? "team" : "bowler" });
+    const { rows } = computeStandings(model, { scope });
     if (rows[0]) return { kind, id: rows[0].id, name: rows[0].name, how: "First place after the regular season" };
   }
   return null;
@@ -266,6 +268,7 @@ export function computeAwards(
         break;
       }
       case "longest_win_streak": {
+        if (usesPartners(model.configForWeek(1))) break; // a pair exists for one night, so there are no team streaks
         const kind = model.configForWeek(1).format === "individual" ? "individual" : "team";
         const streaks = winStreaks(model.results, kind);
         const top = topWithTies(streaks, (s) => s.length);

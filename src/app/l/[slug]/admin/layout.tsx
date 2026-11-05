@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { usesPartners } from "@/domain/config";
 import { getLeagueCtx } from "@/server/context";
 import { AdminTabs } from "@/components/admin-tabs";
 
@@ -10,7 +11,7 @@ export default async function AdminLayout({ children, params }: { children: Reac
   const items = [
     { href: base, label: "Overview", show: true },
     { href: `${base}/scores`, label: "Score entry", show: ctx.can("scores.enter") },
-    { href: `${base}/roster`, label: "Teams & roster", show: ctx.can("roster.manage") },
+    { href: `${base}/roster`, label: usesPartners(ctx.cfg) ? "Roster" : "Teams & roster", show: ctx.can("roster.manage") },
     { href: `${base}/schedule`, label: "Schedule", show: ctx.can("schedule.manage") },
     { href: `${base}/news`, label: "News", show: ctx.can("announcements.post") },
     { href: `${base}/settings`, label: "Settings", show: ctx.can("settings.general") || ctx.can("settings.rules") },

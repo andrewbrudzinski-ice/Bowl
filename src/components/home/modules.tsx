@@ -33,7 +33,7 @@ export function StandingsModule({ ctx }: { ctx: LeagueCtx }) {
     <Card>
       <CardHead title="Standings" icon={<Trophy size={16} className="text-faint" />} right={<Link className="text-[var(--accent-text)]" href={`/l/${ctx.league.slug}/standings`}>Full table →</Link>} />
       {rows.length === 0 ? (
-        <EmptyState title="No teams yet">Add teams and bowlers, then generate a schedule from the Commissioner area.</EmptyState>
+        <EmptyState title={ctx.cfg.partners?.enabled ? "No bowlers yet" : "No teams yet"}>{ctx.cfg.partners?.enabled ? "Add your bowlers, then draw each week's partners from the Commissioner area." : "Add teams and bowlers, then generate a schedule from the Commissioner area."}</EmptyState>
       ) : !played ? (
         <EmptyState title="Standings begin after the first finalized week">Official standings only count finalized results.</EmptyState>
       ) : (
@@ -57,7 +57,7 @@ export function MatchupsModule({ ctx }: { ctx: LeagueCtx }) {
     <Card>
       <CardHead title="Up next" sub={week ? `Week ${wk}${week.date ? ` · ${formatDate(week.date, { weekday: "short", month: "short", day: "numeric" })}` : ""}` : undefined} icon={<CalendarClock size={16} className="text-faint" />} right={<Link className="text-[var(--accent-text)]" href={`/l/${ctx.league.slug}/schedule`}>Schedule →</Link>} />
       {results.length === 0 ? (
-        <EmptyState title="No upcoming matchups">{m.results.length ? "Every scheduled matchup has been finalized." : ctx.can("schedule.manage") ? "Generate a schedule in Commissioner → Schedule." : "The commissioner hasn't published a schedule yet."}</EmptyState>
+        <EmptyState title="No upcoming matchups">{m.results.length ? (ctx.cfg.partners?.enabled ? "This week's matches are final. Next week's partners will be drawn before bowling." : "Every scheduled matchup has been finalized.") : ctx.can("schedule.manage") ? (ctx.cfg.partners?.enabled ? "Draw this week's partners in Commissioner → Schedule." : "Generate a schedule in Commissioner → Schedule.") : (ctx.cfg.partners?.enabled ? "This week's partners haven't been drawn yet." : "The commissioner hasn't published a schedule yet.")}</EmptyState>
       ) : (
         <div className="grid gap-5 p-5 md:grid-cols-2 xl:grid-cols-3">
           {results.map((r) => (

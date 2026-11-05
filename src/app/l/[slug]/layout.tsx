@@ -4,6 +4,7 @@ import { Bell } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { DesktopNav, MobileNav, SeasonSwitcher, type NavItem } from "@/components/league-nav";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { usesPartners } from "@/domain/config";
 import { accentVars, resolveAccent } from "@/components/theme";
 import { getLeagueCtx } from "@/server/context";
 import { getStore } from "@/server/db";
@@ -22,7 +23,7 @@ export default async function LeagueLayout({ children, params }: { children: Rea
     { href: `${base}/schedule`, label: "Schedule", icon: "schedule", primary: true, match: [`${base}/season`, `${base}/matchup`] },
     { href: `${base}/standings`, label: "Standings", icon: "standings", primary: true },
     { href: `${base}/bowlers`, label: "Bowlers", icon: "bowlers", primary: true },
-    { href: `${base}/teams`, label: "Teams", icon: "teams" },
+    ...(usesPartners(ctx.cfg) ? [] : [{ href: `${base}/teams`, label: "Teams", icon: "teams" } as NavItem]),
     { href: `${base}/stats`, label: "Stats", icon: "stats" },
     { href: `${base}/results`, label: "Results", icon: "results" },
     { href: `${base}/timeline`, label: "Timeline", icon: "timeline" },

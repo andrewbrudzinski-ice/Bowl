@@ -1,4 +1,4 @@
-import type { RuleConfig } from "./config";
+import { partnersOf, usesPartners, type RuleConfig } from "./config";
 import { roundWith, sum } from "./math";
 import type { Id, Matchup, Score, ScoreKind, Side } from "./types";
 import { isOfficial } from "./types";
@@ -114,6 +114,7 @@ export function usesHandicap(cfg: RuleConfig): boolean {
 }
 
 export function maxMatchupPoints(cfg: RuleConfig): number {
+  if (usesPartners(cfg)) return partnersOf(cfg).winPoints;
   const s = cfg.scoring;
   return s.gamesPerSession * s.pointsPerGame + s.pointsPerSeries + s.bonus.highGame + s.bonus.highSeries;
 }
@@ -271,7 +272,13 @@ export interface EvaluateInput {
  * it derives game/series winners, points and the overall result. Nothing here reads a database.
  */
 export function evaluateMatchup(input: EvaluateInput): MatchupResult {
-  const { matchup, cfg, handicaps } = input;
+  const { matchup, handicaps } = input;
+  // Rotating partners: the pair with the higher total wins, and each partner is credited with the match result.
+  // Per-game, series and bonus points don't apply, so they are switched off for the whole evaluation.
+  const partners = usesPartners(input.cfg) && matchup.kind === "team" ? partnersOf(input.cfg) : null;
+  const cfg: RuleConfig = partners
+    ? { ...input.cfg, scoring: { ...input.cfg.scoring, pointsPerGame: 0, pointsPerSeries: 0, bonus: { highGame: 0, highSeries: 0 } } }
+    : input.cfg;
   const G = cfg.scoring.gamesPerSession;
   const useHdcp = usesHandicap(cfg);
   const official = isOfficial(matchup.state);
@@ -312,7 +319,7 @@ export function evaluateMatchup(input: EvaluateInput): MatchupResult {
   };
 
   if (isBye) {
-    a.points = cfg.scoring.byePoints;
+    a.points = partners ? partners.byePoints : cfg.scoring.byePoints;
     return { ...base, games: [], winner: null, seriesWinner: null, margin: null, complete: true, missing: [], pairs: [] };
   }
   const bb = b!;
@@ -323,7 +330,7 @@ export function evaluateMatchup(input: EvaluateInput): MatchupResult {
     if (cfg.scoring.forfeitPoints === "max_to_opponent") {
       winner.gamePoints = G * cfg.scoring.pointsPerGame;
       winner.seriesPoints = cfg.scoring.pointsPerSeries;
-      winner.points = winner.gamePoints + winner.seriesPoints;
+      winner.points = partners ? partners.winPoints : winner.gamePoints + winner.seriesPoints;
       winner.gameWins = G;
     }
     return {
@@ -410,7 +417,12 @@ export function evaluateMatchup(input: EvaluateInput): MatchupResult {
 
   let winner: Side | "tie" | null = null;
   if (complete || (partialOk && scoredGames > 0)) {
-    winner = cfg.scoring.matchupWinnerBy === "series" ? seriesWinner : cmp(a.points, bb.points);
+    winner = partners || cfg.scoring.matchupWinnerBy === "series" ? seriesWinner : cmp(a.points, bb.points);
+  }
+  if (partners && winner) {
+    const earned = (side: Side) => (winner === "tie" ? partners.tiePoints : winner === side ? partners.winPoints : 0);
+    a.points = earned("A");
+    bb.points = earned("B");
   }
 
   // Pair-wise individual comparisons inside team matchups (format "both").

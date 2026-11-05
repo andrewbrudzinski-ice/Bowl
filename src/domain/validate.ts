@@ -1,4 +1,4 @@
-import type { RuleConfig } from "./config";
+import { usesPartners, type RuleConfig } from "./config";
 import { evaluateMatchup } from "./scoring";
 import type { SeasonData, SeasonModel } from "./engine";
 import type { Id, Matchup, ScoreKind, Side } from "./types";
@@ -97,7 +97,7 @@ export function validateEntry(
       }
       if (entry.isSub) {
         if (!cfg.allowSubstitutes) add({ severity: "error", code: "sub_not_allowed", bowlerId: id, side, message: `${bowlerName(id)} is a substitute, but this league does not allow substitutes.` });
-      } else if (matchup.kind === "team" && entry.teamId !== teamId) {
+      } else if (matchup.kind === "team" && !usesPartners(cfg) && entry.teamId !== teamId) {
         const real = entry.teamId ? model.teamById.get(entry.teamId)?.name : "no team";
         add({ severity: "error", code: "wrong_team", bowlerId: id, side, message: `${bowlerName(id)} is rostered with ${real} in week ${matchup.weekNumber}, not ${model.teamById.get(teamId)?.name ?? "this team"}. Mark them as a substitute or fix the roster.` });
       }

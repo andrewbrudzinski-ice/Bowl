@@ -1,7 +1,7 @@
 "use client";
 import { ArrowDown, ArrowUp, Plus, X } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { TIEBREAKERS, TIEBREAKER_LABELS, validateConfig, type RuleConfig, type Tiebreaker } from "@/domain/config";
+import { TIEBREAKERS, TIEBREAKER_LABELS, validateConfig, withPartnerDefaults, type RuleConfig, type Tiebreaker } from "@/domain/config";
 import { calculateHandicap, handicapBounds } from "@/domain/handicap";
 import { maxMatchupPoints } from "@/domain/scoring";
 
@@ -146,7 +146,8 @@ function Tiebreakers({ c }: { c: Ctl }) {
  * The rules editor. Renders one or more sections of a RuleConfig with plain-language help, validates live
  * (the server validates again), and never hardcodes a league's rules — everything starts from the config passed in.
  */
-export function RuleForm({ value, onChange, sections, disabled, lockStructural }: { value: RuleConfig; onChange: (c: RuleConfig) => void; sections: RuleSectionId[]; disabled?: boolean; lockStructural?: boolean }) {
+export function RuleForm({ value: valueIn, onChange, sections, disabled, lockStructural }: { value: RuleConfig; onChange: (c: RuleConfig) => void; sections: RuleSectionId[]; disabled?: boolean; lockStructural?: boolean }) {
+  const value = withPartnerDefaults(valueIn);
   const check = useMemo(() => validateConfig(value), [value]);
   const issues = useMemo(() => {
     const m: Record<string, string> = {};
@@ -163,9 +164,18 @@ export function RuleForm({ value, onChange, sections, disabled, lockStructural }
       {show("format") ? (
         <Group title="Competition format" note="How bowlers are matched up each week.">
           <Sel c={cd} path="format" label="Format" options={[["team", "Team vs. team"], ["individual", "Bowler vs. bowler"], ["both", "Teams, plus bowler vs. bowler inside each match"]]} help={structuralNote ?? "Team: bowlers' scores are added together. Individual: one bowler against one bowler. Combined: team totals decide the team match and each bowler also faces the bowler in the same position on the other team."} />
-          {value.format !== "individual" ? <Num c={cd} path="bowlersPerTeam" label="Bowlers per team" min={1} max={8} help={structuralNote ?? "Bowlers who bowl for a team each week."} /> : null}
-          {value.format !== "individual" ? <Bool c={c} path="allowSubstitutes" label="Allow substitutes" help="Substitutes can fill in for absent team members." /> : null}
-          <Sel c={c} path="scheduleFormat" label="Schedule type" options={[["round_robin", "Round robin"], ["double_round_robin", "Double round robin"], ["manual", "I'll build it by hand"]]} help="Used as a default when generating the schedule. Odd numbers of teams get a bye each week." />
+          {value.format === "team" ? (
+            <div className="field sm:col-span-2">
+              <label className="check items-start" htmlFor="f-partners.enabled">
+                <input id="f-partners.enabled" type="checkbox" className="mt-0.5" disabled={cd.disabled} checked={value.partners.enabled}
+                  onChange={(e) => onChange(e.target.checked ? { ...setPath(value, "partners.enabled", true), bowlersPerTeam: 2, playoffs: { ...value.playoffs, enabled: false } } : setPath(value, "partners.enabled", false))} />
+                <span><span className="font-semibold text-fg">Rotating partners</span><span className="help block font-normal">{structuralNote ?? "Instead of fixed teams, everyone is paired with a different random partner each week, and each bowler is ranked on their own points. You draw the pairs from the Schedule page."}</span></span>
+              </label>
+            </div>
+          ) : null}
+          {value.format !== "individual" && !value.partners.enabled ? <Num c={cd} path="bowlersPerTeam" label="Bowlers per team" min={1} max={8} help={structuralNote ?? "Bowlers who bowl for a team each week."} /> : null}
+          {value.format !== "individual" ? <Bool c={c} path="allowSubstitutes" label="Allow substitutes" help={value.partners.enabled ? "A guest can fill in for a partner who doesn't show up." : "Substitutes can fill in for absent team members."} /> : null}
+          {!value.partners.enabled ? <Sel c={c} path="scheduleFormat" label="Schedule type" options={[["round_robin", "Round robin"], ["double_round_robin", "Double round robin"], ["manual", "I'll build it by hand"]]} help="Used as a default when generating the schedule. Odd numbers of teams get a bye each week." /> : null}
         </Group>
       ) : null}
 
@@ -174,11 +184,22 @@ export function RuleForm({ value, onChange, sections, disabled, lockStructural }
           <Group title="Games & results">
             <Num c={cd} path="scoring.gamesPerSession" label="Games per night" min={1} max={10} help={structuralNote ?? "Most leagues bowl three."} />
             <Sel c={c} path="scoring.basis" label="Winners are decided on" options={[["handicap", "Handicap-adjusted pins"], ["scratch", "Scratch pins"]]} help="Scratch is the pins actually knocked down. Handicap adds pins to level the field." />
-            <Sel c={c} path="scoring.matchupWinnerBy" label="Overall matchup winner is" options={[["points", "Whoever earns more points"], ["series", "Whoever has the higher series total"]]} help="Controls the win/loss record in the standings." />
+            {!value.partners.enabled ? <Sel c={c} path="scoring.matchupWinnerBy" label="Overall matchup winner is" options={[["points", "Whoever earns more points"], ["series", "Whoever has the higher series total"]]} help="Controls the win/loss record in the standings." /> : null}
             <Num c={c} path="scoring.minGameScore" label="Lowest allowed game score" min={0} max={300} />
             <Num c={c} path="scoring.maxGameScore" label="Highest allowed game score" min={1} max={450} help="Standard games max out at 300." />
             <Num c={c} path="scoring.suspiciousDeviation" label="Flag scores this far from average" min={10} max={300} suffix="pins" help="Flagged scores can still be saved after you confirm them." />
           </Group>
+          {value.partners.enabled ? (
+            <Group title="Partner points" note="The pair with the higher combined total wins the match. Every bowler is ranked on their own points.">
+              <Num c={c} path="partners.winPoints" label="Points each partner earns for a win" min={0} step={0.5} help="Both partners in the winning pair earn this." />
+              <Num c={c} path="partners.tiePoints" label="Points each partner earns for a tie" min={0} step={0.5} />
+              <Num c={c} path="partners.bonusPoints" label="Bonus: highest pin count of the night" min={0} step={0.5} help="Set to 0 for no bonus. Ties share the point. It is awarded once every match of the night is final." />
+              <Sel c={c} path="partners.bonusFor" label="The bonus goes to" options={[["bowler", "The bowler with the highest series"], ["pair", "Both partners of the pair with the highest total"]]} />
+              <Sel c={c} path="partners.bonusPins" label="Pins counted for the bonus" options={[["scratch", "Raw pins (scratch)"], ["scoring", "Whatever decides matches (handicap-adjusted when handicap is on)"]]} />
+              <Num c={c} path="partners.byePoints" label="Points for a bowler who sits out" min={0} step={0.5} help="With a number of bowlers that doesn't split into matches of four, a few sit out each week." />
+              <p className="help sm:col-span-2">A bowler can earn up to <b className="text-fg">{value.partners.winPoints + value.partners.bonusPoints}</b> point{value.partners.winPoints + value.partners.bonusPoints === 1 ? "" : "s"} in a week.</p>
+            </Group>
+          ) : (
           <Group title="Points">
             <Num c={c} path="scoring.pointsPerGame" label="Points for each game won" min={0} step={0.5} />
             <Num c={c} path="scoring.pointsPerSeries" label="Points for winning the series" min={0} step={0.5} help="The series is the total of all games." />
@@ -190,6 +211,7 @@ export function RuleForm({ value, onChange, sections, disabled, lockStructural }
             {value.format === "both" ? <Num c={c} path="scoring.individual.pointsPerSeries" label="Individual: points per series" min={0} step={0.5} /> : null}
             <p className="help sm:col-span-2">With these settings a matchup is worth up to <b className="text-fg">{maxMatchupPoints(value)}</b> points.</p>
           </Group>
+          )}
           <Group title="Absences, forfeits & incomplete games">
             <Sel c={c} path="scoring.absentPolicy" label="When a bowler is absent" options={[["blind", "Give a blind score"], ["none", "Score nothing"]]} />
             {s.absentPolicy === "blind" ? <Sel c={c} path="scoring.blindMode" label="Blind score is" options={[["average_minus_offset", "Their average minus a few pins"], ["fixed", "A fixed number"]]} /> : null}
@@ -247,7 +269,7 @@ export function RuleForm({ value, onChange, sections, disabled, lockStructural }
 
       {show("playoffs") ? (
         <Group title="Playoffs" note="Playoffs are single elimination, seeded by the final regular-season standings.">
-          <Bool c={c} path="playoffs.enabled" label="This league has playoffs" />
+          {value.partners.enabled ? <p className="help sm:col-span-2">Playoffs aren't available with rotating partners yet.</p> : <Bool c={c} path="playoffs.enabled" label="This league has playoffs" />}
           {value.playoffs.enabled ? (
             <>
               <Num c={c} path="playoffs.qualifiers" label="Teams that qualify" min={2} max={32} />

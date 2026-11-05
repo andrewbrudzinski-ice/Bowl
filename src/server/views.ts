@@ -1,4 +1,4 @@
-import { computeStandings, type StandingRow } from "@/domain/standings";
+import { computeStandings, standingsScope, type StandingRow } from "@/domain/standings";
 import type { MatchupResult } from "@/domain/scoring";
 import type { Id } from "@/domain/types";
 import { isOfficial } from "@/domain/types";
@@ -41,16 +41,14 @@ export function currentWeek(ctx: LeagueCtx): number {
 export type RecordLine = { rank: number; w: number; l: number; t: number; points: number };
 
 export function recordsEntering(ctx: LeagueCtx, week: number): Map<Id, RecordLine> {
-  const scope = ctx.cfg.format === "individual" ? "bowler" : "team";
-  const { rows } = computeStandings(ctx.model!, { scope, throughWeek: week - 1 });
+  const { rows } = computeStandings(ctx.model!, { scope: standingsScope(ctx.cfg), throughWeek: week - 1 });
   return new Map(rows.map((r) => [r.id, { rank: r.rank, w: r.wins, l: r.losses, t: r.ties, points: r.points }]));
 }
 
 export const recordText = (r: RecordLine | undefined) => (r ? `${r.w}-${r.l}${r.t ? `-${r.t}` : ""}` : "0-0");
 
 export function standingsRows(ctx: LeagueCtx, through?: number): StandingRow[] {
-  const scope = ctx.cfg.format === "individual" ? "bowler" : "team";
-  return computeStandings(ctx.model!, { scope, throughWeek: through }).rows;
+  return computeStandings(ctx.model!, { scope: standingsScope(ctx.cfg), throughWeek: through }).rows;
 }
 
 export function formatDate(iso: string | null | undefined, opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" }) {

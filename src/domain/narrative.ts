@@ -1,6 +1,7 @@
 import type { SeasonModel } from "./engine";
 import type { MatchupResult } from "./scoring";
-import { computeStandings } from "./standings";
+import { usesPartners } from "./config";
+import { computeStandings, standingsScope } from "./standings";
 import { bowlerSeasonStats, collectNights, type BowlerSeasonStats } from "./stats";
 import type { Id } from "./types";
 
@@ -54,8 +55,9 @@ export function generateInsights(model: SeasonModel, stats: BowlerSeasonStats[] 
   }
 
   // Team win streaks (current).
-  const kind = cfg.format === "individual" ? "bowler" : "team";
-  const { rows } = computeStandings(model, { scope: kind === "team" ? "team" : "bowler" });
+  const scope = standingsScope(cfg);
+  const kind = scope === "team" ? "team" : "bowler";
+  const { rows } = computeStandings(model, { scope });
   for (const r of rows) {
     if (r.streak.type === "W" && r.streak.count >= 3)
       out.push({
@@ -66,7 +68,7 @@ export function generateInsights(model: SeasonModel, stats: BowlerSeasonStats[] 
   }
 
   // Scratch vs handicap-adjusted standing of teams.
-  if (cfg.handicap.enabled && cfg.format !== "individual") {
+  if (cfg.handicap.enabled && scope === "team") {
     const teams = rows.filter((r) => r.gamesBowled > 0);
     if (teams.length >= 4) {
       const scratchRank = [...teams].sort((a, b) => b.scratchPins / b.gamesBowled - a.scratchPins / a.gamesBowled).map((t) => t.id);
@@ -196,17 +198,20 @@ export function matchupRecap(model: SeasonModel, r: MatchupResult): RecapLine[] 
 
   // Standings movement: reached first place this week (team/bowler participants of a regular-season matchup).
   if ((model.weekByNumber.get(r.weekNumber)?.phase ?? "regular") === "regular") {
-    const scope = kind === "team" ? "team" : "bowler";
+    // With rotating partners the standings are of bowlers, so it is the bowlers in the matchup who can reach first place.
+    const partners = usesPartners(model.configForWeek(r.weekNumber));
+    const scope = partners || kind !== "team" ? "bowler" : "team";
     const before = computeStandings(model, { scope, throughWeek: r.weekNumber - 1 }).rows;
     const after = computeStandings(model, { scope, throughWeek: r.weekNumber }).rows;
     const hadPlay = before.some((x) => x.played > 0);
-    for (const side of [r.a, r.b]) {
-      const id = side.participantId;
+    const ids = partners ? [...r.a.lineup, ...r.b.lineup].map((l) => l.bowlerId) : [r.a.participantId, r.b.participantId];
+    for (const id of ids) {
       const pre = before.find((x) => x.id === id);
       const post = after.find((x) => x.id === id);
       if (!post) continue;
+      const who = partners ? (model.bowlerById.get(id)?.name ?? "Unknown") : nm(id);
       if (post.rank === 1 && post.played > 0 && hadPlay && pre && pre.rank !== 1 && !post.fullyTied)
-        lines.push({ kind: "first_place", text: `${nm(id)} moved into first place (from ${ordinal(pre.rank)}).` });
+        lines.push({ kind: "first_place", text: `${who} moved into first place (from ${ordinal(pre.rank)}).` });
     }
   }
   return lines;

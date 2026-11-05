@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Trophy } from "lucide-react";
 import { championOf } from "@/domain/awards";
 import { buildRecordBook, recordsBrokenInWeek } from "@/domain/records";
-import { computeStandings } from "@/domain/standings";
+import { computeStandings, standingsScope } from "@/domain/standings";
 import { seasonParam } from "@/components/links";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { getLeagueCtx } from "@/server/context";
@@ -18,7 +18,7 @@ export default async function Timeline({ params, searchParams }: { params: Promi
   if (!ctx.model || !ctx.season) return <Card><EmptyState title="No season yet" /></Card>;
   const m = ctx.model;
   const kind = ctx.cfg.format === "individual" ? "individual" : "team";
-  const scope = kind === "team" ? "team" : "bowler";
+  const scope = standingsScope(ctx.cfg);
   const book = buildRecordBook(await allModels(ctx));
   const weeks = [...m.data.weeks].sort((a, b) => a.number - b.number).filter((w) => m.results.some((r) => r.weekNumber === w.number));
   const champ = championOf(m);

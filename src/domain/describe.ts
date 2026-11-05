@@ -1,4 +1,4 @@
-import { TIEBREAKER_LABELS, type RuleConfig } from "./config";
+import { partnersOf, TIEBREAKER_LABELS, usesPartners, type RuleConfig } from "./config";
 import { handicapBounds } from "./handicap";
 import { maxMatchupPoints } from "./scoring";
 
@@ -22,14 +22,29 @@ export function describeRules(cfg: RuleConfig): RuleSection[] {
   sections.push({
     id: "format", title: "Format",
     items: [
-      { label: "Competition", value: cfg.format === "team" ? "Team vs. team" : cfg.format === "individual" ? "Bowler vs. bowler" : "Team vs. team, with an individual competition inside each team matchup" },
-      ...(cfg.format !== "individual" ? [{ label: "Team size", value: `${cfg.bowlersPerTeam} bowler${cfg.bowlersPerTeam === 1 ? "" : "s"}`, note: cfg.allowSubstitutes ? "Substitutes are allowed." : "Substitutes are not allowed." }] : []),
+      { label: "Competition", value: usesPartners(cfg) ? "Rotating partners: bowlers are paired by a random draw every week, and each pair faces another pair" : cfg.format === "team" ? "Team vs. team" : cfg.format === "individual" ? "Bowler vs. bowler" : "Team vs. team, with an individual competition inside each team matchup" },
+      ...(cfg.format !== "individual" ? [{ label: usesPartners(cfg) ? "Pair size" : "Team size", value: `${cfg.bowlersPerTeam} bowler${cfg.bowlersPerTeam === 1 ? "" : "s"}`, note: cfg.allowSubstitutes ? "Substitutes are allowed." : "Substitutes are not allowed." }] : []),
       { label: "Games per night", value: String(g) },
-      { label: "Schedule", value: cfg.scheduleFormat === "round_robin" ? "Round robin" : cfg.scheduleFormat === "double_round_robin" ? "Double round robin" : "Built by hand by the commissioner" },
+      { label: "Schedule", value: usesPartners(cfg) ? "Partners and opponents are drawn each week by the commissioner" : cfg.scheduleFormat === "round_robin" ? "Round robin" : cfg.scheduleFormat === "double_round_robin" ? "Double round robin" : "Built by hand by the commissioner" },
     ],
   });
 
-  sections.push({
+  const P = partnersOf(cfg);
+  if (usesPartners(cfg)) {
+    const bonusPins = P.bonusPins === "scratch" || basis === "scratch" ? "scratch" : "handicap-adjusted";
+    sections.push({
+      id: "scoring", title: "Scoring & points",
+      items: [
+        { label: "Games are decided on", value: `${basis} pins`, note: basis === "scratch" ? (h.enabled ? "Handicap is calculated but not used to decide results." : "No handicap is used.") : "Each bowler's score plus their handicap." },
+        { label: "Match winner", value: `The pair with the higher combined ${basis} total over all ${g} games` },
+        { label: "Pair wins", value: `Each partner earns ${pts(P.winPoints, "point")}`, note: P.tiePoints === 0 ? "A tied match earns nothing." : `A tied match earns each partner ${pts(P.tiePoints, "point")}.` },
+        ...(P.bonusPoints > 0 ? [{ label: "Highest pin count", value: `${P.bonusFor === "pair" ? "Each partner of the pair" : "The bowler"} with the highest ${bonusPins} ${P.bonusFor === "pair" ? "combined total" : "series"} of the night earns ${pts(P.bonusPoints, "point")}`, note: "Ties share the point. It is awarded once every match of the night is final." }] : []),
+        { label: "Sitting out", value: P.byePoints > 0 ? `A pair with no opponent earns each partner ${pts(P.byePoints, "point")}` : "A bowler or pair who sits out a week earns no points" },
+        { label: "Ranking", value: "Every bowler is ranked on their own points, credited from their pair's result each week" },
+        { label: "Valid game scores", value: `${s.minGameScore}–${s.maxGameScore}`, note: `Entries more than ${s.suspiciousDeviation} pins from a bowler's average are flagged for review.` },
+      ],
+    });
+  } else sections.push({
     id: "scoring", title: "Scoring & points",
     items: [
       { label: "Games are decided on", value: `${basis} pins`, note: basis === "scratch" ? (h.enabled ? "Handicap is calculated but not used to decide results." : "No handicap is used.") : "Each bowler's score plus their handicap." },
@@ -49,7 +64,7 @@ export function describeRules(cfg: RuleConfig): RuleSection[] {
       { label: "Absent bowler", value: s.absentPolicy === "none" ? "Scores nothing" : s.blindMode === "fixed" ? `Blind score of ${s.blindFixed} per game` : `Blind score: their average minus ${s.blindOffset}` },
       { label: "Forfeit", value: s.forfeitPoints === "max_to_opponent" ? "Opponent receives the maximum points" : "No points are awarded" },
       { label: "Incomplete games", value: s.incompletePolicy === "block_finalize" ? "A matchup can't be finalized until every score is entered" : "Finalizing is allowed; only fully-scored games count" },
-      { label: "Bye week", value: `${pts(s.byePoints, "point")}` },
+      { label: "Bye week", value: `${pts(usesPartners(cfg) ? P.byePoints : s.byePoints, "point")}` },
     ],
   });
 
