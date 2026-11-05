@@ -1,4 +1,4 @@
-import { TIEBREAKER_LABELS, usesPartners, type RuleConfig } from "./config";
+import { TIEBREAKER_LABELS, settingWeeksOf, usesPartners, type RuleConfig } from "./config";
 import { handicapBounds } from "./handicap";
 import { maxMatchupPoints } from "./scoring";
 
@@ -60,6 +60,7 @@ export function describeRules(cfg: RuleConfig): RuleSection[] {
     sections.push({
       id: "handicap", title: "Handicap",
       items: [
+        ...(settingWeeksOf(cfg) > 0 ? [{ label: "Handicap-setting weeks", value: `The first ${settingWeeksOf(cfg)} week${settingWeeksOf(cfg) === 1 ? "" : "s"} are bowled scratch`, note: "Those scores count toward everyone's average and handicap, but not toward points, wins or the standings." }] : []),
         { label: "Formula", value: `${h.rounding === "nearest" ? "Round" : h.rounding === "floor" ? "Round down" : h.rounding === "ceil" ? "Round up" : "Truncate"}((base − average) × ${n(h.percentage)}%)`, note: `Example: (${h.baseValue} − 160) × ${n(h.percentage)}% = ${Math.max(0, Math.round((h.baseValue - 160) * h.percentage) / 100)}` },
         { label: "Base average", value: h.baseMode === "fixed" ? `${h.baseValue} (fixed)` : h.baseMode === "league_average" ? `League average each week (${h.baseValue} until averages exist)` : `Highest bowler average each week (${h.baseValue} until averages exist)` },
         { label: "Average used", value: h.averageSource === "entering" ? "Always the entering average" : `Entering average until ${h.establishAfterGames} games are bowled, then the ${h.averageMethod === "cumulative" ? "season average" : h.averageMethod === "rolling" ? `average of the last ${h.rollingGames} games` : `season average blended with the entering average (counted as ${h.blendGames} games)`}` },

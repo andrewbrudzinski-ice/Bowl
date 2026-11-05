@@ -112,6 +112,8 @@ export interface MatchupResult {
    * nothing from this result, so it must not be counted for them anywhere.
    */
   guest: boolean;
+  /** Bowled in a handicap-setting week: counts toward averages and handicaps, not toward points, wins or the standings. */
+  settingWeek: boolean;
 }
 
 export function usesHandicap(cfg: RuleConfig): boolean {
@@ -266,6 +268,8 @@ function award(winner: Side | "tie" | null, value: number, tieFraction: number):
 export interface EvaluateInput {
   /** Evaluate as an extra comparison: only side A earns points. */
   guest?: boolean;
+  /** This is a handicap-setting week (the caller has already switched handicap off in `cfg`). */
+  settingWeek?: boolean;
   matchup: Matchup;
   scores: Score[];
   cfg: RuleConfig;
@@ -317,6 +321,7 @@ export function evaluateMatchup(input: EvaluateInput): MatchupResult {
     b,
     ruleVersion: matchup.ruleVersion,
     guest: !!input.guest,
+    settingWeek: !!input.settingWeek,
   };
 
   if (isBye) {

@@ -61,6 +61,7 @@ or component hardcodes a base average, a percentage, a game count or a point val
 
 - [docs/HANDOFF.md](docs/HANDOFF.md) — architecture, data model, what is done / not done, troubleshooting
 - [docs/ROTATING_PARTNERS.md](docs/ROTATING_PARTNERS.md) — the optional rotating-partners format: the weekly draw, points, and what changes
+- [docs/HANDICAP_WEEKS.md](docs/HANDICAP_WEEKS.md) — handicap-setting weeks: the first weeks are bowled scratch and only set averages
 - [docs/DESIGN.md](docs/DESIGN.md) — themes, color tokens, type, components, generated images, accessibility check
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — environment variables, hosting, domains, HTTPS, releases
 - [docs/BACKUPS.md](docs/BACKUPS.md) — backups, restore, testing a backup

@@ -137,6 +137,16 @@ export type PartnersConfig = z.infer<typeof partnersSchema>;
 
 export const DEFAULT_PARTNERS: PartnersConfig = { enabled: false };
 
+/**
+ * Handicap-setting weeks: the first few weeks of a season are bowled scratch, so everyone has an average to build handicaps from.
+ * Their scores count toward averages and handicaps (and personal bests), but not toward points, wins or the standings.
+ */
+export const handicapSettingSchema = z.object({
+  weeks: z.number().int().min(0).max(12),
+});
+export type HandicapSettingConfig = z.infer<typeof handicapSettingSchema>;
+export const DEFAULT_HANDICAP_SETTING: HandicapSettingConfig = { weeks: 0 };
+
 export const ruleConfigSchema = z.object({
   format: z.enum(["team", "individual", "both"]),
   bowlersPerTeam: z.number().int().min(1).max(8),
@@ -150,6 +160,8 @@ export const ruleConfigSchema = z.object({
   recordsCarryOver: z.boolean(),
   /** Absent from rules saved before rotating partners existed; the default keeps those leagues unchanged. */
   partners: partnersSchema.default(DEFAULT_PARTNERS),
+  /** Absent from rules saved before handicap-setting weeks existed; the default (none) keeps those leagues unchanged. */
+  handicapSetting: handicapSettingSchema.default(DEFAULT_HANDICAP_SETTING),
 });
 
 export type RuleConfig = z.infer<typeof ruleConfigSchema>;
@@ -223,6 +235,7 @@ export const DEFAULT_CONFIG: RuleConfig = {
   scheduleFormat: "round_robin",
   recordsCarryOver: true,
   partners: { ...DEFAULT_PARTNERS },
+  handicapSetting: { ...DEFAULT_HANDICAP_SETTING },
 };
 
 /** Rotating-partner settings with defaults filled in, for rules saved before the option existed. */
@@ -230,9 +243,20 @@ export function partnersOf(cfg: { partners?: Partial<PartnersConfig> | null }): 
   return { ...DEFAULT_PARTNERS, ...(cfg.partners ?? {}) };
 }
 
-/** Rules saved before rotating partners existed have no `partners` block; fill it in without touching anything else. */
+/** Rules saved before an optional block existed (rotating partners, handicap-setting weeks) lack it; fill it in and change nothing else. */
 export function withPartnerDefaults(cfg: RuleConfig): RuleConfig {
-  return cfg.partners ? cfg : { ...cfg, partners: { ...DEFAULT_PARTNERS } };
+  if (cfg.partners && cfg.handicapSetting) return cfg;
+  return { ...cfg, partners: cfg.partners ?? { ...DEFAULT_PARTNERS }, handicapSetting: cfg.handicapSetting ?? { ...DEFAULT_HANDICAP_SETTING } };
+}
+
+/** How many weeks at the start of the season are handicap-setting weeks. */
+export function settingWeeksOf(cfg: { handicapSetting?: Partial<HandicapSettingConfig> | null }): number {
+  return cfg.handicapSetting?.weeks ?? 0;
+}
+
+/** The same rules bowled scratch with no handicap: what a handicap-setting week is scored on. */
+export function settingWeekConfig(cfg: RuleConfig): RuleConfig {
+  return { ...cfg, handicap: { ...cfg.handicap, enabled: false }, scoring: { ...cfg.scoring, basis: "scratch" }, standings: { ...cfg.standings, pinsBasis: "scratch" } };
 }
 
 /** True when bowlers are re-paired every week (see partnersSchema). */

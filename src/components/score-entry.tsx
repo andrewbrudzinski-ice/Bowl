@@ -34,6 +34,8 @@ export interface EntryData {
   seasonId: string;
   week: number;
   dateLabel: string;
+  /** A handicap-setting week: bowled scratch; counts toward averages and handicaps, not the standings. */
+  settingWeek: boolean;
   cfg: RuleConfig;
   matchups: EntryMatchup[];
   pool: Record<string, BowlerHandicapInfo & { name: string }>;
@@ -248,6 +250,7 @@ export function ScoreEntry({ data }: { data: EntryData }) {
     <div ref={formRef} className="grid gap-6">
       {banner ? <div className="alert alert-info" role="status"><span>{banner}</span><button className="btn btn-ghost btn-sm ml-auto" onClick={() => setBanner(null)} aria-label="Dismiss">×</button></div> : null}
       <div className="card sticky top-[calc(4rem+env(safe-area-inset-top))] z-20 flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 !shadow-[var(--shadow-md)]">
+        {data.settingWeek ? <p className="mb-2 rounded-xl border border-line bg-raised px-3.5 py-2.5 text-[13px]"><b>Handicap-setting week.</b> Everyone bowls scratch. These scores count toward each bowler&rsquo;s average and handicap, but not toward points, wins or the standings.</p> : null}
         <div className="text-[13px]"><b>Week {data.week}</b> <span className="muted">· {data.dateLabel} · {G} games · scores are scratch</span>{anyDirty ? <span className="ml-2 badge badge-warn">UNSAVED CHANGES</span> : <span className="ml-2 badge badge-win">ALL SAVED</span>}</div>
         <button className="btn btn-primary btn-sm" disabled={pending || !dirtyMatchups.length} onClick={() => saveMany(dirtyMatchups)}><Save size={14} aria-hidden />Save all drafts{dirtyMatchups.length ? ` (${dirtyMatchups.length})` : ""}</button>
       </div>

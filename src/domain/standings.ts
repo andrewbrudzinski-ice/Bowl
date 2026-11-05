@@ -123,7 +123,8 @@ export function computeStandings(model: SeasonModel, opts: StandingsOptions = {}
     for (const r of model.data.roster) get(r.bowlerId);
   }
 
-  const regularWeek = (n: number) => (model.weekByNumber.get(n)?.phase ?? "regular") === "regular";
+  // Handicap-setting weeks are regular weeks, but they never count toward the standings.
+  const regularWeek = (n: number) => (model.weekByNumber.get(n)?.phase ?? "regular") === "regular" && !model.isSettingWeek(n);
 
   // Rotating partners: every bowler is credited with the points their pair earned. (An extra comparison only credits its A side.)
   const partnersMode = scope === "bowler" && usesPartners(cfg);
@@ -382,7 +383,7 @@ export interface ProgressionPoint {
 
 export function standingsProgression(model: SeasonModel, scope: Scope = "team"): { weeks: ProgressionPoint[]; ids: Id[] } {
   const weeks = [...new Set(model.results.filter((r) => r.counts && !r.isBye).map((r) => r.weekNumber))]
-    .filter((w) => (model.weekByNumber.get(w)?.phase ?? "regular") === "regular")
+    .filter((w) => (model.weekByNumber.get(w)?.phase ?? "regular") === "regular" && !model.isSettingWeek(w))
     .sort((a, b) => a - b);
   const out: ProgressionPoint[] = [];
   let ids: Id[] = [];
@@ -442,7 +443,7 @@ export function remainingPotential(model: SeasonModel, teamId: Id, cfg: RuleConf
   const pointsBased = cfg.standings.tiebreakers[0] === "points";
   let total = 0;
   for (const r of model.results) {
-    if ((model.weekByNumber.get(r.weekNumber)?.phase ?? "regular") !== "regular") continue;
+    if ((model.weekByNumber.get(r.weekNumber)?.phase ?? "regular") !== "regular" || model.isSettingWeek(r.weekNumber)) continue;
     if (isOfficial(r.matchup.state)) continue;
     if (r.a.participantId !== teamId && r.b?.participantId !== teamId) continue;
     if (r.isBye) total += pointsBased ? cfg.scoring.byePoints : 0;

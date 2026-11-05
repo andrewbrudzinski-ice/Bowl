@@ -48,6 +48,7 @@ export default async function Timeline({ params, searchParams }: { params: Promi
                   <h2 className="text-[18px] font-extrabold tracking-tight"><Link className="hover:underline" href={`/l/${slug}/season/${ctx.season!.slug}/week/${w.number}`}>{w.phase === "playoff" ? `Playoffs · ${w.label.replace(/^Playoffs · /, "")}` : `Week ${w.number}`}</Link></h2>
                   <span className="muted text-[13px]">{formatDate(w.date, { month: "short", day: "numeric" })}</span>
                   {done ? <Badge tone="win">FINAL</Badge> : any ? <Badge tone="warn">PARTIAL</Badge> : <Badge>UPCOMING</Badge>}
+                  {m.isSettingWeek(w.number) ? <Badge tone="info" title="Bowled scratch. Counts toward averages and handicaps, not the standings.">HANDICAP WEEK</Badge> : null}
                 </div>
                 <Card>
                   <ul className="divide-y divide-line">{rs.map((r) => { const a = participant(ctx, r.a.participantId, kind, sq); const b = participant(ctx, r.b!.participantId, kind, sq); const win = r.official ? (r.winner === "A" ? a.name : r.winner === "B" && !r.guest ? b.name : null) : null; return (

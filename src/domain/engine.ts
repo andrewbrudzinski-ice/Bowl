@@ -1,4 +1,4 @@
-import { playoffConfigFor, usesPartners, withPartnerDefaults, type RuleConfig } from "./config";
+import { playoffConfigFor, settingWeekConfig, settingWeeksOf, usesPartners, withPartnerDefaults, type RuleConfig } from "./config";
 import {
   averageCutoffWeek,
   calculateHandicap,
@@ -63,6 +63,8 @@ export interface SeasonModel {
   weekByNumber: Map<number, Week>;
   /** Latest week number with at least one official matchup. */
   lastOfficialWeek: number;
+  /** A handicap-setting week: bowled scratch, counts toward averages but not toward points, wins or the standings. */
+  isSettingWeek: (week: number) => boolean;
 }
 
 export function versionForWeek(versions: RuleVersion[], week: number): RuleVersion {
@@ -74,7 +76,7 @@ export function versionForWeek(versions: RuleVersion[], week: number): RuleVersi
 
 export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: RuleVersion[] } = {}): SeasonModel {
   // Rules saved before optional settings existed are completed here, so everything below can rely on every field.
-  const versions = (opts.versionsOverride ?? data.season.ruleVersions).map((v) => (v.config.partners ? v : { ...v, config: withPartnerDefaults(v.config) }));
+  const versions = (opts.versionsOverride ?? data.season.ruleVersions).map((v) => (v.config.partners && v.config.handicapSetting ? v : { ...v, config: withPartnerDefaults(v.config) }));
   const teamById = new Map(data.teams.map((t) => [t.id, t]));
   const bowlerById = new Map(data.bowlers.map((b) => [b.id, b]));
   const weekByNumber = new Map(data.weeks.map((w) => [w.number, w]));
@@ -83,7 +85,13 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
   const phaseOf = (week: number) => weekByNumber.get(week)?.phase ?? "regular";
   const verFor = (week: number) => versionForWeek(versions, week);
   const verByNumber = (n: number) => versions.find((v) => v.version === n);
-  const cfgFor = (week: number) => playoffConfigFor(verFor(week).config, phaseOf(week));
+  // Handicap-setting weeks are the first N regular weeks (N from the rules in force that week); they are scored scratch.
+  const settingWeek = (week: number, config: RuleConfig) => phaseOf(week) === "regular" && week <= settingWeeksOf(config);
+  const cfgFor = (week: number) => {
+    const config = verFor(week).config;
+    const c = playoffConfigFor(config, phaseOf(week));
+    return settingWeek(week, config) ? settingWeekConfig(c) : c;
+  };
 
   // Rotating partners: a drawn pair is a side id on the matchup with no team row behind it, shown by its lineup's names.
   const pairTeamIds = new Set<Id>();
@@ -177,7 +185,8 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
   for (const m of ordered) {
     const official = isOfficial(m.state);
     const ver = official && m.ruleVersion != null ? (verByNumber(m.ruleVersion) ?? verFor(m.weekNumber)) : verFor(m.weekNumber);
-    const cfg = playoffConfigFor(ver.config, phaseOf(m.weekNumber));
+    const inSetting = settingWeek(m.weekNumber, ver.config);
+    const cfg = inSetting ? settingWeekConfig(playoffConfigFor(ver.config, phaseOf(m.weekNumber))) : playoffConfigFor(ver.config, phaseOf(m.weekNumber));
     const link = guests.get(m.id);
     // For an extra comparison, side B is whoever is on the compared pair now, and their scores are borrowed from that matchup.
     const played: Matchup = link ? { ...m, lineupB: guestLineup(link) } : m;
@@ -212,6 +221,7 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
       evaluateMatchup({
         matchup: played,
         guest: !!link,
+        settingWeek: inSetting,
         scores,
         cfg,
         handicaps,
@@ -238,6 +248,7 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
     bowlerById,
     weekByNumber,
     lastOfficialWeek,
+    isSettingWeek: (week: number) => settingWeek(week, verFor(week).config),
   };
 }
 

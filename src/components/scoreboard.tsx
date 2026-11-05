@@ -60,6 +60,7 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
       <header className="flex items-center justify-between gap-3 px-5 pt-4">
         <span className="eyebrow">{dateLabel ?? `Week ${r.weekNumber}`}{r.matchup.playoffRound ? ` · Playoff round ${r.matchup.playoffRound}` : ""}</span>
         <span className="flex items-center gap-2">
+          {r.settingWeek ? <Badge tone="info" title="Bowled scratch. Counts toward averages and handicaps, not the standings.">HANDICAP WEEK</Badge> : null}
           {r.guest ? <Badge tone="info" title="Compared with another pair's scores; only this pair earns points">EXTRA COMPARISON</Badge> : null}
           <Badge tone={status.tone}>{status.label}</Badge>
         </span>
@@ -82,7 +83,7 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
                     {showHdcp ? <div className="faint num mt-1.5 text-[11px]">{line.scratchSeries}+{line.handicapSeries}</div> : null}
                     <div className="mt-2 flex items-center justify-end gap-2">
                       {outcome(side)}
-                      <span className={`num text-[13.5px] font-bold ${win ? "text-fg" : "text-muted"}`}>{r.guest && side === "B" ? "no points" : status.final || line.points ? `${fmtPts(line.points)} pt${line.points === 1 ? "" : "s"}` : "–"}</span>
+                      <span className={`num text-[13.5px] font-bold ${win ? "text-fg" : "text-muted"}`}>{r.settingWeek || (r.guest && side === "B") ? "no points" : status.final || line.points ? `${fmtPts(line.points)} pt${line.points === 1 ? "" : "s"}` : "–"}</span>
                     </div>
                   </div>
                 </div>
@@ -110,7 +111,9 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
       )}
       <footer className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-line bg-[color-mix(in_srgb,var(--color-raised)_55%,transparent)] px-5 py-3.5 text-[13px]">
         <span className="muted">
-          {r.guest && status.final
+          {r.settingWeek && status.final
+            ? "Handicap-setting week: these scores count toward averages and handicaps, not the standings."
+            : r.guest && status.final
             ? `Only ${a.name} earns points here; ${b?.name} already scored in their own matchup.${r.margin != null && !tie ? ` ${r.winner === "A" ? a.name : b?.name} ahead by ${r.margin} ${r.basis === "handicap" ? "adjusted " : ""}pin${r.margin === 1 ? "" : "s"}.` : ""}`
             : r.isBye
             ? ""
