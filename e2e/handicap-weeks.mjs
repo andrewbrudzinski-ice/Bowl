@@ -154,6 +154,35 @@ await page.emulateMedia({ media: "screen" });
 await page.goto(`${L}/season/2026/week/2`, { waitUntil: "networkidle" });
 ok((await page.getByRole("link", { name: "Week 2 sheet" }).count()) === 1, "the week page links to its sheet");
 
+console.log("\n== the sheet as a PDF (a phone saved to the Home Screen can't print) ==");
+const pdf = await page.request.get(`${L}/sheet/pdf?week=3`);
+const pdfBody = await pdf.body();
+ok(pdf.status() === 200 && /application\/pdf/.test(pdf.headers()["content-type"] ?? "") && pdfBody.subarray(0, 5).toString() === "%PDF-" && pdfBody.length > 3000, "the sheet downloads as a real PDF");
+ok(/private/.test(pdf.headers()["cache-control"] ?? "") && /no-store/.test(pdf.headers()["cache-control"] ?? ""), "the PDF is never kept in a shared cache");
+ok((await page.request.get(`${L}/sheet/pdf?week=99`)).status() === 200, "an unknown week falls back to the current week instead of failing");
+const stranger = await browser.newContext();
+const strangerRes = await stranger.request.get(`${L}/sheet/pdf?week=3`, { maxRedirects: 0 });
+ok(strangerRes.status() !== 200, `someone who isn't signed in can't get a private league's PDF (${strangerRes.status()})`);
+await stranger.close();
+await page.goto(`${L}/sheet?week=3`, { waitUntil: "networkidle" });
+ok((await page.getByRole("button", { name: "Print", exact: true }).count()) === 1 && (await page.getByRole("link", { name: "Open PDF" }).first().getAttribute("href")) === `/l/${slug}/sheet/pdf?week=3`, "a desktop browser gets Print and an Open PDF link");
+// An iPhone Home Screen app: it can share a file but window.print() does nothing, so Print is hidden and Share hands over the PDF.
+const phoneApp = await browser.newContext({ viewport: { width: 390, height: 844 }, storageState: await ctx.storageState() });
+await phoneApp.addInitScript(() => {
+  window.__shared = null;
+  Object.defineProperty(navigator, "standalone", { value: true, configurable: true });
+  navigator.canShare = (d) => !!d && Array.isArray(d.files) && d.files.length > 0 && d.files.every((f) => f.type === "application/pdf");
+  navigator.share = async (d) => { window.__shared = { count: d.files.length, name: d.files[0].name, type: d.files[0].type, size: d.files[0].size, title: d.title }; };
+});
+const pa = await phoneApp.newPage();
+await pa.goto(`${L}/sheet?week=3`, { waitUntil: "networkidle" });
+await pa.getByRole("button", { name: "Share or save PDF" }).waitFor({ timeout: 10000 });
+ok((await pa.getByRole("button", { name: "Print", exact: true }).count()) === 0, "the Home Screen app doesn't show a Print button that can't work");
+await pa.getByRole("button", { name: "Share or save PDF" }).click();
+const shared = await pa.evaluate(() => window.__shared);
+ok(!!shared && shared.count === 1 && shared.type === "application/pdf" && shared.name === `${slug}-week-3-sheet.pdf` && shared.size > 3000 && /Week 3 sheet/.test(shared.title), `Share hands the PDF to the share sheet (${shared ? shared.name + ", " + shared.size + " bytes" : "nothing shared"})`);
+await phoneApp.close();
+
 console.log("\n== accessibility ==");
 const problems = [];
 let checked = 0;

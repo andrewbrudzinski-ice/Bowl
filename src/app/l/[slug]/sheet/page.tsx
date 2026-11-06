@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { seasonParam } from "@/components/links";
-import { PrintButton } from "@/components/print-button";
+import { SheetActions } from "@/components/sheet-actions";
 import { Card, EmptyState } from "@/components/ui";
 import { WeeklySheetView } from "@/components/weekly-sheet";
 import { buildWeeklySheet } from "@/domain/sheet";
@@ -23,6 +23,7 @@ export default async function SheetPage({ params, searchParams }: { params: Prom
   const sheet = buildWeeklySheet(model, week)!;
   const sq = seasonParam(ctx);
   const href = (n: number) => `/l/${slug}/sheet?week=${n}${sq ? `&season=${sq}` : ""}`;
+  const pdfHref = `/l/${slug}/sheet/pdf?week=${week}${sq ? `&season=${sq}` : ""}`;
   const prev = weeks.find((w) => w.number === week - 1);
   const next = weeks.find((w) => w.number === week + 1);
   return (
@@ -41,10 +42,10 @@ export default async function SheetPage({ params, searchParams }: { params: Prom
         <div className="flex flex-wrap items-center gap-2">
           {prev ? <Link className="btn btn-sm" href={href(prev.number)}><ChevronLeft size={14} aria-hidden />Week {prev.number}</Link> : null}
           {next ? <Link className="btn btn-sm" href={href(next.number)}>Week {next.number}<ChevronRight size={14} aria-hidden /></Link> : null}
-          <PrintButton />
+          <SheetActions pdfHref={pdfHref} fileName={`${slug}-week-${week}-sheet.pdf`} title={`${ctx.league.name} - Week ${week} sheet`} />
         </div>
       </div>
-      <p className="no-print muted text-[13px]">The sheet for a night: last week&apos;s results, standings, this week&apos;s matchups with handicaps, and everyone&apos;s average and handicap. It updates itself from finalized scores. Print it, or choose &ldquo;Save as PDF&rdquo; in the print window.</p>
+      <p className="no-print muted text-[13px]">The sheet for a night: last week&apos;s results, standings, this week&apos;s matchups with handicaps, and everyone&apos;s average and handicap. It updates itself from finalized scores. On a phone, Share or save PDF opens the share sheet: save it to Files, print it, or send it to the group chat.</p>
       <WeeklySheetView ctx={ctx} sheet={sheet} seasonQ={sq} />
     </div>
   );

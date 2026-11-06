@@ -90,6 +90,8 @@ export interface WeeklySheet {
   /** Standings entering this week; null until a week that counts has been bowled. */
   standings: StandingRow[] | null;
   standingsFor: "team" | "bowler";
+  /** How many qualify for the playoffs, when the league has them: the standings draw a line there. */
+  qualifiers: number | null;
   matchups: SheetMatch[];
   bowlers: SheetBowlerRow[];
   upcoming: SheetUpcoming[];
@@ -232,6 +234,7 @@ export function buildWeeklySheet(model: SeasonModel, week: number): WeeklySheet 
     previous,
     standings: counted ? rows : null,
     standingsFor: scope,
+    qualifiers: cfg.playoffs.enabled ? cfg.playoffs.qualifiers : null,
     matchups,
     bowlers,
     upcoming,
