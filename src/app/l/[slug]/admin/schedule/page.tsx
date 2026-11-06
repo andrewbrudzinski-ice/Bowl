@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { addMatchupAction, deleteMatchupAction, drawPartnersAction, generateScheduleAction, moveMatchupAction, playoffBracketAction, updateWeekAction } from "@/app/actions/admin";
+import { addMatchupAction, deleteMatchupAction, drawPartnersAction, generateScheduleAction, moveMatchupAction, playoffBracketAction, shiftWeeksAction, updateWeekAction } from "@/app/actions/admin";
 import { ActionForm } from "@/components/action-form";
 import { ConfirmAction } from "@/components/confirm-action";
 import { WatchDrawButton } from "@/components/draw-reveal";
 import { PartnerDrawForm, type DrawWeek } from "@/components/partner-draw-form";
+import { ShiftWeeksForm } from "@/components/shift-weeks-form";
 import { Alert, Badge, Card, CardHead, EmptyState, PageHeader } from "@/components/ui";
 import { getLeagueCtx } from "@/server/context";
 import { getStore } from "@/server/db";
@@ -96,6 +97,16 @@ export default async function ScheduleAdmin({ params }: { params: Promise<{ slug
           <div className="flex flex-wrap items-center gap-3 p-5 text-[13px]">
             <span className="muted">Top {ctx.cfg.playoffs.qualifiers} seed a single-elimination bracket. Later rounds are created automatically as rounds finish.</span>
             {hasPlayoffMatchups ? <Badge tone="info">BRACKET CREATED</Badge> : <ConfirmAction className="btn btn-primary btn-sm" action={playoffBracketAction.bind(null, slug, season.id, !regularDone)} confirm={regularDone ? "Create the playoff bracket from the final standings?" : "Regular-season matchups are still unfinalized. Seed the bracket from the CURRENT standings anyway?"}>Generate bracket</ConfirmAction>}
+          </div>
+        </Card>
+      ) : null}
+
+      {weeks.length > 0 ? (
+        <Card>
+          <CardHead title="Move the whole schedule" />
+          <div className="grid gap-3 p-5">
+            <p className="muted text-[13px]">Entered the wrong dates? Set the right date for week {weeks[0].number}, which is the first night you bowl, including any handicap-setting weeks. Every other week moves by the same number of days, so the gaps between weeks stay as they are. Matchups, scores and standings don't change. Members get one notice.</p>
+            <ShiftWeeksForm action={shiftWeeksAction.bind(null, slug, season.id)} firstWeek={weeks[0].number} firstDate={weeks[0].date} lastWeek={weeks[weeks.length - 1].number} lastDate={weeks[weeks.length - 1].date} />
           </div>
         </Card>
       ) : null}

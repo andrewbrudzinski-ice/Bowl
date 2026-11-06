@@ -38,6 +38,21 @@ await Promise.all([page.waitForURL(/\/admin\?welcome=1/, { timeout: 15000 }), pa
 const slug = page.url().match(/\/l\/([^/]+)\//)[1];
 const L = `${BASE}/l/${slug}`;
 
+console.log("\n== a wrong start date: move the whole schedule ==");
+await page.goto(`${L}/admin/schedule`, { waitUntil: "networkidle" });
+ok((await page.getByText("Move the whole schedule").count()) > 0, "the schedule page offers to move the whole schedule");
+await page.fill("#firstNight", "2026-02-03");
+ok((await page.locator("#shift-preview", { hasText: /Week 1 would move from .* to Tue, Feb 3, 2026/ }).count()) === 1, "the preview shows where week 1 lands before anything is saved");
+await page.getByRole("button", { name: "Move all weeks" }).click();
+await page.waitForSelector("text=/Moved all \\d+ weeks/", { timeout: 10000 });
+await page.reload({ waitUntil: "networkidle" });
+ok((await page.getByText(/^Week 1 · Tue, Feb 3$/).count()) === 1 && (await page.getByText(/^Week 2 · Tue, Feb 10$/).count()) === 1, "week 1 is on the new date and week 2 is still a week later");
+ok((await page.locator("#shift-preview", { hasText: /is on Tue, Feb 3, 2026 now/ }).count()) === 1, "the form now shows week 1 on the new date");
+await page.fill("#firstNight", "2026-02-03");
+await page.getByRole("button", { name: "Move all weeks" }).click();
+await page.waitForSelector("text=/already on that date/", { timeout: 10000 });
+ok(true, "moving to the date it is already on is refused with a clear message");
+
 await page.goto(`${L}/admin/roster`, { waitUntil: "networkidle" });
 for (const [i, n] of ["Alex Rivera", "Sam Chen", "Jordan Blake", "Taylor Nguyen", "Casey Morgan", "Riley Patel", "Jamie Okafor", "Morgan Reyes"].entries()) {
   await page.fill("#bname", n);
@@ -121,7 +136,7 @@ for (const theme of ["dark", "light"]) {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", storageState: await ctx.storageState() });
   if (theme === "light") await c.addInitScript(() => localStorage.setItem("sweeper-theme", "light"));
   const p = await c.newPage();
-  for (const u of ["/standings", "/schedule", "/season/2026/week/1", "/timeline", "/admin/scores?week=1", "/admin/settings?section=rules"]) {
+  for (const u of ["/standings", "/schedule", "/season/2026/week/1", "/timeline", "/admin/scores?week=1", "/admin/schedule", "/admin/settings?section=rules"]) {
     await p.goto(`${L}${u}`, { waitUntil: "networkidle" });
     await p.waitForTimeout(200);
     const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

@@ -95,6 +95,14 @@ export async function deleteMatchupAction(slug: string, matchupId: string): Prom
 export async function updateWeekAction(slug: string, seasonId: string, weekNumber: number, _: ActionState, fd: FormData) {
   return run(async () => { const a = await requireActor(); await S.updateWeek(getStore(), a, await lid(slug), seasonId, weekNumber, { date: str(fd, "date") || undefined, status: (str(fd, "status") || undefined) as never, label: fd.has("label") ? str(fd, "label") : undefined }); return done(slug, `Week ${weekNumber} updated.`); });
 }
+export async function shiftWeeksAction(slug: string, seasonId: string, _: ActionState, fd: FormData) {
+  return run(async () => {
+    const a = await requireActor();
+    const r = await S.shiftSeasonDates(getStore(), a, await lid(slug), seasonId, { firstNight: str(fd, "firstNight") });
+    const n = Math.abs(r.days);
+    return done(slug, `Moved all ${r.weeks} weeks ${n} day${n === 1 ? "" : "s"} ${r.days < 0 ? "earlier" : "later"}. They now run ${r.firstDate} to ${r.lastDate}. Members are notified.`);
+  });
+}
 export async function playoffBracketAction(slug: string, seasonId: string, force: boolean): Promise<ActionState> {
   const a = await requireActor();
   return run(async () => { const r = await S.generatePlayoffBracket(getStore(), a, await lid(slug), seasonId, { force }); return done(slug, `Bracket created with ${r.created} first-round matchup${r.created === 1 ? "" : "s"}.`); });

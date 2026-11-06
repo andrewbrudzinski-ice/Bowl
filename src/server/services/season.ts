@@ -2,6 +2,7 @@ import { randomInt } from "node:crypto";
 import { z } from "zod";
 import { championOf } from "@/domain/awards";
 import { usesPartners, validateConfig } from "@/domain/config";
+import { MAX_YEAR, MIN_YEAR, addDays, daysBetween, isIsoDate } from "@/domain/dates";
 import { buildSeasonModel, defaultLineup, versionForWeek } from "@/domain/engine";
 import { drawPartners, guestLinks, pairName, partnerHistory, seededRandom } from "@/domain/partners";
 import { firstEligibleWeek } from "@/domain/rulechange";
@@ -264,6 +265,43 @@ export async function updateWeek(store: Store, actor: Actor, leagueId: Id, seaso
       const season = seasonIn(db, leagueId, seasonId);
       notifyMembers(db, { leagueId, type: "schedule", title: `Week ${weekNumber} postponed`, body: "Watch for a new date.", href: `/l/${league.slug}/season/${season.slug}/week/${weekNumber}`, dedupeKey: `postponed:${w.id}`, exceptUserId: actor.id });
     }
+  }, { leagueId });
+}
+
+export interface ShiftSummary {
+  /** How many days every week moved: negative is earlier. */
+  days: number;
+  weeks: number;
+  firstDate: string;
+  lastDate: string;
+}
+
+/**
+ * Moves the whole schedule so that the season's first week lands on `firstNight`. Every week (playoffs included) moves by the same number
+ * of days, so the gaps between weeks stay as they are, including any week the commissioner moved or postponed by hand. Nothing but dates
+ * changes: matchups, scores, results and standings are untouched. One audit entry and one notice cover the whole move.
+ */
+export async function shiftSeasonDates(store: Store, actor: Actor, leagueId: Id, seasonId: Id, input: { firstNight: string }): Promise<ShiftSummary> {
+  if (!isIsoDate(input.firstNight)) throw invalid(`Use a real date between ${MIN_YEAR} and ${MAX_YEAR}, like 2026-01-13.`);
+  return store.transaction((db) => {
+    requirePerm(db, actor, leagueId, "schedule.manage");
+    const season = seasonIn(db, leagueId, seasonId);
+    const weeks = db.weeks.filter((w) => w.seasonId === seasonId).sort((a, b) => a.number - b.number);
+    if (weeks.length === 0) throw invalid("This season has no weeks yet.");
+    const days = daysBetween(weeks[0].date, input.firstNight);
+    if (days === 0) throw invalid(`Week ${weeks[0].number} is already on that date.`);
+    const before = { startDate: season.startDate, weeks: weeks.map((w) => ({ number: w.number, date: w.date })) };
+    for (const w of weeks) w.date = addDays(w.date, days);
+    season.startDate = input.firstNight;
+    const after = { startDate: season.startDate, weeks: weeks.map((w) => ({ number: w.number, date: w.date })) };
+    writeAudit(db, actor, { leagueId, seasonId, action: "season.dates_shifted", entityType: "season", entityId: seasonId, before, after, note: `Moved every week ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} ${days < 0 ? "earlier" : "later"}` });
+    const league = leagueById(db, leagueId);
+    notifyMembers(db, {
+      leagueId, type: "schedule", title: "Schedule moved",
+      body: `Week ${weeks[0].number} is now ${input.firstNight}, and every week after it moved ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} ${days < 0 ? "earlier" : "later"}.`,
+      href: `/l/${league.slug}/schedule`, dedupeKey: `shifted:${seasonId}:${input.firstNight}`, exceptUserId: actor.id,
+    });
+    return { days, weeks: weeks.length, firstDate: weeks[0].date, lastDate: weeks[weeks.length - 1].date };
   }, { leagueId });
 }
 

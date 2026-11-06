@@ -28,8 +28,18 @@ the number of weeks (0 for none, up to 12). It works for every format, not only 
 - Changing it shows up in the rule-change preview as a change to standings and handicaps, with the usual confirmation for history.
 - Leagues whose rules never mentioned it behave exactly as before (no setting weeks).
 
+## Dates: the first bowling night is week 1
+
+When a season is created, **First bowling night** is the date of week 1, which is the first handicap-setting week, not the date the
+standings start counting. If it was entered wrongly, Commissioner → Schedule → **Move the whole schedule** takes the correct date for
+week 1 and moves every week (playoffs included) by the same number of days. The gaps between weeks stay as they are, including weeks
+moved or postponed by hand. Only dates change: matchups, scores, results and standings are untouched. It also corrects the season's
+start date, writes one audit entry (`season.dates_shifted`, with the old and new dates), and sends members one notice. Moving the
+schedule back restores it exactly. Owners, commissioners and assistants can use it.
+
 ## Where it lives
 
+- `src/domain/dates.ts` and `shiftSeasonDates` in `src/server/services/season.ts` — moving the schedule; `src/components/shift-weeks-form.tsx` — the form with its live preview. Tests: `tests/shift-weeks.test.ts`.
 - `src/domain/config.ts` — the `handicapSetting` rules block, `settingWeekConfig` (the scratch version of the rules).
 - `src/domain/engine.ts` — `isSettingWeek`, and scoring those weeks scratch; `src/domain/standings.ts`, `stats.ts`, `awards.ts` — leaving
   them out of standings, streaks and matchup awards.

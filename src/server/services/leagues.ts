@@ -2,6 +2,7 @@ import { z } from "zod";
 import { defaultAwardsConfig } from "@/domain/awards";
 import { BRAND_ACCENT } from "@/domain/brand";
 import { validateConfig, type RuleConfig } from "@/domain/config";
+import { addDays } from "@/domain/dates";
 import type { Id, League, ModuleSetting, Role, Season, Team, Week } from "@/domain/types";
 import { activeMembership, leagueById, notifyUser, requirePerm, writeAudit, type Actor } from "../access";
 import type { DB, Invitation, Membership, Store } from "../db";
@@ -45,12 +46,6 @@ export const createLeagueSchema = z.object({
 export type CreateLeagueInput = z.input<typeof createLeagueSchema>;
 
 export const TEAM_COLORS = ["#38bdf8", "#f97316", "#a78bfa", "#34d399", "#f43f5e", "#facc15", "#2dd4bf", "#fb7185", "#60a5fa", "#c084fc", "#4ade80", "#fbbf24"];
-
-export function addDays(iso: string, days: number): string {
-  const d = new Date(iso + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
 
 export function makeWeeks(seasonId: Id, startDate: string, regular: number, playoff: number, from = 1): Week[] {
   const weeks: Week[] = [];
