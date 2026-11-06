@@ -22,7 +22,7 @@ export default async function SeasonsAdmin({ params, searchParams }: { params: P
         <CardHead title="All seasons" />
         <ul className="divide-y divide-line">{ctx.seasons.map((s) => (
           <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-[13px]">
-            <span><Link className="font-semibold hover:underline" href={`/l/${slug}/history/${s.slug}`}>{s.name}</Link> <Badge tone={s.status === "active" ? "accent" : "win"}>{s.status.toUpperCase()}</Badge> <span className="muted text-[13px]">· rules v{s.ruleVersions[s.ruleVersions.length - 1].version} · starts {s.startDate}</span></span>
+            <span><Link className="font-semibold hover:underline" href={`/l/${slug}/history/${s.slug}`}>{s.name}</Link> <Badge tone={s.status === "active" ? "accent" : "win"}>{s.status.toUpperCase()}</Badge> <span className="muted text-[13px]">· rules v{s.ruleVersions[s.ruleVersions.length - 1].version} · first night {s.startDate}</span></span>
             {s.status === "active" ? <ConfirmAction action={completeSeasonAction.bind(null, slug, s.id)} confirm={`Mark ${s.name} complete? It becomes part of the archive; results stay as they are.`}>Mark complete</ConfirmAction> : null}
           </li>
         ))}</ul>
@@ -32,7 +32,7 @@ export default async function SeasonsAdmin({ params, searchParams }: { params: P
         <div className="p-5"><ActionForm action={createSeasonAction.bind(null, slug)} submit="Create season" className="grid gap-3 sm:grid-cols-2">
           <div className="field"><label htmlFor="sn">Name</label><input id="sn" name="name" required defaultValue={`${nextYear} Season`} className="input" /></div>
           <div className="field"><label htmlFor="sy">Year</label><input id="sy" name="year" type="number" defaultValue={nextYear} className="input" /></div>
-          <div className="field"><label htmlFor="sd">First bowling night</label><input id="sd" name="startDate" type="date" defaultValue={`${nextYear}-01-06`} className="input" /></div>
+          <div className="field"><label htmlFor="sd">First bowling night</label><input id="sd" name="startDate" type="date" defaultValue={`${nextYear}-01-06`} className="input" aria-describedby="sd-help" /><span id="sd-help" className="help">Week 1: the first night you bowl, even if the opening weeks only set handicaps. Dates can be moved later from Schedule.</span></div>
           <div className="field"><label htmlFor="sw">Regular-season weeks</label><input id="sw" name="weeks" type="number" min={1} max={60} defaultValue={latest?.regularWeeks ?? 10} className="input" /></div>
           <div className="field sm:col-span-2"><label htmlFor="sf">Copy rules from</label><select id="sf" name="from" className="select" defaultValue={latest?.id ?? ""}><option value="">The league's default rules</option>{ctx.seasons.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select><span className="help">The new season gets its own copy of the rules; changing them later never affects the old season.</span></div>
           <label className="check"><input type="checkbox" name="copyRoster" defaultChecked />Copy the roster (entering averages = last season's final averages)</label>

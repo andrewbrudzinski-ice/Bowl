@@ -109,6 +109,7 @@ export function activityFeed(ctx: LeagueCtx, limit = 10): Promise<ActivityItem[]
       else if (a.action === "scores.saved" && m && ctx.isMember) items.push({ at: a.at, text: `${nameOf(a)} entered scores for week ${wk}`, href: `/l/${slug}/matchup/${m.id}` });
       else if (a.action === "schedule.generated") items.push({ at: a.at, text: "Schedule published", href: `/l/${slug}/schedule` });
       else if (a.action === "week.rescheduled") items.push({ at: a.at, text: "A week was rescheduled", href: seasonSlug ? `/l/${slug}/schedule` : undefined });
+      else if (a.action === "season.dates_shifted") items.push({ at: a.at, text: "The schedule was moved to new dates", href: seasonSlug ? `/l/${slug}/schedule` : undefined });
       else if (a.action === "rules.changed") items.push({ at: a.at, text: "League rules updated", href: `/l/${slug}/rules` });
       else if (a.action === "season.champion_decided") items.push({ at: a.at, text: "A champion was crowned", href: `/l/${slug}/history` });
     }
