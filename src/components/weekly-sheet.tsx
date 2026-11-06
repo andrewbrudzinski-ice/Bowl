@@ -238,7 +238,7 @@ export function WeeklySheetView({ ctx, sheet, seasonQ }: { ctx: LeagueCtx; sheet
       {showStandings ? (
         <Section id="sh-standings" title={`Standings entering week ${sheet.week}`}>
           {sheet.standings ? (
-            <div className="card sheet-standings"><StandingsTable ctx={ctx} rows={sheet.standings} compact seasonQ={seasonQ} kind={sheet.standingsFor === "bowler" ? "individual" : "team"} qualifiers={ctx.cfg.playoffs.enabled ? ctx.cfg.playoffs.qualifiers : undefined} /></div>
+            <div className="card sheet-standings"><StandingsTable ctx={ctx} rows={sheet.standings} compact seasonQ={seasonQ} kind={sheet.standingsFor === "bowler" ? "individual" : "team"} qualifiers={sheet.qualifiers ?? undefined} /></div>
           ) : <p className="muted text-[14px]">{settingFollows ? "Standings start after the handicap weeks. Nothing has counted yet." : "No standings yet."}</p>}
         </Section>
       ) : null}
