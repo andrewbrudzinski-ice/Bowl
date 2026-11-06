@@ -5,7 +5,7 @@ import { MODULES, MODULE_SPAN } from "@/components/home/modules";
 import { Alert, Card, EmptyState } from "@/components/ui";
 import { getLeagueCtx } from "@/server/context";
 import { currentWeek, formatDate } from "@/server/views";
-import { ClipboardList, Plus } from "lucide-react";
+import { ClipboardList, FileText, Plus } from "lucide-react";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -65,12 +65,15 @@ export default async function LeagueHome({ params, searchParams }: { params: Pro
             <div className="metal-x h-full rounded-full" style={{ width: `${totalWeeks ? (done / totalWeeks) * 100 : 0}%` }} />
           </div>
         </div>
-        {ctx.can("scores.enter") ? (
-          <div className="relative mt-7 flex flex-wrap gap-3">
-            <Link href={`/l/${slug}/admin/scores?week=${wk}`} className="btn btn-primary"><ClipboardList size={16} />Enter week {wk} scores</Link>
-            <Link href={`/l/${slug}/admin`} className="btn">Commissioner overview</Link>
-          </div>
-        ) : null}
+        <div className="relative mt-7 flex flex-wrap gap-3">
+          {ctx.can("scores.enter") ? (
+            <>
+              <Link href={`/l/${slug}/admin/scores?week=${wk}`} className="btn btn-primary"><ClipboardList size={16} />Enter week {wk} scores</Link>
+              <Link href={`/l/${slug}/admin`} className="btn">Commissioner overview</Link>
+            </>
+          ) : null}
+          <Link href={`/l/${slug}/sheet?week=${wk}${season ? `&season=${season}` : ""}`} className={ctx.can("scores.enter") ? "btn" : "btn btn-primary"}><FileText size={16} aria-hidden />Week {wk} sheet</Link>
+        </div>
       </section>
 
       {setupStep && ctx.can("roster.manage") ? (

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
 import { computeAwards } from "@/domain/awards";
 import { weekRecap } from "@/domain/narrative";
 import { buildRecordBook, recordsBrokenInWeek } from "@/domain/records";
@@ -51,7 +51,10 @@ export default async function WeekPage({ params }: { params: Promise<{ slug: str
           {prev ? <Link className="btn btn-sm" href={`/l/${slug}/season/${seasonSlug}/week/${prev.number}`}><ChevronLeft size={14} />Week {prev.number}</Link> : <span className="btn btn-sm" aria-disabled style={{ opacity: .4 }}><ChevronLeft size={14} />Prev</span>}
           {next ? <Link className="btn btn-sm" href={`/l/${slug}/season/${seasonSlug}/week/${next.number}`}>Week {next.number}<ChevronRight size={14} /></Link> : <span className="btn btn-sm" aria-disabled style={{ opacity: .4 }}>Next<ChevronRight size={14} /></span>}
         </div>
-        <ShareBar path={share.path} title={`${ctx.league.name} — Week ${wk}`} note={share.note} />
+        <div className="flex flex-wrap items-center gap-2">
+          <Link className="btn btn-sm" href={`/l/${slug}/sheet?week=${wk}${sq ? `&season=${sq}` : ""}`}><FileText size={14} aria-hidden />Week {wk} sheet</Link>
+          <ShareBar path={share.path} title={`${ctx.league.name} — Week ${wk}`} note={share.note} />
+        </div>
       </div>
       <div>
         <div className="eyebrow">{ctx.season.name}{week.phase === "playoff" ? " · Playoffs" : ""}</div>

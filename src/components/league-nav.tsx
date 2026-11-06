@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, BookOpen, CalendarDays, ChevronDown, ClipboardList, History, Home, LayoutGrid, Megaphone, MoreHorizontal, ScrollText, Settings2, Shield, Trophy, Users, X } from "lucide-react";
+import { BarChart3, BookOpen, CalendarDays, ChevronDown, ClipboardList, FileText, History, Home, LayoutGrid, Megaphone, MoreHorizontal, ScrollText, Settings2, Shield, Trophy, Users, X } from "lucide-react";
 
 export interface NavItem {
   href: string;
@@ -14,7 +14,7 @@ export interface NavItem {
 
 const ICONS: Record<string, typeof Home> = {
   home: Home, schedule: CalendarDays, standings: Trophy, bowlers: Users, teams: Shield, stats: BarChart3, results: ClipboardList,
-  history: History, rules: BookOpen, news: Megaphone, admin: Settings2, more: MoreHorizontal, timeline: ScrollText, grid: LayoutGrid,
+  history: History, sheet: FileText, rules: BookOpen, news: Megaphone, admin: Settings2, more: MoreHorizontal, timeline: ScrollText, grid: LayoutGrid,
 };
 
 function isActive(pathname: string, item: NavItem, home: string) {

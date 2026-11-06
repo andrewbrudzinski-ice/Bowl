@@ -117,6 +117,19 @@ ok(sc.status() === 200 && /image\/png/.test(sc.headers()["content-type"] ?? ""),
 await page.goto(`${L}/bowlers`, { waitUntil: "networkidle" });
 ok((await page.locator("td", { hasText: /^200\.0$/ }).count()) >= 8, "every bowler has a 200 average from week 1");
 
+console.log("\n== the weekly sheet after a handicap week ==");
+await page.goto(`${L}/sheet?week=2`, { waitUntil: "networkidle" });
+ok((await page.getByRole("heading", { name: "Week 2 sheet" }).count()) === 1, "the sheet for week 2 opens");
+ok((await page.getByText("Handicap week: bowled scratch, no points or winners.").count()) === 1, "last week is labelled a handicap week, with no points or winners");
+ok((await page.getByRole("columnheader", { name: "Pts", exact: true }).count()) === 0 && (await page.locator("text=/\\d+ ?W$/").count()) === 0, "the handicap week's results have no points column or winner");
+ok((await page.getByText("Standings start after the handicap weeks").count()) === 1, "the sheet explains the standings haven't started");
+ok((await page.getByText("Partners and matchups are drawn at the start of the night.").count()) === 1, "this week's matchups say they are drawn on the night");
+const avgTable = page.getByRole("table", { name: /average and handicap going into the week/ });
+ok((await avgTable.locator("td", { hasText: /^200\.0$/ }).count()) === 8 && (await avgTable.getByRole("columnheader", { name: "Hdcp" }).count()) === 1, "all 8 bowlers list a 200 average and a handicap for week 2");
+await page.goto(`${L}/sheet?week=1`, { waitUntil: "networkidle" });
+ok((await page.getByText("Handicap week.", { exact: false }).count()) > 0 && (await page.getByRole("columnheader", { name: "Hdcp" }).count()) === 0, "the week 1 sheet says it is a handicap week and lists no handicaps");
+ok((await page.getByText("No results yet. This is the first night of the season.").count()) === 1, "the week 1 sheet has no last-week results yet");
+
 console.log("\n== week 2: handicaps from week 1 apply, and points count ==");
 await drawWeek(2);
 await page.goto(`${L}/admin/scores?week=2`, { waitUntil: "networkidle" });
@@ -129,6 +142,18 @@ const points = await Promise.all([...(await page.locator("table.tbl").first().lo
 ok(points.every((p) => p >= 0 && p <= 7) && points.some((p) => p > 0), `only week 2's points are there, 7 at most (${points.join(",")})`);
 ok((await page.locator("text=Handicap-setting weeks").count()) > 0, "the standings still say week 1 wasn't counted");
 
+console.log("\n== the weekly sheet once points count ==");
+await page.goto(`${L}/sheet?week=3`, { waitUntil: "networkidle" });
+ok((await page.getByRole("heading", { name: "Week 3 sheet" }).count()) === 1, "the sheet for week 3 opens");
+ok((await page.getByRole("columnheader", { name: "Pts", exact: true }).count()) > 0, "last week's results show points");
+ok((await page.getByRole("heading", { name: "Standings entering week 3" }).count()) === 1 && (await page.locator("table.tbl").first().locator("tbody tr").count()) === 8, "the standings list all 8 bowlers");
+ok((await page.getByText(/This week · Week 3 matchups/).count()) === 1, "this week's matchups section is there");
+await page.emulateMedia({ media: "print" });
+ok((await page.locator("header.no-print").first().isVisible()) === false && (await page.getByRole("button", { name: /Print or save as PDF/ }).isVisible()) === false, "the site header and print button are hidden when printing");
+await page.emulateMedia({ media: "screen" });
+await page.goto(`${L}/season/2026/week/2`, { waitUntil: "networkidle" });
+ok((await page.getByRole("link", { name: "Week 2 sheet" }).count()) === 1, "the week page links to its sheet");
+
 console.log("\n== accessibility ==");
 const problems = [];
 let checked = 0;
@@ -136,7 +161,7 @@ for (const theme of ["dark", "light"]) {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "reduce", storageState: await ctx.storageState() });
   if (theme === "light") await c.addInitScript(() => localStorage.setItem("sweeper-theme", "light"));
   const p = await c.newPage();
-  for (const u of ["/standings", "/schedule", "/season/2026/week/1", "/timeline", "/admin/scores?week=1", "/admin/schedule", "/admin/settings?section=rules"]) {
+  for (const u of ["/standings", "/schedule", "/season/2026/week/1", "/timeline", "/admin/scores?week=1", "/sheet?week=2", "/sheet?week=3", "/admin/schedule", "/admin/settings?section=rules"]) {
     await p.goto(`${L}${u}`, { waitUntil: "networkidle" });
     await p.waitForTimeout(200);
     const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
