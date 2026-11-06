@@ -345,3 +345,65 @@ button { font: inherit; }
 }
 .draw-dialog:not([open]) { display: none; }
 .draw-dialog::backdrop { background: rgb(0 0 0 / 0.78); backdrop-filter: blur(6px); }
+
+/* The weekly sheet: the page a league hands out before each night. Compact tables, readable on a phone, and laid out for letter paper. */
+@layer components {
+  .sheet > * + * { margin-top: 26px; }
+  .sheet-head { display: flex; align-items: center; gap: 16px; padding-bottom: 16px; border-bottom: 2px solid var(--color-fg); }
+  .sheet-head > div { flex: 1; min-width: 0; }
+  .sheet-logo { display: inline-flex; width: 52px; height: 52px; flex: none; align-items: center; justify-content: center; border: 2px solid var(--color-fg); border-radius: 12px; font-size: 17px; font-weight: 800; }
+  .sheet-callout { padding: 10px 14px; border: 1px solid var(--color-line-strong); border-left-width: 4px; border-radius: 8px; background: var(--color-raised); font-size: 14px; }
+  .sheet-section > * + * { margin-top: 10px; }
+  .sheet-section-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; padding-bottom: 6px; border-bottom: 1.5px solid var(--color-line-strong); break-after: avoid; }
+  .sheet-section-head h2 { font-size: 13px; font-weight: 800; letter-spacing: 0.09em; text-transform: uppercase; }
+  .sheet-aside { color: var(--color-muted); font-size: 12.5px; }
+  .sheet-grid { display: grid; align-items: start; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 390px), 1fr)); }
+  .sheet-match { overflow: hidden; border: 1px solid var(--color-line-strong); border-radius: 10px; background: var(--color-surface); break-inside: avoid; }
+  .sheet-match-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; padding: 7px 10px; border-bottom: 1px solid var(--color-line); background: var(--color-raised); font-size: 13px; font-weight: 700; }
+  .sheet-scroll { overflow-x: auto; }
+  .sheet-tbl { width: 100%; border-collapse: collapse; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  .sheet-tbl th, .sheet-tbl td { padding: 4px 8px; border-bottom: 1px solid var(--color-line); text-align: right; white-space: nowrap; }
+  .sheet-tbl th:first-child, .sheet-tbl td:first-child, .sheet-tbl .l { text-align: left; }
+  .sheet-tbl thead th { color: var(--color-faint); font-size: 11px; font-weight: 600; }
+  .sheet-tbl .sheet-side th { padding-top: 7px; font-size: 12.5px; font-weight: 700; text-align: left; }
+  .sheet-tbl .sheet-total td { background: var(--color-raised); font-weight: 700; }
+  .sheet-avg tbody tr:last-child td { border-bottom: 0; }
+  .sheet-win { color: var(--color-win); font-weight: 800; }
+  .sheet-note { color: var(--color-muted); font-size: 12px; }
+  .sheet-highlights { display: grid; gap: 2px; font-size: 13px; }
+  .sheet-side-name { margin-bottom: 3px; font-size: 13px; font-weight: 700; }
+  .sheet-lineup { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; font-size: 13px; }
+  .sheet-lineup li { display: flex; justify-content: space-between; gap: 8px; }
+  .sheet-upcoming { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
+}
+
+@media print {
+  @page { size: letter portrait; margin: 0.4in 0.5in; }
+  main:has(.sheet) { max-width: none; padding: 0; }
+  .sheet { font-size: 10.5px; }
+  .sheet > * + * { margin-top: 12px; }
+  .sheet-head { padding-bottom: 8px; gap: 10px; }
+  .sheet-logo { width: 40px; height: 40px; font-size: 14px; }
+  .sheet .h-page { font-size: 22px; }
+  .sheet-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .sheet-section > * + * { margin-top: 5px; }
+  .sheet-section-head { padding-bottom: 3px; }
+  .sheet-tbl { font-size: 10px; }
+  .sheet-tbl th, .sheet-tbl td { padding: 1.5px 5px; }
+  .sheet-tbl thead { display: table-header-group; }
+  .sheet-tbl tr { break-inside: avoid; }
+  .sheet-match-head { padding: 4px 7px; font-size: 11px; }
+  .sheet-lineup, .sheet-highlights, .sheet-note, .sheet-upcoming { font-size: 10px; }
+  .sheet-side-name { font-size: 10.5px; }
+  .sheet-standings { border-radius: 6px; break-inside: avoid; }
+  .sheet .form-chip { width: 14px; height: 14px; border-radius: 4px; font-size: 8.5px; }
+  .sheet .tbl td, .sheet .tbl th { padding-top: 2px; padding-bottom: 2px; line-height: 1.25; }
+  .sheet .tbl .score { font-size: 11.5px; line-height: 1.2; }
+  .sheet .tbl td[colspan] { padding-top: 2px !important; padding-bottom: 2px !important; }
+  .sheet-tbl .sheet-side th { padding-top: 3px; padding-bottom: 2px; }
+  .sheet .tbl td a > span[aria-hidden] { display: none; } /* the team logo chips: they only add height on paper */
+  .sheet .tbl { font-size: 10.5px; }
+  .sheet .tbl th, .sheet .tbl td { padding: 3px 6px; }
+  .sheet .badge { height: 16px; padding: 0 6px; font-size: 9px; }
+  .sheet-scroll, .sheet .tbl-wrap { overflow: visible; }
+}
