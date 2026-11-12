@@ -173,7 +173,7 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
     return out;
   };
 
-  // An extra comparison has no scores of its own for side B: it uses the other pair's scores from their matchup.
+  // An extra comparison has no scores of its own for side B: it uses the other pair's scores (or, in a 1v1, one bowler's) from their matchup.
   const guests = new Map<Id, GuestLink>();
   for (const [id, link] of links) {
     const m = matchById.get(id);
@@ -214,7 +214,7 @@ export function buildSeasonModel(data: SeasonData, opts: { versionsOverride?: Ru
     const scores = link
       ? [
           ...data.scores.filter((s) => s.matchupId === m.id && s.side === "A"),
-          ...data.scores.filter((s) => s.matchupId === link.ref.id && s.side === link.refSide).map((s) => ({ ...s, matchupId: m.id, side: "B" as const })),
+          ...data.scores.filter((s) => s.matchupId === link.ref.id && s.side === link.refSide && (!link.only || s.bowlerId === link.only)).map((s) => ({ ...s, matchupId: m.id, side: "B" as const })),
         ]
       : data.scores.filter((s) => s.matchupId === m.id);
     results.push(

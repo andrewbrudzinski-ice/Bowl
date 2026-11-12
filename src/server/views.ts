@@ -26,7 +26,7 @@ export function participant(ctx: LeagueCtx, id: Id, kind: "team" | "individual",
   return { id, name: b?.name ?? "Unknown bowler", color: b?.avatarColor ?? "#64748b", logo: (b?.name ?? "?").slice(0, 1), kind: "bowler", href: `/l/${ctx.league.slug}/bowlers/${id}${q}` };
 }
 
-/** A drawn week of a rotating-partners league as names, for the draw reveal: matches, then the extra comparison, then anyone sitting out. */
+/** A drawn week of a rotating-partners league as names, for the draw reveal: matches, then the extra pair, then the odd bowler's 1v1 (and anyone sitting out in an old draw). */
 export function drawnShown(ctx: LeagueCtx, week: number): DrawnShown[] {
   const m = ctx.model!;
   if (!usesPartners(m.configForWeek(week))) return [];
@@ -34,7 +34,7 @@ export function drawnShown(ctx: LeagueCtx, week: number): DrawnShown[] {
   const rs = m.results.filter((r) => r.weekNumber === week);
   return [
     ...rs.filter((r) => r.b && !r.guest).map((r) => ({ a: name(r.a.participantId), b: name(r.b!.participantId), extra: false })),
-    ...rs.filter((r) => r.guest).map((r) => ({ a: name(r.a.participantId), b: name(r.b!.participantId), extra: true })),
+    ...rs.filter((r) => r.guest).map((r) => ({ a: name(r.a.participantId), b: name(r.b!.participantId), extra: true, single: r.a.lineup.length === 1 })),
     ...rs.filter((r) => r.isBye).map((r) => ({ a: name(r.a.participantId), b: null, extra: false })),
   ];
 }

@@ -41,8 +41,12 @@ absentees, forfeits, bye points) work as they do in a team league, with a pair s
   that has been the extra pair least often — **bowls an extra comparison**: its scores are compared with another pair's scores from the same
   night, game by game and in total, using the normal scoring. **Only the extra pair earns points from it**; the pair it is compared with
   keeps exactly what its own match earned. Twelve bowlers make six pairs and three matches, with no extra pair.
-- **An odd number of bowlers.** One bowler is left without a partner and sits out: whoever has sat out least so far (that bowler earns the
-  league's bye points, none by default).
+- **An odd number of bowlers, the odd bowler's 1v1.** One bowler is left without a partner: whoever has been the odd bowler least so far.
+  Nobody sits out. The odd bowler **bowls a 1v1**: their scores are compared with one bowler's scores from a real match that night,
+  picked at random (someone they haven't faced, if there is one), game by game and in total, using the normal scoring. **Only the odd
+  bowler earns points from it**; the bowler they are compared with, and that bowler's partner, keep exactly what their own match earned.
+  Thirteen bowlers make six pairs, three matches and a 1v1; eleven make five pairs, two matches, an extra pair *and* a 1v1. The bowler
+  compared with is always in a real match, never on the extra pair. (Old draws that had a bowler sitting out still show as a bye.)
 - The draw is reproducible: its seed is recorded in the audit log (`partners.drawn`).
 
 ### How an extra comparison is stored
@@ -54,13 +58,20 @@ week* (always that match's A side, which the database's uniqueness rules require
 from the other matchup, so nothing is entered twice, and a substitute added there is picked up here automatically. Because there are no
 team rows, **this feature needs no database migration**.
 
-On the score-entry screen the extra comparison comes last, its other pair's scores are shown read-only, and it can only be finalized once
-the other pair's matchup is final. Its other pair's games are never counted twice in anyone's averages, records or stats.
+The odd bowler's 1v1 is stored the same way, one level down: its B side *is the id of the bowler it is compared with*, who is in the
+lineup of a real match, and only that bowler's scores are read from that match. (A pair's comparison names a pair; a 1v1 names a bowler,
+so both can exist in the same week without clashing.) The compared bowler can't be taken out of their match's lineup, and that match can't
+be removed, while the 1v1 stands. Draw the week again to change it.
+
+On the score-entry screen the extra comparison and the 1v1 come last, the other side's scores are shown read-only, and each can only be
+finalized once the other matchup is final. A 1v1 is one bowler against one bowler: no one can be added to the odd bowler's side. The
+compared scores are never counted twice in anyone's averages, records or stats. If the compared bowler is marked absent, the odd bowler is
+compared with their blind score, as with any comparison.
 
 ## Watch the draw
 
 After drawing, the draw plays as a short show: a bowling ball rolls down a lane, the pins fly, and each pair is revealed one roll at a
-time ("Match 1 — Riley & Quinn", then "against Sam & Avery"), then the extra pair, then anyone sitting out. A running list builds below
+time ("Match 1 — Riley & Quinn", then "against Sam & Avery"), then the extra pair, then the odd bowler's 1v1. A running list builds below
 the lane. **Skip to the end** shows the finished list; **Replay** starts over. Anyone can watch it again from the *Up next* card on the
 league home page, the week page, or (commissioners) the Schedule page.
 

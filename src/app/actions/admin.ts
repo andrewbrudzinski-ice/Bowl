@@ -76,9 +76,9 @@ export async function drawPartnersAction(slug: string, seasonId: string, _: Acti
     const a = await requireActor();
     const r = await S.drawWeekPartners(getStore(), a, await lid(slug), seasonId, { week: Number(str(fd, "week")), bowlerIds: fd.getAll("bowler").map(String) });
     const real = r.matches.filter((m) => m.b && !m.extra).length;
-    const extra = r.matches.some((m) => m.extra);
-    const sitting = r.matches.filter((m) => !m.b).length;
-    const parts = [`${real} match${real === 1 ? "" : "es"}`, extra ? "one extra comparison" : "", sitting ? `${sitting} bowler${sitting === 1 ? "" : "s"} sitting out` : ""].filter(Boolean);
+    const extra = r.matches.some((m) => m.extra && !m.single);
+    const single = r.matches.some((m) => m.single);
+    const parts = [`${real} match${real === 1 ? "" : "es"}`, extra ? "one extra comparison" : "", single ? "a 1v1 for the odd bowler" : ""].filter(Boolean);
     return { ...done(slug, `Week ${r.week} partners drawn: ${parts.join(", ")}.${r.replaced ? " The earlier draw was replaced." : ""} Players are notified.`), data: { week: r.week, matches: r.shown } };
   });
 }

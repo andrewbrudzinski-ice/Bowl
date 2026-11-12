@@ -7,16 +7,20 @@ import { seededRandom } from "./partners";
  * skipped to the end. The drawing itself lives in components/draw-reveal.tsx.
  */
 
-/** One entry of a draw, as shown on screen. `extra`: `a` is compared with `b`'s scores. `b` null: `a` sits out. */
+/**
+ * One entry of a draw, as shown on screen. `extra`: `a` is compared with `b`'s scores; `single`: that is the odd bowler's 1v1, not
+ * an extra pair. `b` null: `a` sits out (an old draw).
+ */
 export interface DrawnShown {
   a: string;
   b: string | null;
   extra: boolean;
+  single?: boolean;
 }
 
 export type RevealPiece =
   | { kind: "pair"; match: number; side: "a" | "b"; name: string }
-  | { kind: "extra"; name: string; against: string }
+  | { kind: "extra"; name: string; against: string; single?: boolean }
   | { kind: "sits"; name: string };
 
 export interface RevealRoll {
@@ -26,7 +30,7 @@ export interface RevealRoll {
   sub: string | null;
 }
 
-/** The rolls that reveal a draw: both pairs of each match in turn, then the extra pair, then anyone sitting out. */
+/** The rolls that reveal a draw: both pairs of each match in turn, then the extra pair, then the odd bowler's 1v1, then anyone sitting out. */
 export function buildRolls(shown: DrawnShown[]): RevealRoll[] {
   const rolls: RevealRoll[] = [];
   const matches = shown.filter((m) => m.b && !m.extra);
@@ -35,7 +39,7 @@ export function buildRolls(shown: DrawnShown[]): RevealRoll[] {
     rolls.push({ piece: { kind: "pair", match: i, side: "b", name: m.b! }, eyebrow: `Match ${i + 1}`, headline: m.b!, sub: `against ${m.a}` });
   });
   for (const m of shown.filter((x) => x.extra)) {
-    rolls.push({ piece: { kind: "extra", name: m.a, against: m.b! }, eyebrow: "Extra pair", headline: m.a, sub: `compared with ${m.b}’s scores — only ${m.a} can earn points from it` });
+    rolls.push({ piece: { kind: "extra", name: m.a, against: m.b!, single: !!m.single }, eyebrow: m.single ? "Odd bowler · 1v1" : "Extra pair", headline: m.a, sub: `${m.single ? "bowls a 1v1 against" : "compared with"} ${m.b}’s scores — only ${m.a} can earn points from it` });
   }
   for (const m of shown.filter((x) => !x.b)) {
     rolls.push({ piece: { kind: "sits", name: m.a }, eyebrow: "Sitting out", headline: m.a, sub: "not bowling this week" });
@@ -46,6 +50,8 @@ export function buildRolls(shown: DrawnShown[]): RevealRoll[] {
 export interface BoardEntry {
   key: string;
   kind: "match" | "extra" | "sits";
+  /** An extra entry that is the odd bowler's 1v1. */
+  single?: boolean;
   /** What has been revealed so far; null until its roll lands. */
   a: string | null;
   b: string | null;
@@ -63,16 +69,17 @@ export function boardAt(rolls: RevealRoll[], revealed: number): BoardEntry[] {
   for (const r of rolls) {
     const p = r.piece;
     if (p.kind === "pair") entry(`m${p.match}`, "match");
-    else if (p.kind === "extra") entry("extra", "extra");
+    else if (p.kind === "extra") entry(`x:${p.name}`, "extra");
     else entry(`s:${p.name}`, "sits");
   }
   rolls.slice(0, revealed).forEach((r) => {
     const p = r.piece;
     if (p.kind === "pair") (entry(`m${p.match}`, "match")[p.side] = p.name);
     else if (p.kind === "extra") {
-      const e = entry("extra", "extra");
+      const e = entry(`x:${p.name}`, "extra");
       e.a = p.name;
       e.b = p.against;
+      e.single = p.single;
     } else entry(`s:${p.name}`, "sits").a = p.name;
   });
   return out.filter((e) => e.a !== null || e.b !== null);

@@ -61,7 +61,7 @@ export function Scoreboard({ r, a, b, recA, recB, href, compact = false, dateLab
         <span className="eyebrow">{dateLabel ?? `Week ${r.weekNumber}`}{r.matchup.playoffRound ? ` · Playoff round ${r.matchup.playoffRound}` : ""}</span>
         <span className="flex items-center gap-2">
           {r.settingWeek ? <Badge tone="info" title="Bowled scratch. Counts toward averages and handicaps, not the standings.">HANDICAP WEEK</Badge> : null}
-          {r.guest ? <Badge tone="info" title="Compared with another pair's scores; only this pair earns points">EXTRA COMPARISON</Badge> : null}
+          {r.guest ? <Badge tone="info" title={r.a.lineup.length === 1 ? "Bowls against one bowler's scores; only the odd bowler earns points" : "Compared with another pair's scores; only this pair earns points"}>{r.a.lineup.length === 1 ? "1V1" : "EXTRA COMPARISON"}</Badge> : null}
           <Badge tone={status.tone}>{status.label}</Badge>
         </span>
       </header>

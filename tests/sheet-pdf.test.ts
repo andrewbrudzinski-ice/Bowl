@@ -7,6 +7,7 @@ import { renderSheetPdf, text } from "@/server/sheet-pdf";
 import { cfgWith, fixture, type Fixture } from "./helpers";
 import { mkStore, mkUser } from "./world";
 import { DEFAULT_CONFIG, normalizeConfig } from "@/domain/config";
+import { guestLinks } from "@/domain/partners";
 import { createLeague } from "@/server/services/leagues";
 import { finalizeMatchup, saveEntry } from "@/server/services/results";
 import { addBowler, addToRoster, drawWeekPartners } from "@/server/services/season";
@@ -100,7 +101,7 @@ describe("weekly sheet PDF", () => {
 });
 
 describe("weekly sheet PDF for rotating partners", () => {
-  it("names the pairs, the extra comparison and anyone sitting out", async () => {
+  it("names the pairs and the odd bowler's 1v1", async () => {
     const store = await mkStore();
     const owner = await mkUser(store, "owner");
     const c = normalizeConfig(DEFAULT_CONFIG);
@@ -117,7 +118,9 @@ describe("weekly sheet PDF for rotating partners", () => {
       await addToRoster(store, owner, leagueId, seasonId, { bowlerId: b, teamId: null, enteringAverage: 150 });
     }
     await drawWeekPartners(store, owner, leagueId, seasonId, { week: 1, bowlerIds: ids, seed: 3 });
-    for (const m of await store.read((db) => db.matchups.filter((x) => x.seasonId === seasonId && x.sideB).map((x) => structuredClone(x)))) {
+    const week1 = await store.read((db) => db.matchups.filter((x) => x.seasonId === seasonId && x.sideB).map((x) => structuredClone(x)));
+    const links = guestLinks(week1);
+    for (const m of [...week1.filter((x) => !links.has(x.id)), ...week1.filter((x) => links.has(x.id))]) { // the 1v1 needs its opponent's match final first
       const scores = (["A", "B"] as const).flatMap((side) => (side === "A" ? m.lineupA : m.lineupB).flatMap((bowlerId) => [1, 2, 3].map((g) => ({ bowlerId, side, game: g, scratch: 190, kind: "bowled" as const }))));
       const res = await saveEntry(store, owner, leagueId, { matchupId: m.id, expectedRevision: m.revision, lineupA: m.lineupA, lineupB: m.lineupB, scores });
       await finalizeMatchup(store, owner, leagueId, m.id, res.revision);
@@ -126,8 +129,9 @@ describe("weekly sheet PDF for rotating partners", () => {
     const model = await store.read((db) => buildSeasonModel(seasonData(db, leagueId, seasonId)));
     const sheet = buildWeeklySheet(model, 2)!;
     const raw = Buffer.from(renderSheetPdf(model, sheet, meta, { compress: false })).toString("latin1");
-    expect(sheet.matchups.map((m) => m.kind)).toEqual(["match", "match", "bye"]);
-    expect(raw).toContain("Sitting out");
+    expect(sheet.matchups.map((m) => m.kind)).toEqual(["match", "match", "extra"]);
+    expect(raw).toMatch(/1v1: \w+ bowls for points against \w+'s scores/);
+    expect(raw).not.toContain("Sitting out");
     expect(raw).toMatch(/Bowler\d [&] Bowler\d|\w+ & \w+/);
     expect(raw).toContain("STANDINGS ENTERING WEEK 2");
     expect(raw).toContain("Bowler9 Test");

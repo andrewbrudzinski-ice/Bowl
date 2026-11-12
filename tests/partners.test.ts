@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG, STARTER_TEMPLATES, partnersOf, usesPartners, validateConfig, type RuleConfig } from "@/domain/config";
 import { describeRules } from "@/domain/describe";
+import { matchupRecap } from "@/domain/narrative";
 import { buildSeasonModel } from "@/domain/engine";
-import { drawPartners, emptyHistory, guestLinks, pairKey, pairName, pairTeamFor, partnerHistory, seededRandom, type PartnerHistory } from "@/domain/partners";
+import { drawPartners, emptyHistory, guestLineup, guestLinks, pairKey, pairName, pairTeamFor, partnerHistory, seededRandom, type PartnerHistory } from "@/domain/partners";
 import { collectNights } from "@/domain/stats";
 import { computeStandings, standingsScope } from "@/domain/standings";
 import { validateEntry } from "@/domain/validate";
@@ -17,7 +18,7 @@ function record(h: PartnerHistory, draw: ReturnType<typeof drawPartners>) {
     for (const side of m.extra ? [m.a] : [m.a, m.b ?? []]) if (side.length === 2) bump(h.partnered, pairKey(side[0], side[1]));
     if (m.b) for (const x of m.a) for (const y of m.b) bump(h.faced, pairKey(x, y));
     else for (const x of m.a) h.rests.set(x, (h.rests.get(x) ?? 0) + 1);
-    if (m.extra) for (const x of m.a) h.floats.set(x, (h.floats.get(x) ?? 0) + 1);
+    if (m.extra) for (const x of m.a) (m.single ? h.rests : h.floats).set(x, ((m.single ? h.rests : h.floats).get(x) ?? 0) + 1);
   }
 }
 
@@ -37,16 +38,16 @@ describe("partner draw", () => {
       expect(seen).toHaveLength(n);
       const pairs = Math.floor(n / 2);
       expect(d.matches.filter((m) => m.b && !m.extra)).toHaveLength(Math.floor(pairs / 2));
-      expect(d.matches.filter((m) => m.extra)).toHaveLength(pairs % 2);
-      expect(d.resting).toHaveLength(n % 2);
-      for (const m of d.matches) expect(m.b ? [m.a.length, m.b.length] : [m.a.length]).toEqual(m.b ? [2, 2] : [1]);
+      expect(d.matches.filter((m) => m.extra && !m.single)).toHaveLength(pairs % 2);
+      expect(d.matches.filter((m) => m.single)).toHaveLength(n % 2); // an odd bowler bowls a 1v1: nobody sits out
+      expect(d.matches.every((m) => m.b)).toBe(true);
+      for (const m of d.matches) expect([m.a.length, m.b!.length]).toEqual(m.single ? [1, 1] : [2, 2]);
     }
   });
 
   it("with ten bowlers everyone bowls: two matches and one extra pair", () => {
     const d = drawPartners(bowlerIds(10), emptyHistory(), seededRandom(5));
-    expect(d.matches.map((m) => (m.extra ? "extra" : m.b ? "match" : "sits"))).toEqual(["match", "match", "extra"]);
-    expect(d.resting).toEqual([]);
+    expect(d.matches.map((m) => (m.single ? "single" : m.extra ? "extra" : "match"))).toEqual(["match", "match", "extra"]);
   });
 
   it("with twelve bowlers there are three matches and no extra pair", () => {
@@ -54,10 +55,41 @@ describe("partner draw", () => {
     expect(d.matches.map((m) => (m.extra ? "extra" : m.b ? "match" : "sits"))).toEqual(["match", "match", "match"]);
   });
 
-  it("with an odd number of bowlers one sits out, listed last", () => {
+  it("with an odd number of bowlers the odd one bowls a 1v1 instead of sitting out, listed last", () => {
     const d = drawPartners(bowlerIds(11), emptyHistory(), seededRandom(8));
-    expect(d.matches.map((m) => (m.extra ? "extra" : m.b ? "match" : "sits"))).toEqual(["match", "match", "extra", "sits"]);
-    expect(d.resting).toHaveLength(1);
+    expect(d.matches.map((m) => (m.single ? "single" : m.extra ? "extra" : "match"))).toEqual(["match", "match", "extra", "single"]);
+  });
+
+  it("with thirteen bowlers there are three matches and a 1v1 for the odd bowler, with no extra pair", () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const d = drawPartners(bowlerIds(13), emptyHistory(), seededRandom(seed));
+      expect(d.matches.map((m) => (m.single ? "single" : m.extra ? "extra" : "match"))).toEqual(["match", "match", "match", "single"]);
+    }
+  });
+
+  it("compares the odd bowler with one bowler of a real match, never with someone on the extra pair or with themselves", () => {
+    for (const n of [5, 7, 9, 11, 13]) {
+      for (let seed = 1; seed <= 25; seed++) {
+        const d = drawPartners(bowlerIds(n), emptyHistory(), seededRandom(seed));
+        const solo = d.matches.find((m) => m.single)!;
+        const inRealMatches = d.matches.filter((m) => !m.extra).flatMap((m) => [...m.a, ...m.b!]);
+        expect(solo.b).toHaveLength(1);
+        expect(inRealMatches).toContain(solo.b![0]);
+        expect(solo.a[0]).not.toBe(solo.b![0]);
+        expect(inRealMatches).not.toContain(solo.a[0]); // the odd bowler is not in a real match themselves
+      }
+    }
+  });
+
+  it("picks the odd bowler's opponent from the people they haven't faced yet", () => {
+    const ids = bowlerIds(9);
+    for (let seed = 1; seed <= 30; seed++) {
+      const h = emptyHistory();
+      for (const id of ids.slice(1)) h.rests.set(id, 1); // P01 has been the odd bowler least, so it is P01 again
+      for (const id of ids.slice(1)) if (id !== "P05") h.faced.set(pairKey("P01", id), 1);
+      const solo = drawPartners(ids, h, seededRandom(seed)).matches.find((m) => m.single)!;
+      expect([solo.a, solo.b]).toEqual([["P01"], ["P05"]]);
+    }
   });
 
   it("compares the extra pair with the A side of a real match", () => {
@@ -112,7 +144,7 @@ describe("partner draw", () => {
     }
   });
 
-  it("shares the sit-outs when there is an odd number of bowlers", () => {
+  it("shares the odd bowler's turns when there is an odd number of bowlers", () => {
     const rand = seededRandom(3);
     const h = emptyHistory();
     const ids = bowlerIds(11);
@@ -127,6 +159,8 @@ describe("partner draw", () => {
     // Extra comparison: B31/B32 against the pair S1 (B11/B12), who also play in the real match above.
     fx.addMatchup(1, "S3", "S1", { A: [] }, "finalized", { ...base, lineupA: ["B31", "B32"], lineupB: ["B11", "B12"] });
     fx.addMatchup(1, "S4", null, { A: [] }, "finalized", { ...base, lineupA: ["B41"], lineupB: [] });
+    // The odd bowler's 1v1: B51 against B22's scores from the real match (side B is that bowler's id).
+    fx.addMatchup(1, "S5", "B22", { A: [] }, "finalized", { ...base, lineupA: ["B51"], lineupB: ["B22"] });
     fx.addMatchup(2, "S5", "S6", { A: [] }, "scheduled", { ...base, lineupA: ["B11", "B21"], lineupB: ["B12", "B22"] });
     const h = partnerHistory(fx.data, 2);
     expect(h.partnered.get(pairKey("B11", "B12"))).toBe(1); // counted once, not again for the extra comparison
@@ -137,6 +171,10 @@ describe("partner draw", () => {
     expect(h.floats.get("B31")).toBe(1);
     expect(h.floats.get("B11")).toBeUndefined();
     expect(h.rests.get("B41")).toBe(1);
+    expect(h.rests.get("B51")).toBe(1); // the 1v1's odd bowler counts as the odd one out, not as a floating pair
+    expect(h.floats.get("B51")).toBeUndefined();
+    expect(h.faced.get(pairKey("B51", "B22"))).toBe(1);
+    expect(h.faced.get(pairKey("B51", "B21"))).toBeUndefined(); // only the compared bowler, not their partner
     expect(partnerHistory(fx.data).partnered.get(pairKey("B11", "B21"))).toBe(1);
   });
 
@@ -150,6 +188,26 @@ describe("partner draw", () => {
     expect(links.get(extra.id)).toMatchObject({ refSide: "A" });
     expect(links.get(extra.id)!.ref.id).toBe(real.id);
     expect(links.has(other.id)).toBe(false);
+  });
+
+  it("recognises a 1v1 by the bowler it is compared with, even beside an extra comparison that names the same pair", () => {
+    const fx = fixture({ teams: 5, perTeam: 2 });
+    // The pair comparison is listed first on purpose: it also has B11/B12 in its lineup, but is not a real match.
+    const pairGuest = fx.addMatchup(1, "S3", "S1", { A: [] }, "finalized", { kind: "team", lineupA: ["B31", "B32"], lineupB: ["B11", "B12"] });
+    const real = fx.addMatchup(1, "S1", "S2", { A: [] }, "finalized", { kind: "team", lineupA: ["B11", "B12"], lineupB: ["B21", "B22"] });
+    const solo = fx.addMatchup(1, "S5", "B12", { A: [] }, "finalized", { kind: "team", lineupA: ["B51"], lineupB: ["B12"] });
+    const links = guestLinks(fx.data.matchups);
+    expect([...links.keys()].sort()).toEqual([pairGuest.id, solo.id].sort());
+    expect(links.get(pairGuest.id)).toMatchObject({ refSide: "A" });
+    expect(links.get(pairGuest.id)!.only).toBeUndefined();
+    expect(links.get(solo.id)).toMatchObject({ refSide: "A", only: "B12" });
+    expect(links.get(solo.id)!.ref.id).toBe(real.id);
+    expect(guestLineup(links.get(solo.id)!)).toEqual(["B12"]);
+    expect(guestLineup(links.get(pairGuest.id)!)).toEqual(["B11", "B12"]);
+    // A bowler on the B side of the real match is found on that side.
+    const other = fx.addMatchup(2, "S6", "B21", { A: [] }, "scheduled", { kind: "team", lineupA: ["B51"], lineupB: ["B21"] });
+    fx.addMatchup(2, "S7", "S8", { A: [] }, "scheduled", { kind: "team", lineupA: ["B11", "B12"], lineupB: ["B21", "B22"] });
+    expect(guestLinks(fx.data.matchups).get(other.id)).toMatchObject({ refSide: "B", only: "B21" });
   });
 
   it("names a pair after its lineup", () => {
@@ -257,6 +315,111 @@ describe("rotating partners: scoring", () => {
     addPairs(fx, 1, ["B31"], null, [], undefined);
     addPairs(fx, 2, ["B31", "B32"], ["B41", "B42"], flat(200, 190), flat(180, 180));
     expect(standings(fx).B31).toMatchObject({ points: 8, played: 1 });
+  });
+});
+
+/** The odd bowler's 1v1: `solo` against the scores `target` bowled in the real match `ref` (side B is the target's id). */
+function addSolo(fx: Fixture, ref: ReturnType<typeof addPairs>, solo: string, target: string, scores: number[], state: "finalized" | "draft" = "finalized") {
+  return fx.addMatchup(ref.weekNumber, `X${++sideSeq}s`, target, { A: [scores] }, state, { lineupA: [solo], lineupB: [target] });
+}
+
+describe("rotating partners: the odd bowler's 1v1", () => {
+  it("compares the odd bowler with one bowler's scores, and only the odd bowler earns points", () => {
+    const fx = league();
+    const real = addPairs(fx, 1, ["B11", "B12"], ["B21", "B22"], flat(200, 190), flat(180, 180));
+    addSolo(fx, real, "B31", "B12", [195, 195, 195]); // B12 bowled 190 a game: beaten every game
+    const model = buildSeasonModel(fx.data);
+    const solo = model.results.find((r) => r.guest)!;
+    expect(solo.winner).toBe("A");
+    expect([solo.a.points, solo.b!.points]).toEqual([7, 0]);
+    expect(solo.b!.lineup.map((l) => l.bowlerId)).toEqual(["B12"]); // only the compared bowler, not their partner
+    expect(solo.b!.scratchSeries).toBe(570);
+    const s = standings(fx);
+    expect(s.B31).toMatchObject({ points: 7, wins: 1, played: 1 });
+    // The compared bowler and their partner keep exactly what their own match earned.
+    expect(s.B12).toMatchObject({ points: 7, wins: 1, losses: 0, played: 1 });
+    expect(s.B11).toMatchObject({ points: 7, played: 1 });
+  });
+
+  it("scores a 1v1 game by game like any match, and pays nothing when the odd bowler loses", () => {
+    const fx = league();
+    const real = addPairs(fx, 1, ["B11", "B12"], ["B21", "B22"], flat(200, 190), flat(180, 180));
+    addSolo(fx, real, "B31", "B11", [210, 190, 150]); // against B11's 200s: wins game 1 only; the total 550 is lower than 600
+    const solo = buildSeasonModel(fx.data).results.find((r) => r.guest)!;
+    expect([solo.a.points, solo.b!.points]).toEqual([2, 0]);
+    expect(solo.winner).toBe("B");
+    expect(standings(fx).B31).toMatchObject({ points: 2, wins: 0, losses: 1, played: 1 });
+    expect(standings(fx).B11).toMatchObject({ points: 7 });
+  });
+
+  it("uses the compared bowler's own handicap, as well as the odd bowler's", () => {
+    const fx = fixture({ teams: 5, perTeam: 2, weeks: 6, config: partnersCfg((c) => { c.handicap.enabled = true; c.handicap.baseValue = 220; c.handicap.percentage = 100; c.scoring.basis = "handicap"; c.standings.pinsBasis = "handicap"; }) });
+    const real = addPairs(fx, 1, ["B11", "B12"], ["B21", "B22"], flat(200, 190), flat(180, 180));
+    addSolo(fx, real, "B31", "B11", [200, 200, 200]);
+    const solo = buildSeasonModel(fx.data).results.find((r) => r.guest)!;
+    expect(solo.basis).toBe("handicap");
+    expect(solo.a.lineup[0].handicap).toBe(60); // entering average 160 against the 220 base
+    expect(solo.b!.lineup[0].handicap).toBe(60);
+    expect(solo.winner).toBe("tie"); // 260 against 260 every game
+  });
+
+  it("does not count the compared bowler's games twice, but does count the odd bowler's own", () => {
+    const fx = league();
+    const real = addPairs(fx, 1, ["B11", "B12"], ["B21", "B22"], flat(200, 190), flat(180, 180));
+    addSolo(fx, real, "B31", "B12", [195, 195, 195]);
+    const nights = collectNights(buildSeasonModel(fx.data));
+    expect(nights.filter((n) => n.bowlerId === "B12")).toHaveLength(1);
+    expect(nights.filter((n) => n.bowlerId === "B31")).toHaveLength(1);
+    expect(nights).toHaveLength(5);
+  });
+
+  it("names the 1v1's sides after the two bowlers", () => {
+    const fx = league();
+    const real = addPairs(fx, 1, ["B11", "B12"], ["B21", "B22"], flat(200, 190), flat(180, 180));
+    const solo = addSolo(fx, real, "B31", "B12", [195, 195, 195]);
+    const model = buildSeasonModel(fx.data);
+    const r = model.resultById.get(solo.id)!;
+    expect(model.teamById.get(r.a.participantId)?.name).toMatch(/^Bowler/);
+    expect(model.teamById.get(solo.sideB!)?.name).toBe(model.teamById.get("B12")?.name);
+    expect(model.teamById.get(solo.sideB!)?.name).not.toContain("&"); // one bowler, not a pair
+  });
+
+  it("is one bowler against one bowler, and waits for the compared bowler's match to be final", () => {
+    const fx = league();
+    const real = addPairs(fx, 1, ["B11", "B12"], ["B21", "B22"], flat(200, 190), flat(180, 180), "draft");
+    const solo = addSolo(fx, real, "B31", "B11", [195, 195, 195], "draft");
+    const cfg = partnersCfg();
+    const scores = fx.data.scores.filter((s) => s.matchupId === solo.id).map((s) => ({ bowlerId: s.bowlerId, side: s.side, game: s.game, scratch: s.scratch, kind: s.kind }));
+    const errors = (m = solo) => validateEntry(buildSeasonModel(fx.data), m, scores, cfg, { forFinalize: true }).filter((i) => i.severity === "error").map((i) => i.code);
+    expect(errors()).toEqual(["extra_pending"]); // no "needs two bowlers" error: a 1v1 has one
+    real.state = "finalized";
+    expect(errors()).toEqual([]);
+    // Adding a second bowler to the odd bowler's side is refused.
+    expect(errors({ ...solo, lineupA: ["B31", "B41"] })).toContain("lineup_size");
+  });
+
+  it("works next to an extra pair in the same week", () => {
+    const fx = league();
+    const real1 = addPairs(fx, 1, ["B11", "B12"], ["B21", "B22"], flat(200, 190), flat(180, 180));
+    const real2 = addPairs(fx, 1, ["B31", "B32"], ["B41", "B42"], flat(170, 170), flat(160, 160));
+    addExtra(fx, real1, ["B51", "B52"], flat(210, 210));
+    addSolo(fx, real2, "B52", "B42", [165, 165, 165]); // (a bowler on both would be refused elsewhere; here it only exercises the links)
+    const model = buildSeasonModel(fx.data);
+    expect(model.guests.size).toBe(2);
+    const refs = [...model.guests.values()].map((l) => [l.ref.id === real1.id, l.only ?? null]);
+    expect(refs).toContainEqual([true, null]);
+    expect(refs).toContainEqual([false, "B42"]);
+  });
+
+  it("is a recap line that says it was a 1v1", () => {
+    const fx = league();
+    const real = addPairs(fx, 1, ["B11", "B12"], ["B21", "B22"], flat(200, 190), flat(180, 180));
+    addSolo(fx, real, "B31", "B12", [195, 195, 195]);
+    const model = buildSeasonModel(fx.data);
+    const r = model.results.find((x) => x.guest)!;
+    const lines = matchupRecap(model, r);
+    expect(lines).toHaveLength(1);
+    expect(lines[0].text).toMatch(/bowled the 1v1 and beat .*'s scores/);
   });
 });
 

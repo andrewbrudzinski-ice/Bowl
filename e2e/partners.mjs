@@ -195,6 +195,72 @@ await visit("/admin/settings?section=rules");
 await page.getByRole("button", { name: "Format", exact: true }).click();
 ok(await page.locator("#f-partners\\.enabled").isDisabled(), "rotating partners can't be switched off once scores exist");
 
+// ---- an odd number of bowlers: the odd one bowls a 1v1 ----
+console.log("\n== an odd number of bowlers ==");
+await page.goto(`${L}/admin/roster`, { waitUntil: "networkidle" });
+await page.fill("#bname", "Kai Daniels");
+await page.fill("#bavg", "170");
+await page.getByRole("button", { name: "Add bowler to this season" }).click();
+await page.waitForSelector("text=Bowler added.", { timeout: 8000 });
+await page.goto(`${L}/admin/schedule`, { waitUntil: "networkidle" });
+ok((await page.locator('input[name="bowler"]').count()) === 11, "all eleven bowlers are listed as bowling");
+ok((await page.locator("text=11 bowling: 5 pairs, making 2 matches plus one extra pair").count()) > 0 && (await page.locator("text=one odd bowler").count()) > 0 && (await page.locator("text=1v1").count()) > 0, "the form explains the split: 5 pairs, 2 matches, an extra pair and an odd bowler with a 1v1");
+await page.getByRole("button", { name: "Draw week 2 partners" }).click();
+await page.waitForSelector("text=a 1v1 for the odd bowler", { timeout: 10000 });
+ok(true, "week 2 is drawn with a 1v1 for the odd bowler, and nobody sits out");
+const reveal2 = page.locator("dialog.draw-dialog[open]");
+await reveal2.waitFor({ timeout: 5000 });
+await reveal2.getByRole("button", { name: /Skip to the end/ }).click();
+await page.waitForTimeout(200);
+const items2 = await reveal2.locator("ol li").allInnerTexts();
+ok(items2.length === 4, `the reveal lists 2 matches, the extra pair and the odd bowler's 1v1 (${items2.length} items)`);
+ok(/extra pair/i.test(items2[2]) && /odd bowler · 1v1/i.test(items2[3]) && /Only .* can earn points/.test(items2[3]) && !/&/.test(items2[3].split(/vs/i)[1] ?? ""), `the 1v1 is its own entry: the odd bowler against one bowler's scores, and only the odd bowler earns points (${items2[3]?.replace(/\s+/g, " ")})`);
+await reveal2.getByRole("button", { name: "Done" }).click();
+await page.reload({ waitUntil: "networkidle" });
+ok((await page.locator(".badge", { hasText: /^1V1$/ }).count()) === 1 && (await page.locator(".badge", { hasText: /^EXTRA COMPARISON$/ }).count()) === 2, "the schedule labels the extra comparisons (weeks 1 and 2) and the one 1v1 separately");
+
+await page.goto(`${L}/admin/scores?week=2`, { waitUntil: "networkidle" });
+const sections2 = page.locator("section").filter({ has: page.locator("input.score-input") });
+ok((await sections2.count()) === 4, `score entry shows 2 matches, the extra pair and the 1v1 (${await sections2.count()})`);
+const oneVOne = sections2.filter({ hasText: "1v1." }).first();
+ok((await oneVOne.locator("input.score-input:not([disabled])").count()) === 3 && (await oneVOne.locator("input.score-input[disabled]").count()) === 3, "only the odd bowler's three boxes can be typed in; the compared bowler's three are read-only");
+ok((await oneVOne.locator("text=Add a bowler").count()) === 0, "no one can be added to a 1v1: it is one bowler against one bowler");
+const typeAll2 = async (section, n, valueFor) => { const inputs = section.locator("input.score-input:not([disabled])"); await inputs.first().click(); for (let i = 0; i < n; i++) await page.keyboard.type(String(valueFor(i))); };
+const total = await sections2.count();
+for (let s = 0; s < total; s++) {
+  const sec = sections2.nth(s);
+  const editable = await sec.locator("input.score-input:not([disabled])").count();
+  await typeAll2(sec, editable, () => 170);
+}
+await page.getByRole("button", { name: /Save all drafts/ }).click();
+await page.waitForSelector("text=saved as draft", { timeout: 10000 });
+await page.reload({ waitUntil: "networkidle" });
+await oneVOne.getByRole("button", { name: /Preview & finalize/ }).click();
+await page.waitForSelector("text=this 1v1 uses their scores", { timeout: 10000 });
+ok(true, "finalizing the 1v1 before the compared bowler's match is final is refused with a clear reason");
+await page.reload({ waitUntil: "networkidle" });
+for (let s = 0; s < total; s++) {
+  await sections2.nth(s).getByRole("button", { name: /Preview & finalize/ }).click();
+  await page.waitForSelector("text=Impact on standings", { timeout: 10000 });
+  await page.getByRole("button", { name: "Finalize result" }).click();
+  await page.waitForSelector("text=Finalized. Standings are updated.", { timeout: 10000 });
+  await page.reload({ waitUntil: "networkidle" });
+}
+ok(true, "the matches, the extra comparison and the 1v1 all finalize from the UI");
+await visit("/standings");
+const rows2 = await page.locator("table.tbl").first().locator("tbody tr").allInnerTexts();
+ok(rows2.length === 11, `standings list all 11 bowlers, the odd bowler included (${rows2.length})`);
+const kai = rows2.find((r) => /Kai/.test(r)) ?? "";
+ok(/\b\d+\b/.test(kai), "the odd bowler is on the standings with points of their own");
+await visit("/season/2026/week/2");
+ok((await page.locator(".badge", { hasText: /^1V1$/ }).count()) === 1 && (await page.locator("text=/\\d+ pts?\\b/").count()) > 0, "the week page shows the 1v1 beside the other results");
+const oneHref = (await page.locator(`a[href*="/matchup/"]`).evaluateAll((as) => as.map((a) => ({ href: a.getAttribute("href"), text: a.closest("article, li, div")?.textContent ?? "" })))).find((h) => /1V1/.test(h.text))?.href;
+ok(!!oneHref && (await visit(oneHref.replace(`/l/${slug}`, ""))) === 200, "the 1v1's matchup page loads");
+const osc = await page.request.get(`${BASE}${oneHref}/scorecard`);
+ok(osc.status() === 200 && /image\/png/.test(osc.headers()["content-type"] ?? ""), "the 1v1's scorecard renders too");
+await visit("/sheet?week=3");
+ok((await page.locator("text=Week 3 sheet").count()) > 0 && (await page.locator(".badge", { hasText: /^1V1$/ }).count()) === 1, "the next weekly sheet recaps last week's 1v1");
+
 // ---- other leagues are untouched ----
 console.log("\n== a normal league still works ==");
 await page.goto(`${BASE}/leagues/new`, { waitUntil: "networkidle" });
@@ -232,7 +298,7 @@ for (const theme of ["dark", "light"]) {
     checked++;
     for (const v of res.violations) for (const n of v.nodes.slice(0, 3)) problems.push(`${theme} ${label} — ${v.id} (${v.impact}): ${n.target.join(" ")}`);
   };
-  for (const u of ["", "/standings", "/bowlers", "/schedule", "/results", mu.replace(`/l/${slug}`, ""), xmu.replace(`/l/${slug}`, ""), "/rules", "/admin", "/admin/schedule", "/admin/roster", "/admin/scores?week=1", "/admin/settings?section=rules"]) {
+  for (const u of ["", "/standings", "/bowlers", "/schedule", "/results", mu.replace(`/l/${slug}`, ""), xmu.replace(`/l/${slug}`, ""), "/rules", "/admin", "/admin/schedule", "/admin/roster", "/admin/scores?week=1", "/admin/scores?week=2", "/season/2026/week/2", "/sheet?week=3", "/admin/settings?section=rules"]) {
     await p.goto(`${L}${u}`, { waitUntil: "networkidle" });
     await audit(u || "/");
   }

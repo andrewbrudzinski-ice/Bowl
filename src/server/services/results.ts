@@ -114,6 +114,12 @@ export function applyEntry(db: DB, actor: Actor, leagueId: Id, input: EntryInput
     proposed.forfeitBy = null;
   }
   const scores = extra ? input.scores.filter((s) => s.side === "A") : input.scores;
+  // An odd bowler's 1v1 compares with one bowler of this matchup: they can't leave the lineup while it stands.
+  for (const [id, link] of model.guests) {
+    if (link.ref.id !== matchup.id || !link.only || [...proposed.lineupA, ...proposed.lineupB].includes(link.only)) continue;
+    const solo = model.teamById.get(model.data.matchups.find((x) => x.id === id)?.sideA ?? "")?.name ?? "The odd bowler";
+    throw invalid(`${solo} is bowling a 1v1 against ${model.bowlerById.get(link.only)?.name ?? "a bowler"}'s scores this week, so ${model.bowlerById.get(link.only)?.name ?? "they"} can't be taken out of this lineup. Draw the week again to change it.`);
+  }
   const asReady = input.submit === "ready" || mode.correction != null;
   // Validate against the *other* matchups in the week, with this one replaced by the proposal.
   const issues = validateEntry(model, proposed, scores, effectiveCfg, { forFinalize: asReady });

@@ -125,10 +125,12 @@ export function matchupRecap(model: SeasonModel, r: MatchupResult): RecapLine[] 
   }
   if (r.guest) {
     // An extra comparison: the extra pair against another pair's scores. Say that, and only that.
-    const A = model.teamById.get(r.a.participantId)?.name ?? "The extra pair";
-    const B = model.teamById.get(r.b.participantId)?.name ?? "the other pair";
+    const solo = r.a.lineup.length === 1; // the odd bowler's 1v1
+    const what = solo ? "the 1v1" : "the extra comparison";
+    const A = model.teamById.get(r.a.participantId)?.name ?? (solo ? "The odd bowler" : "The extra pair");
+    const B = model.teamById.get(r.b.participantId)?.name ?? (solo ? "the other bowler" : "the other pair");
     const by = r.margin != null ? ` by ${r.margin} ${r.basis === "handicap" ? "adjusted " : ""}pin${r.margin === 1 ? "" : "s"}` : "";
-    const text = r.winner === "A" ? `${A} bowled the extra comparison and beat ${B}'s scores${by}.` : r.winner === "tie" ? `${A} bowled the extra comparison and tied ${B}'s scores.` : `${A} bowled the extra comparison; ${B}'s scores were higher${by}.`;
+    const text = r.winner === "A" ? `${A} bowled ${what} and beat ${B}'s scores${by}.` : r.winner === "tie" ? `${A} bowled ${what} and tied ${B}'s scores.` : `${A} bowled ${what}; ${B}'s scores were higher${by}.`;
     return [{ kind: "extra_comparison", text }];
   }
   const lines: RecapLine[] = [];

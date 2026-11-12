@@ -10,6 +10,10 @@ import type { Id, Matchup, Side, Team } from "./types";
  *
  * When the bowlers make an odd number of pairs, one pair has nobody to play. It bowls an "extra comparison": its scores are
  * compared with another pair's scores from the same night, and only the extra pair can earn points from it (see `guestLinks`).
+ *
+ * When there is an odd number of bowlers, one is left without a partner. That bowler plays a 1v1 instead of sitting out: their
+ * scores are compared with one bowler's scores from a real match that night, and only the odd bowler can earn points from it. It is
+ * stored the same way as an extra comparison, except that side B is the compared bowler's id rather than a pair's.
  */
 
 export interface PartnerHistory {
@@ -17,7 +21,7 @@ export interface PartnerHistory {
   partnered: Map<string, number>;
   /** Times two bowlers have been on opposite sides of a match (or an extra comparison). */
   faced: Map<string, number>;
-  /** Weeks a bowler was drawn but sat out (a one-bowler bye matchup). */
+  /** Weeks a bowler was the odd one out: sat out (an old one-bowler bye matchup) or bowled a 1v1. */
   rests: Map<Id, number>;
   /** Weeks a bowler was on the extra pair. */
   floats: Map<Id, number>;
@@ -32,22 +36,25 @@ export function pairKey(a: Id, b: Id): string {
 }
 
 export interface DrawnMatch {
-  /** The first side's bowlers: a pair, or a single bowler who sits the week out (then `b` is null). */
+  /** The first side's bowlers: a pair, or the odd bowler on their own. */
   a: Id[];
-  /** The opposing pair, or null when a lone bowler sits out. */
+  /** The opposing pair, the single bowler an odd bowler is compared with, or null (an old bye: `a` sat out). */
   b: Id[] | null;
   /**
    * An extra comparison: `a` is the extra pair and `b` is the pair whose scores it is compared with. That pair is also the `a` side
-   * of a real match in the same draw, and earns nothing from this one.
+   * of a real match in the same draw, and earns nothing from this one. (With `single`, see below.)
    */
   extra?: boolean;
+  /**
+   * The odd bowler's 1v1 (always with `extra`): `a` is the odd bowler and `b` is the one bowler, from a real match in the same
+   * draw, whose scores they are compared with. Only the odd bowler earns points from it.
+   */
+  single?: boolean;
 }
 
 export interface PartnerDraw {
-  /** Head-to-head matches first, then the extra comparison, then each bowler sitting out (`b` null). */
+  /** Head-to-head matches first, then the extra pair's comparison, then the odd bowler's 1v1. Everyone bowls. */
   matches: DrawnMatch[];
-  /** The bowlers who don't bowl this week. */
-  resting: Id[];
 }
 
 /** Small seedable generator, so a draw can be reproduced from the seed stored in the audit log. */
@@ -177,18 +184,18 @@ function bestMatching(pairs: [Id, Id][], h: PartnerHistory, rand: () => number):
  *  - Pairs are matched against each other at random, avoiding bowlers a pair has already faced.
  *  - With an odd number of pairs, the pair that has been the extra pair least often is the extra pair: it is compared with a
  *    random pair from a real match, preferring one it hasn't faced.
- *  - With an odd number of bowlers, one bowler is left without a partner and sits out: the one who has sat out least so far.
+ *  - With an odd number of bowlers, one bowler is left without a partner: the one who has been the odd bowler least so far. They
+ *    bowl a 1v1 against the scores of one bowler picked at random from a real match, preferring someone they haven't faced.
  * Needs at least four bowlers. The result depends only on the inputs and `rand`.
  */
 export function drawPartners(bowlerIds: Id[], history: PartnerHistory, rand: () => number): PartnerDraw {
   const ids = [...new Set(bowlerIds)];
   if (ids.length < 4) throw new Error("A partner draw needs at least four bowlers.");
-  const resting: Id[] = [];
+  let lone: Id | null = null;
   let bowling = ids;
   if (ids.length % 2 === 1) {
-    const rested = (id: Id) => history.rests.get(id) ?? 0;
-    const lone = shuffled(ids, rand).sort((x, y) => rested(x) - rested(y))[0];
-    resting.push(lone);
+    const odd = (id: Id) => history.rests.get(id) ?? 0;
+    lone = shuffled(ids, rand).sort((x, y) => odd(x) - odd(y))[0];
     bowling = ids.filter((id) => id !== lone);
   }
 
@@ -213,8 +220,16 @@ export function drawPartners(bowlerIds: Id[], history: PartnerHistory, rand: () 
     if (faced(ex, target.b!) < faced(ex, target.a)) [target.a, target.b] = [target.b!, target.a];
     matches.push({ a: [...ex], b: [...target.a], extra: true });
   }
-  for (const id of resting) matches.push({ a: [id], b: null });
-  return { matches, resting };
+  if (lone) {
+    // The odd bowler bowls a 1v1 against one bowler of a real match (never someone on the extra pair, whose scores are in that
+    // comparison): somebody they haven't faced if possible.
+    const pool = matches.filter((m) => !m.extra).flatMap((m) => [...m.a, ...m.b!]);
+    const facedBy = (y: Id) => count(history.faced, lone!, y);
+    const fewest = Math.min(...pool.map(facedBy));
+    const candidates = pool.filter((y) => facedBy(y) === fewest);
+    matches.push({ a: [lone], b: [candidates[Math.floor(rand() * candidates.length)]], extra: true, single: true });
+  }
+  return { matches };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -222,14 +237,17 @@ export function drawPartners(bowlerIds: Id[], history: PartnerHistory, rand: () 
 export interface GuestLink {
   /** The real matchup whose scores the extra comparison borrows. */
   ref: Matchup;
-  /** Which side of `ref` is the compared pair. */
+  /** Which side of `ref` is the compared pair (or holds the compared bowler). */
   refSide: Side;
+  /** A 1v1: the one bowler of that side whose scores are used. Undefined when a whole pair is compared. */
+  only?: Id;
 }
 
 /**
- * Finds the extra comparisons among a set of matchups. An extra comparison is a matchup whose B side is a pair that already plays
- * in another matchup of the same week: it has no scores of its own for that side, so they are read from the other matchup.
- * Returns matchup id → link for each extra comparison.
+ * Finds the extra comparisons among a set of matchups, by matchup id. There are two kinds, and neither has scores of its own for
+ * side B: they are read from another matchup of the same week.
+ *  - A pair's comparison: side B is the id of a pair that plays in another matchup.
+ *  - The odd bowler's 1v1: side B is the id of a bowler who is in the lineup of a real match; only that bowler's scores are used.
  */
 export function guestLinks(matchups: readonly Matchup[]): Map<Id, GuestLink> {
   const out = new Map<Id, GuestLink>();
@@ -241,13 +259,20 @@ export function guestLinks(matchups: readonly Matchup[]): Map<Id, GuestLink> {
       const ref = ms.find((o) => o.id !== m.id && (o.sideA === m.sideB || o.sideB === m.sideB));
       if (ref) out.set(m.id, { ref, refSide: ref.sideA === m.sideB ? "A" : "B" });
     }
+    // A 1v1 compares with a bowler of a real match: not one of the pair comparisons found above, and never another 1v1.
+    for (const m of ms) {
+      if (!m.sideB || out.has(m.id)) continue;
+      const target = m.sideB;
+      const ref = ms.find((o) => o.id !== m.id && o.sideB != null && !out.has(o.id) && (o.lineupA.includes(target) || o.lineupB.includes(target)));
+      if (ref) out.set(m.id, { ref, refSide: ref.lineupA.includes(target) ? "A" : "B", only: target });
+    }
   }
   return out;
 }
 
-/** The bowlers on the pair an extra comparison borrows its scores from. */
+/** The bowlers an extra comparison borrows its scores from: the compared pair, or the one bowler of a 1v1. */
 export function guestLineup(link: GuestLink): Id[] {
-  return link.refSide === "A" ? link.ref.lineupA : link.ref.lineupB;
+  return link.only ? [link.only] : link.refSide === "A" ? link.ref.lineupA : link.ref.lineupB;
 }
 
 /** What the season so far says about partners, opponents, rests and extra pairs, ignoring `exceptWeek` (the week being drawn). */
@@ -259,10 +284,11 @@ export function partnerHistory(data: Pick<SeasonData, "matchups">, exceptWeek?: 
     if (m.kind !== "team" || m.weekNumber === exceptWeek) continue;
     const link = guests.get(m.id);
     for (const lineup of link ? [m.lineupA] : [m.lineupA, m.lineupB]) if (lineup.length === 2) bump(h.partnered, pairKey(lineup[0], lineup[1]));
-    if (m.sideB == null) for (const id of m.lineupA) h.rests.set(id, (h.rests.get(id) ?? 0) + 1); // sat the week out
+    if (m.sideB == null) for (const id of m.lineupA) h.rests.set(id, (h.rests.get(id) ?? 0) + 1); // sat the week out (an old bye)
     else {
       for (const x of m.lineupA) for (const y of link ? guestLineup(link) : m.lineupB) bump(h.faced, pairKey(x, y));
-      if (link) for (const id of m.lineupA) h.floats.set(id, (h.floats.get(id) ?? 0) + 1);
+      // The extra pair counts as floating; the odd bowler of a 1v1 counts as the odd one out.
+      if (link) for (const id of m.lineupA) (link.only ? h.rests : h.floats).set(id, ((link.only ? h.rests : h.floats).get(id) ?? 0) + 1);
     }
   }
   return h;

@@ -41,7 +41,7 @@ export default async function ScoresPage({ params, searchParams }: { params: Pro
       const link = m.guests.get(r.matchup.id) ?? null;
       return {
       id: r.matchup.id, revision: r.matchup.revision, state: r.matchup.state, kind: r.matchup.kind, forfeitBy: r.matchup.forfeitBy,
-      extra: link ? { refName: (nm(r.b!.participantId) as { name: string } | undefined)?.name ?? "the other pair", refHref: `/l/${slug}/matchup/${link.ref.id}` } : null,
+      extra: link ? { refName: (nm(r.b!.participantId) as { name: string } | undefined)?.name ?? "the other pair", refHref: `/l/${slug}/matchup/${link.ref.id}`, single: !!link.only } : null,
       a: { id: r.a.participantId, name: (nm(r.a.participantId) as { name: string } | undefined)?.name ?? "?", color: col(r.a.participantId) },
       b: r.b ? { id: r.b.participantId, name: (nm(r.b.participantId) as { name: string } | undefined)?.name ?? "?", color: col(r.b.participantId) } : null,
       lineupA: r.matchup.lineupA, lineupB: r.matchup.lineupB,
