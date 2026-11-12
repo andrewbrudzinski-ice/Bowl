@@ -34,11 +34,11 @@ export function PartnerDrawForm({ action, weeks, bowlers, defaultWeek }: { actio
   };
   const picked = weeks.find((w) => w.number === week);
   const n = bowling.size;
-  // Two bowlers make a pair, two pairs make a match; an odd pair is the extra pair, and an odd bowler sits out.
+  // Two bowlers make a pair, two pairs make a match; an odd pair is the extra pair, and an odd bowler bowls a 1v1.
   const pairs = Math.floor(n / 2);
   const matches = Math.floor(pairs / 2);
   const extra = pairs % 2 === 1;
-  const sitting = n % 2;
+  const odd = n % 2 === 1;
   const toggle = (id: string, on: boolean) =>
     setBowling((prev) => {
       const next = new Set(prev);
@@ -82,7 +82,7 @@ export function PartnerDrawForm({ action, weeks, bowlers, defaultWeek }: { actio
       <p className={`text-[13px] ${n < 4 ? "text-loss" : "muted"}`} aria-live="polite">
         {n < 4
           ? `${n} selected. Pick at least four: partners are drawn in pairs, and two pairs make a match.`
-          : `${n} bowling: ${pairs} pairs, making ${matches} match${matches === 1 ? "" : "es"}${extra ? " plus one extra pair that is compared with another pair’s scores" : ""}${sitting ? `; 1 bowler sits out (whoever has sat out least so far)` : "; everyone bowls"}.`}
+          : `${n} bowling: ${pairs} pairs, making ${matches} match${matches === 1 ? "" : "es"}${extra || odd ? ` plus ${[extra ? "one extra pair that is compared with another pair’s scores" : "", odd ? "one odd bowler (whoever has been odd least so far) who bowls a 1v1 against one bowler’s scores" : ""].filter(Boolean).join(" and ")}` : ""}; everyone bowls.${extra || odd ? ` Only the ${extra && odd ? "extra pair and the odd bowler" : extra ? "extra pair" : "odd bowler"} can earn points from ${extra && odd ? "those" : "that"}.` : ""}`}
       </p>
     </ActionForm>
     </>

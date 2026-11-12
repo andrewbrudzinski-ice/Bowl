@@ -39,7 +39,7 @@ you scroll; nothing needs to be printed.
 ## Other league formats
 
 - **Rotating partners.** This week's matchups are the drawn pairs (named from their lineup, "Alex & Sam"), then the extra comparison,
-  then anyone sitting out. Before the draw it says partners are drawn at the start of the night. Pairs have no record of their own, and
+  then the odd bowler's 1v1 (shown as "1V1"). Before the draw it says partners are drawn at the start of the night. Pairs have no record of their own, and
   the standings list bowlers.
 - **Handicap-setting weeks.** The sheet for a handicap week says everyone bowls scratch with no handicap, and lists no handicaps. The
   results of a handicap week show scores only, with no points and no winners, and the standings say they start after the handicap weeks.

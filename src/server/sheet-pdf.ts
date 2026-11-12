@@ -159,7 +159,7 @@ export function renderSheetPdf(model: SeasonModel, sheet: WeeklySheet, meta: She
     const showPts = !r.settingWeek;
     const cols = 2 + (hdcp ? 1 : 0) + games + 1 + (showPts ? 1 : 0);
     const kind = r.matchup.kind;
-    const title = `${sideName(kind, r.a.participantId)} vs ${sideName(kind, r.b!.participantId)}${r.guest ? " (extra comparison)" : ""}`;
+    const title = `${sideName(kind, r.a.participantId)} vs ${sideName(kind, r.b!.participantId)}${r.guest ? (r.a.lineup.length === 1 ? " (1v1)" : " (extra comparison)") : ""}`;
     const label = (s: string) => ({ content: s, styles: { textColor: MUTED, fontStyle: "normal" as const, fillColor: [255, 255, 255] as [number, number, number] } });
     const head = [
       [{ content: text(title), colSpan: cols, styles: { halign: "left" as const, fontStyle: "bold" as const, fillColor: SHADE } }],
@@ -238,7 +238,7 @@ export function renderSheetPdf(model: SeasonModel, sheet: WeeklySheet, meta: She
     }
     const rows = Math.max(m.a.lineup.length, m.b!.lineup.length);
     const head: { content: string; colSpan: number; styles: object }[][] = [
-      ...(m.kind === "extra" ? [[{ content: text(`Extra comparison: ${m.a.name} bowl for points against ${m.b!.name}'s scores`), colSpan: 4, styles: { fontStyle: "italic", halign: "left", textColor: MUTED, fillColor: [255, 255, 255] } }]] : []),
+      ...(m.kind === "extra" ? [[{ content: text(`${m.a.lineup.length === 1 ? "1v1" : "Extra comparison"}: ${m.a.name} ${m.a.lineup.length === 1 ? "bowls" : "bowl"} for points against ${m.b!.name}'s scores`), colSpan: 4, styles: { fontStyle: "italic", halign: "left", textColor: MUTED, fillColor: [255, 255, 255] } }]] : []),
       [{ content: text(sideHead(m.a)), colSpan: 2, styles: { fontStyle: "bold", halign: "left", fillColor: SHADE } }, { content: text(sideHead(m.b!)), colSpan: 2, styles: { fontStyle: "bold", halign: "left", fillColor: SHADE } }],
     ];
     const body = Array.from({ length: rows }, (_, i) => [text(m.a.lineup[i] ? `${m.a.lineup[i].name}${m.a.lineup[i].isSub ? " (sub)" : ""}` : ""), m.a.lineup[i] ? avgHdcp(m.a.lineup[i]) : "", text(m.b!.lineup[i] ? `${m.b!.lineup[i].name}${m.b!.lineup[i].isSub ? " (sub)" : ""}` : ""), m.b!.lineup[i] ? avgHdcp(m.b!.lineup[i]) : ""]);

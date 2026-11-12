@@ -193,7 +193,7 @@ export function DrawReveal({ matches, week, open, onClose }: { matches: DrawnSho
                   </>
                 ) : e.kind === "extra" ? (
                   <>
-                    <span className="mr-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[#e8c264]">Extra pair</span>
+                    <span className="mr-2 text-[11px] font-bold uppercase tracking-[0.1em] text-[#e8c264]">{e.single ? "Odd bowler · 1v1" : "Extra pair"}</span>
                     <b className="font-bold">{e.a}</b> <span className="text-[#cbc5b8]">vs {e.b}’s scores</span>
                     <span className="block text-[12.5px] text-[#a8a296]">Only {e.a} can earn points from this one.</span>
                   </>

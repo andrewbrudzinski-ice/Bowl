@@ -7,6 +7,7 @@ const tenBowlers: DrawnShown[] = [
   { a: "Quinn & Avery", b: "Casey & Riley", extra: true },
 ];
 const elevenBowlers: DrawnShown[] = [...tenBowlers, { a: "Drew", b: null, extra: false }];
+const elevenWithOneVOne: DrawnShown[] = [...tenBowlers, { a: "Drew", b: "Casey", extra: true, single: true }];
 const twelveBowlers: DrawnShown[] = [...tenBowlers.slice(0, 2), { a: "Quinn & Avery", b: "Drew & Harper", extra: false }];
 
 const clock = (rolls: ReturnType<typeof buildRolls>, step = 0.02) => Array.from({ length: Math.ceil(totalTime(rolls) / step) + 1 }, (_, k) => k * step);
@@ -19,6 +20,19 @@ describe("draw reveal script", () => {
     expect(rolls[1].sub).toBe("against Alex & Sam");
     expect(rolls[4].sub).toMatch(/compared with Casey & Riley’s scores/);
     expect(rolls[4].sub).toMatch(/only Quinn & Avery can earn points/);
+  });
+
+  it("reveals the odd bowler's 1v1 after the extra pair, as its own roll and its own entry on the board", () => {
+    const rolls = buildRolls(elevenWithOneVOne);
+    expect(rolls.map((r) => r.piece.kind)).toEqual(["pair", "pair", "pair", "pair", "extra", "extra"]);
+    expect(rolls[4].eyebrow).toBe("Extra pair");
+    expect(rolls[5]).toMatchObject({ eyebrow: "Odd bowler · 1v1", headline: "Drew" });
+    expect(rolls[5].sub).toMatch(/bowls a 1v1 against Casey’s scores/);
+    expect(rolls[5].sub).toMatch(/only Drew can earn points/);
+    const board = boardAt(rolls, rolls.length);
+    expect(board.map((e) => [e.kind, e.single ?? false])).toEqual([["match", false], ["match", false], ["extra", false], ["extra", true]]);
+    expect(board[3]).toMatchObject({ a: "Drew", b: "Casey" });
+    expect(board[2]).toMatchObject({ a: "Quinn & Avery", b: "Casey & Riley" }); // the extra pair's entry is not overwritten
   });
 
   it("needs five rolls for ten bowlers and six for twelve", () => {

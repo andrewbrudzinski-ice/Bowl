@@ -21,7 +21,7 @@ export interface EntryMatchup {
   lineupB: string[];
   scores: { bowlerId: string; side: Side; game: number; scratch: number | null; kind: ScoreKind }[];
   /** Rotating partners: an extra comparison. Side B is the pair whose scores (shown here, read-only) come from their own matchup. */
-  extra: { refName: string; refHref: string } | null;
+  extra: { refName: string; refHref: string; single?: boolean } | null;
   official: boolean;
   href: string;
   /** Roster bowlers who could be added as a substitute (not bowling elsewhere this week). */
@@ -399,7 +399,7 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
             </li>
           ) : null}
         </ul>
-        {!locked && !readOnly && m.kind === "team" && sideRows(side).length < m.bowlersPerTeam + 2 ? (
+        {!locked && !readOnly && m.kind === "team" && !extra?.single && sideRows(side).length < m.bowlersPerTeam + 2 ? (
           <label className="mt-3 flex items-center gap-3 px-1 text-[13px]"><span className="muted">Add a bowler</span>
             <select className="select !h-9 !w-auto !rounded-[10px] text-[13px]" value="" onChange={(e) => e.target.value && addSub(side, e.target.value)} aria-label={`Add a bowler to ${info.name}`}>
               <option value="">Choose…</option>
@@ -424,7 +424,7 @@ function MatchupEntry({ m, mi, d, data, G, pending, msg, correcting, onCorrectin
       </header>
       {!m.b ? <p className="muted px-5 py-5 text-[14px]">Bye week — nothing to enter.</p> : (
         <>
-          {extra ? <p className="border-b border-line bg-raised px-5 py-3 text-[13px]"><b>Extra comparison.</b> {m.a.name} is compared with <a className="font-semibold underline" href={extra.refHref}>{extra.refName}</a>&rsquo;s scores. Enter only {m.a.name}&rsquo;s scores; {extra.refName}&rsquo;s appear here as they&rsquo;re entered in their own matchup, and only {m.a.name} can earn points from this.</p> : null}
+          {extra ? <p className="border-b border-line bg-raised px-5 py-3 text-[13px]"><b>{extra.single ? "1v1." : "Extra comparison."}</b> {m.a.name} {extra.single ? "bowls a 1v1 against" : "is compared with"} <a className="font-semibold underline" href={extra.refHref}>{extra.refName}</a>&rsquo;s scores. Enter only {m.a.name}&rsquo;s scores; {extra.refName}&rsquo;s appear here as they&rsquo;re entered in their own matchup, and only {m.a.name} can earn points from this.</p> : null}
           <div className="grid gap-7 p-5 lg:grid-cols-2">
             {renderSide("A")}{renderSide("B")}
           </div>

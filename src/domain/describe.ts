@@ -23,7 +23,7 @@ export function describeRules(cfg: RuleConfig): RuleSection[] {
     id: "format", title: "Format",
     items: [
       { label: "Competition", value: usesPartners(cfg) ? "Rotating partners: bowlers are paired by a random draw every week, and each pair faces another pair" : cfg.format === "team" ? "Team vs. team" : cfg.format === "individual" ? "Bowler vs. bowler" : "Team vs. team, with an individual competition inside each team matchup" },
-      ...(usesPartners(cfg) ? [{ label: "Extra pair", value: "When the pairs don't split into matches, the pair left over bowls against another pair's scores for points of its own; the other pair gets nothing extra." }] : []),
+      ...(usesPartners(cfg) ? [{ label: "Extra pair", value: "When the pairs don't split into matches, the pair left over bowls against another pair's scores for points of its own; the other pair gets nothing extra." }, { label: "Odd bowler", value: "With an odd number of bowlers, the one left without a partner bowls a 1v1 against one bowler's scores for points of their own; that bowler gets nothing extra." }] : []),
       ...(cfg.format !== "individual" ? [{ label: usesPartners(cfg) ? "Pair size" : "Team size", value: `${cfg.bowlersPerTeam} bowler${cfg.bowlersPerTeam === 1 ? "" : "s"}`, note: cfg.allowSubstitutes ? "Substitutes are allowed." : "Substitutes are not allowed." }] : []),
       { label: "Games per night", value: String(g) },
       { label: "Schedule", value: usesPartners(cfg) ? "Partners and opponents are drawn each week by the commissioner" : cfg.scheduleFormat === "round_robin" ? "Round robin" : cfg.scheduleFormat === "double_round_robin" ? "Double round robin" : "Built by hand by the commissioner" },
@@ -51,7 +51,8 @@ export function describeRules(cfg: RuleConfig): RuleSection[] {
       { label: "Absent bowler", value: s.absentPolicy === "none" ? "Scores nothing" : s.blindMode === "fixed" ? `Blind score of ${s.blindFixed} per game` : `Blind score: their average minus ${s.blindOffset}` },
       { label: "Forfeit", value: s.forfeitPoints === "max_to_opponent" ? "Opponent receives the maximum points" : "No points are awarded" },
       { label: "Incomplete games", value: s.incompletePolicy === "block_finalize" ? "A matchup can't be finalized until every score is entered" : "Finalizing is allowed; only fully-scored games count" },
-      { label: usesPartners(cfg) ? "Sitting out" : "Bye week", value: `${pts(s.byePoints, "point")}` },
+      // A rotating-partners draw gives nobody a bye: an odd bowler bowls a 1v1 instead.
+      ...(usesPartners(cfg) ? [] : [{ label: "Bye week", value: `${pts(s.byePoints, "point")}` }]),
     ],
   });
 

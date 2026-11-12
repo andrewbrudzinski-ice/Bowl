@@ -80,7 +80,7 @@ function ResultTable({ r, ctx, names }: { r: MatchupResult; ctx: LeagueCtx; name
       <h3 className="sheet-match-head">
         <span>{sideName(r.a)} <span className="faint font-normal">vs</span> {sideName(r.b!)}</span>
         <span className="flex flex-wrap items-center gap-1.5">
-          {r.guest ? <Badge tone="info">EXTRA COMPARISON</Badge> : null}
+          {r.guest ? <Badge tone="info">{r.a.lineup.length === 1 ? "1V1" : "EXTRA COMPARISON"}</Badge> : null}
           {r.forfeitBy ? <Badge tone="warn">FORFEIT</Badge> : null}
           {status.label === "FINAL · CORRECTED" ? <Badge>CORRECTED</Badge> : null}
         </span>
@@ -140,7 +140,7 @@ function MatchCard({ m }: { m: SheetMatch }) {
   }
   return (
     <div className="sheet-match p-3">
-      {m.kind === "extra" ? <div className="mb-1.5"><Badge tone="info">EXTRA COMPARISON</Badge> <span className="faint text-[12px]">{m.a.name} bowl for points against {m.b!.name}&apos;s scores</span></div> : null}
+      {m.kind === "extra" ? <div className="mb-1.5"><Badge tone="info">{m.a.lineup.length === 1 ? "1V1" : "EXTRA COMPARISON"}</Badge> <span className="faint text-[12px]">{m.a.name} {m.a.lineup.length === 1 ? "bowls" : "bowl"} for points against {m.b!.name}&apos;s scores</span></div> : null}
       <div className="grid grid-cols-2 gap-x-4 gap-y-2">
         <Lineup side={m.a} />
         <Lineup side={m.b!} />

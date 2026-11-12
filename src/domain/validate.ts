@@ -84,9 +84,11 @@ export function validateEntry(
     if (new Set(lineup).size !== lineup.length)
       add({ severity: "error", code: "duplicate_score", side, message: "A bowler is listed twice in the same lineup." });
     if (matchup.kind === "team") {
-      if (lineup.length > cfg.bowlersPerTeam)
-        add({ severity: "error", code: "lineup_size", side, message: `${model.teamById.get(teamId)?.name ?? "Team"} has ${lineup.length} bowlers; this league allows ${cfg.bowlersPerTeam}.` });
-      if (lineup.length < cfg.bowlersPerTeam)
+      // The odd bowler's 1v1 is one bowler against one bowler.
+      const want = extra?.only && side === "A" ? 1 : cfg.bowlersPerTeam;
+      if (lineup.length > want)
+        add({ severity: "error", code: "lineup_size", side, message: want === 1 ? `${model.teamById.get(teamId)?.name ?? "The odd bowler"} bowls a 1v1: one bowler, not ${lineup.length}. Take the others out of the lineup.` : `${model.teamById.get(teamId)?.name ?? "Team"} has ${lineup.length} bowlers; this league allows ${cfg.bowlersPerTeam}.` });
+      if (lineup.length < want)
         add({ severity: opts.forFinalize && cfg.scoring.absentPolicy === "blind" ? "error" : "warning", code: "lineup_size", side, message: `${model.teamById.get(teamId)?.name ?? "Team"} has only ${lineup.length} of ${cfg.bowlersPerTeam} bowlers in the lineup. Add the missing bowlers and mark them absent if they did not bowl.` });
     }
     for (const id of lineup) {
@@ -158,7 +160,7 @@ export function validateEntry(
       add({ severity: opts.forFinalize ? "error" : "warning", code: "lineup_size", message: "Both sides need at least one bowler in the lineup." });
   }
   if (extra && opts.forFinalize && !isOfficial(extra.ref.state))
-    add({ severity: "error", code: "extra_pending", message: `Finalize ${model.teamById.get(matchup.sideB!)?.name ?? "the other pair"}'s matchup first: this extra comparison uses their scores.` });
+    add({ severity: "error", code: "extra_pending", message: `Finalize ${model.teamById.get(matchup.sideB!)?.name ?? "the other pair"}'s matchup first: this ${extra.only ? "1v1" : "extra comparison"} uses their scores.` });
   return issues;
 }
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CONFIG, normalizeConfig } from "@/domain/config";
 import { buildSeasonModel } from "@/domain/engine";
+import { guestLinks } from "@/domain/partners";
 import { buildWeeklySheet } from "@/domain/sheet";
 import { seasonData } from "@/server/access";
 import { createLeague } from "@/server/services/leagues";
@@ -38,7 +39,8 @@ const draw = (w: World, n: number, seed: number, bowlerIds = w.bowlerIds[0]) => 
 /** Everyone bowls `score` in every game, then every real match of the week is finalized (the extra comparison last, as it depends on the match it borrows). */
 async function bowlWeek(w: World, n: number, score = 190) {
   const ms = (await weekOf(w, n)).filter((m) => m.sideB);
-  const ordered = [...ms.filter((m) => !ms.some((o) => o.id !== m.id && o.sideA === m.sideB)), ...ms.filter((m) => ms.some((o) => o.id !== m.id && o.sideA === m.sideB))];
+  const links = guestLinks(ms);
+  const ordered = [...ms.filter((m) => !links.has(m.id)), ...ms.filter((m) => links.has(m.id))]; // comparisons last: they need the other match final
   for (const m of ordered) {
     const scores = (["A", "B"] as const).flatMap((side) => (side === "A" ? m.lineupA : m.lineupB).flatMap((bowlerId) => [1, 2, 3].map((g) => ({ bowlerId, side, game: g, scratch: score, kind: "bowled" as const }))));
     const fresh = (await weekOf(w, n)).find((x) => x.id === m.id)!;
@@ -67,13 +69,32 @@ describe("weekly sheet for rotating partners", () => {
     expect(s.bowlers.every((b) => b.teamName === null && b.average === 150 && b.handicap === 70)).toBe(true);
   });
 
-  it("puts anyone sitting out last, when there is an odd number of bowlers", async () => {
+  it("puts the odd bowler's 1v1 last, when there is an odd number of bowlers", async () => {
     const w = await league(9);
     await draw(w, 1, 3);
     const s = await sheet(w, 1);
-    expect(s.matchups.map((m) => m.kind)).toEqual(["match", "match", "bye"]);
-    expect(s.matchups[2].b).toBeNull();
-    expect(s.matchups[2].a.lineup).toHaveLength(1);
+    expect(s.matchups.map((m) => m.kind)).toEqual(["match", "match", "extra"]);
+    const [solo] = s.matchups.slice(2);
+    expect(solo.a.lineup).toHaveLength(1);
+    expect(solo.b!.lineup).toHaveLength(1);
+    // The odd bowler is compared with one bowler of a real match, named alone (not as a pair).
+    expect(s.matchups.slice(0, 2).flatMap((m) => [...m.a.lineup, ...m.b!.lineup]).map((b) => b.bowlerId)).toContain(solo.b!.lineup[0].bowlerId);
+    expect(solo.b!.name).not.toContain("&");
+    expect(s.bowlers).toHaveLength(9);
+  });
+
+  it("recaps last week's 1v1 with the other results, and counts the odd bowler's points", async () => {
+    const w = await league(9);
+    await draw(w, 1, 3);
+    await bowlWeek(w, 1);
+    await draw(w, 2, 4);
+    const s = await sheet(w, 2);
+    expect(s.previous!.results).toHaveLength(3);
+    const oneVOne = s.previous!.results.filter((r) => r.guest);
+    expect(oneVOne).toHaveLength(1);
+    expect(oneVOne[0].a.lineup).toHaveLength(1);
+    expect(oneVOne[0].b!.lineup).toHaveLength(1);
+    expect(s.standings!.length).toBe(9);
   });
 
   it("recaps last week with every match and the extra comparison, and moves averages and handicaps", async () => {
