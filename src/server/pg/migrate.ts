@@ -23,6 +23,15 @@ export async function migrate(client: SqlClient, opts: { dir?: string } = {}): P
     // Only one process may migrate at a time.
     await tx.query("select pg_advisory_xact_lock(7283562)");
     await tx.exec("create table if not exists schema_migrations (name text primary key, applied_at timestamptz not null default now())");
+    // The table lives in `public`, which Supabase exposes through its Data API. Row-level security with no policies keeps it closed to
+    // everyone but its owner (our own connection), as it is for every table the migrations create. Only the owner may switch it on, so
+    // anyone else running this leaves it alone instead of failing the migration.
+    await tx.exec(`do $$ begin
+      if exists (select 1 from pg_class where oid = 'schema_migrations'::regclass and not relrowsecurity) then
+        alter table schema_migrations enable row level security;
+      end if;
+    exception when insufficient_privilege then null;
+    end $$`);
     const hasAuth = (await tx.query<{ ok: boolean }>("select to_regnamespace('auth') is not null as ok")).rows[0].ok;
     const hasUid = hasAuth && (await tx.query<{ ok: boolean }>("select to_regprocedure('auth.uid()') is not null as ok")).rows[0].ok;
     if (!hasUid) await tx.exec(fs.readFileSync(PRELUDE_FILE, "utf8"));
